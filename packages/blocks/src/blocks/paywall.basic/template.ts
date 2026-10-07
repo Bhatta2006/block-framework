@@ -262,5 +262,6 @@ export function render(ctx: RenderContext): RenderedBlock {
     fileName: `${ctx.instanceId}.tsx`,
     content: variant === 'compact' ? renderCompact(ctx, configJson) : renderCards(ctx, configJson),
     acceptsOnComplete: true,
+    acceptsInput: false,
   };
 }

@@ -1,19 +1,31 @@
 #!/usr/bin/env node
 /**
- * blockc — the Block Framework M0 command line.
+ * blockc — the Block Framework command line.
  *
  *   blockc validate <graph.json>              validate graph + wiring
  *   blockc wires <graph.json>                 print the wiring report
  *   blockc compile <graph.json> --out <dir>   emit an Expo project
+ *   blockc sdk scaffold <id> --category <c>   scaffold a new block
+ *   blockc sdk validate [id]                  quality-gate every (or one) block
+ *   blockc sdk test [id]                      fast render contract check
  *
  * No step here involves an AI model. That is the point.
  */
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { loadDefaultRegistry } from '@blockfw/blocks';
+import { pathToFileURL } from 'node:url';
+import {
+  loadDefaultRegistry,
+  testBlock,
+  validateBlock,
+  loadSampleConfig,
+  writeScaffoldedBlock,
+  blockSourceDir,
+} from '@blockfw/blocks';
 import type { ProjectGraph } from '@blockfw/manifest';
 import { resolveWiring, type WiringResult } from '@blockfw/wiring';
+import { validateSpine, spineToSql, spineToTypes, type SpineFile } from '@blockfw/spine';
 import { compileProject } from './compile.js';
 
 function loadGraph(path: string): ProjectGraph {
@@ -59,10 +71,42 @@ function cmdValidate(graphPath: string): void {
   }
 }
 
-function cmdCompile(graphPath: string, outDir: string): void {
+function loadSpine(path: string): SpineFile {
+  const raw = readFileSync(resolve(path), 'utf8');
+  const spine = JSON.parse(raw) as unknown;
+  validateSpine(spine);
+  return spine;
+}
+
+function cmdSpine(args: string[], values: { out?: string }): void {
+  const [sub, spinePath] = args;
+  if (!spinePath) fail('spine requires a <spine.json> path');
+  const spine = loadSpine(spinePath);
+
+  if (sub === 'sql') {
+    process.stdout.write(spineToSql(spine));
+  } else if (sub === 'types') {
+    process.stdout.write(spineToTypes(spine));
+  } else if (sub === 'build') {
+    const out = values.out;
+    if (!out) fail('spine build requires --out <dir>');
+    const dir = resolve(out);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'migration.sql'), spineToSql(spine));
+    writeFileSync(join(dir, 'spine-types.ts'), spineToTypes(spine));
+    console.log(`spine built -> ${dir} (migration.sql, spine-types.ts)`);
+  } else {
+    fail(
+      'usage:\n  blockc spine sql <spine.json>\n  blockc spine types <spine.json>\n  blockc spine build <spine.json> --out <dir>',
+    );
+  }
+}
+
+function cmdCompile(graphPath: string, outDir: string, spinePath?: string): void {
   try {
     const graph = loadGraph(graphPath);
-    const result = compileProject(graph, loadDefaultRegistry());
+    const spine = spinePath ? loadSpine(spinePath) : undefined;
+    const result = compileProject(graph, loadDefaultRegistry(), spine);
     const out = resolve(outDir);
     for (const file of result.files) {
       const full = resolve(out, file.path);
@@ -77,34 +121,152 @@ function cmdCompile(graphPath: string, outDir: string): void {
   }
 }
 
-function main(): void {
+/**
+ * Load a block from the source tree (for scaffolded-but-unregistered blocks).
+ * Uses Node's native TypeScript support; the template must be self-contained.
+ */
+async function loadBlockFromDisk(id: string): Promise<{
+  manifest: unknown;
+  render: (ctx: unknown) => { content: string };
+  sample: unknown;
+} | null> {
+  const dir = join(blockSourceDir(), id);
+  const manifestPath = join(dir, 'manifest.json');
+  const templatePath = join(dir, 'template.ts');
+  const samplePath = join(dir, 'sample-config.json');
+  if (!existsSync(manifestPath) || !existsSync(templatePath) || !existsSync(samplePath)) {
+    return null;
+  }
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  const sample = JSON.parse(readFileSync(samplePath, 'utf8'));
+  const mod = (await import(pathToFileURL(templatePath).href)) as {
+    render?: (ctx: unknown) => { content: string };
+  };
+  if (typeof mod.render !== 'function') {
+    fail(`block "${id}" template.ts does not export a render function`);
+  }
+  return { manifest, render: mod.render as (ctx: unknown) => { content: string }, sample };
+}
+
+async function cmdSdk(args: string[], values: { category?: string }): Promise<void> {
+  const [sub, id] = args;
+  const registry = loadDefaultRegistry();
+
+  if (sub === 'scaffold' && id) {
+    const category = values.category ?? 'utility';
+    const created = writeScaffoldedBlock(id, category);
+    console.log(`scaffolded block "${id}":`);
+    for (const f of created) console.log(`  ${f}`);
+    console.log('next:');
+    console.log(`  1. blockc sdk test ${id}   (works before registration)`);
+    console.log(`  2. register it in packages/blocks/src/registry.ts`);
+    console.log(`  3. blockc sdk validate ${id}`);
+    return;
+  }
+
+  if (sub === 'validate' || sub === 'test') {
+    const check = sub === 'validate' ? validateBlock : testBlock;
+
+    if (id) {
+      // Single block: prefer the registry, fall back to the source tree
+      // (so scaffolded blocks pass `sdk test` before registration).
+      const reg = registry.entries().find((e) => e.manifest.id === id);
+      if (reg) {
+        const sample = loadSampleConfig(id);
+        const result = check(reg.manifest, reg.render, sample);
+        printSdkResult(result, sub);
+        if (!result.ok) process.exit(1);
+        return;
+      }
+      const disk = await loadBlockFromDisk(id);
+      if (!disk) fail(`unknown block id: ${id}`);
+      const result = check(disk.manifest, disk.render as Parameters<typeof check>[1], disk.sample);
+      printSdkResult(result, sub);
+      if (!result.ok) process.exit(1);
+      return;
+    }
+
+    // All registered blocks.
+    let failed = 0;
+    for (const e of registry.entries()) {
+      const sample = loadSampleConfig(e.manifest.id);
+      const result = check(e.manifest, e.render, sample);
+      printSdkResult(result, sub);
+      if (!result.ok) failed++;
+    }
+    if (failed > 0) {
+      console.error(`${failed} block(s) failed ${sub}`);
+      process.exit(1);
+    }
+    console.log(`all ${registry.size()} block(s) passed ${sub}`);
+    return;
+  }
+
+  fail(
+    'usage:\n' +
+      '  blockc sdk scaffold <block-id> --category <category>\n' +
+      '  blockc sdk validate [block-id]\n' +
+      '  blockc sdk test [block-id]',
+  );
+}
+
+function printSdkResult(
+  result: { block: string; ok: boolean; issues: { path: string; message: string }[] },
+  sub: string,
+): void {
+  void sub;
+  const mark = result.ok ? 'PASS' : 'FAIL';
+  console.log(`${mark} ${result.block}`);
+  for (const issue of result.issues) {
+    console.log(`     ${issue.path}: ${issue.message}`);
+  }
+}
+
+async function main(): Promise<void> {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
-    options: { out: { type: 'string', short: 'o' } },
+    options: {
+      out: { type: 'string', short: 'o' },
+      category: { type: 'string' },
+      spine: { type: 'string' },
+    },
   });
-  const [command, graphPath] = positionals;
-  if (command === 'validate' && graphPath) {
-    cmdValidate(graphPath);
-  } else if (command === 'wires' && graphPath) {
+  const [command, ...rest] = positionals;
+  if (command === 'validate' && rest[0]) {
+    cmdValidate(rest[0]);
+  } else if (command === 'wires' && rest[0]) {
     try {
-      const wiring = resolveWiring(loadGraph(graphPath), loadDefaultRegistry());
+      const wiring = resolveWiring(loadGraph(rest[0]), loadDefaultRegistry());
       printWiring(wiring);
     } catch (err) {
       fail(err instanceof Error ? err.message : String(err));
     }
-  } else if (command === 'compile' && graphPath) {
+  } else if (command === 'compile' && rest[0]) {
     const out = values.out;
     if (!out) fail('compile requires --out <dir>');
-    cmdCompile(graphPath, out);
+    cmdCompile(rest[0], out, values.spine);
+  } else if (command === 'sdk') {
+    await cmdSdk(rest, { category: values.category });
+  } else if (command === 'spine') {
+    cmdSpine(rest, { out: values.out });
   } else {
     console.error(
       'usage:\n' +
         '  blockc validate <graph.json>\n' +
         '  blockc wires <graph.json>\n' +
-        '  blockc compile <graph.json> --out <dir>',
+        '  blockc compile <graph.json> --out <dir> [--spine <spine.json>]\n' +
+        '  blockc sdk scaffold <block-id> --category <category>\n' +
+        '  blockc sdk validate [block-id]\n' +
+        '  blockc sdk test [block-id]\n' +
+        '  blockc spine sql <spine.json>\n' +
+        '  blockc spine types <spine.json>\n' +
+        '  blockc spine build <spine.json> --out <dir>',
     );
     process.exit(2);
   }
 }
 
-main();
+main().catch((err) => {
+  console.error(`error: ${err instanceof Error ? err.message : String(err)}`);
+  process.exit(1);
+});

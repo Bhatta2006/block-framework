@@ -2,7 +2,7 @@ import { canonicalJson } from '../../canonical.js';
 import type { RenderContext, RenderedBlock } from '../../types.js';
 
 const HEADER = `import React from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { theme } from '../theme';
 
 export interface HomeItem {
@@ -15,6 +15,10 @@ export interface HomeConfig {
   title: string;
   subtitle?: string;
   items: HomeItem[];
+}
+
+export interface HomeItemSelected {
+  item: HomeItem;
 }
 `;
 
@@ -66,7 +70,7 @@ function renderList(ctx: RenderContext, configJson: string): string {
   return `${HEADER}
 const CONFIG: HomeConfig = ${configJson};
 
-export function ${name}() {
+export function ${name}({ onComplete }: { onComplete?: (output: HomeItemSelected) => void }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{CONFIG.title}</Text>
@@ -75,10 +79,10 @@ export function ${name}() {
         data={CONFIG.items}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <Pressable style={styles.card} onPress={() => onComplete?.({ item })}>
             <Text style={styles.itemTitle}>{item.title}</Text>
             {item.subtitle ? <Text style={styles.itemSubtitle}>{item.subtitle}</Text> : null}
-          </View>
+          </Pressable>
         )}
       />
     </View>
@@ -92,7 +96,7 @@ function renderGrid(ctx: RenderContext, configJson: string): string {
   return `${HEADER}
 const CONFIG: HomeConfig = ${configJson};
 
-export function ${name}() {
+export function ${name}({ onComplete }: { onComplete?: (output: HomeItemSelected) => void }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{CONFIG.title}</Text>
@@ -102,10 +106,10 @@ export function ${name}() {
         numColumns={2}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <View style={[styles.card, styles.gridCard]}>
+          <Pressable style={[styles.card, styles.gridCard]} onPress={() => onComplete?.({ item })}>
             <Text style={styles.itemTitle}>{item.title}</Text>
             {item.subtitle ? <Text style={styles.itemSubtitle}>{item.subtitle}</Text> : null}
-          </View>
+          </Pressable>
         )}
       />
     </View>
@@ -120,6 +124,7 @@ export function render(ctx: RenderContext): RenderedBlock {
   return {
     fileName: `${ctx.instanceId}.tsx`,
     content: variant === 'grid' ? renderGrid(ctx, configJson) : renderList(ctx, configJson),
-    acceptsOnComplete: false,
+    acceptsOnComplete: true,
+    acceptsInput: false,
   };
 }

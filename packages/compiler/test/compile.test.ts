@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadDefaultRegistry } from '@blockfw/blocks';
-import { compileProject, hashFiles, PINNED_DEPS } from '@blockfw/compiler';
+import { compileProject, hashFiles, PINNED_DEPS, PINNED_DEV_DEPS } from '@blockfw/compiler';
 import type { ProjectGraph } from '@blockfw/manifest';
 import { diffFiles } from '@blockfw/benchmark';
 import baseGraphJson from '../../benchmark/src/base/graph.json' with { type: 'json' };
@@ -94,10 +94,16 @@ describe('compileProject', () => {
     const result = compileProject(baseGraph(), loadDefaultRegistry());
     const pkg = JSON.parse(
       result.files.find((f) => f.path === 'package.json')?.content ?? '{}',
-    ) as { dependencies: Record<string, string> };
+    ) as { dependencies: Record<string, string>; devDependencies: Record<string, string> };
     for (const [name, version] of Object.entries(PINNED_DEPS)) {
       expect(pkg.dependencies[name]).toBe(version);
     }
+    for (const [name, version] of Object.entries(PINNED_DEV_DEPS)) {
+      expect(pkg.devDependencies[name]).toBe(version);
+    }
+    // babel-preset-expo must be a direct devDependency: babel resolves
+    // presets from the project root, and without it `expo export` fails.
+    expect(pkg.devDependencies['babel-preset-expo']).toBeDefined();
   });
 
   it('rejects component name collisions', () => {

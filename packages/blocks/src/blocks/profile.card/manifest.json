@@ -1,0 +1,34 @@
+{
+  "category": "profile",
+  "config": {
+    "additionalProperties": false,
+    "properties": {
+      "bio": { "type": "string" },
+      "handle": { "type": "string" },
+      "name": { "minLength": 1, "type": "string" },
+      "stats": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "label": { "minLength": 1, "type": "string" },
+            "value": { "minLength": 1, "type": "string" }
+          },
+          "required": ["label", "value"],
+          "type": "object"
+        },
+        "maxItems": 6,
+        "type": "array"
+      }
+    },
+    "required": ["name"],
+    "type": "object"
+  },
+  "defaultConfig": { "bio": "", "handle": "", "stats": [] },
+  "defaultVariant": "card",
+  "editSurface": ["config.name", "config.handle", "config.bio", "config.stats"],
+  "id": "profile.card",
+  "locked": ["ports", "variants"],
+  "ports": { "consumes": ["app.launched"], "emits": [], "provides": [] },
+  "variants": ["card", "compact"],
+  "version": "1.0.0"
+}

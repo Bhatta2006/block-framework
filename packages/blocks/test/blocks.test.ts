@@ -20,16 +20,23 @@ function ctxFor(
     config,
     theme: THEME,
     onCompleteTarget: 's2',
+    inputType: null,
+    inputEvent: null,
   };
 }
 
 describe('default registry', () => {
-  it('loads the three M0 blocks', () => {
+  it('loads the eight library blocks', () => {
     const registry = loadDefaultRegistry();
-    expect(registry.size()).toBe(3);
+    expect(registry.size()).toBe(8);
     expect(registry.has('onboarding.quiz@1.0.0')).toBe(true);
     expect(registry.has('paywall.basic@1.0.0')).toBe(true);
     expect(registry.has('home.list@1.0.0')).toBe(true);
+    expect(registry.has('settings.list@1.0.0')).toBe(true);
+    expect(registry.has('profile.card@1.0.0')).toBe(true);
+    expect(registry.has('auth.email@1.0.0')).toBe(true);
+    expect(registry.has('content.detail@1.0.0')).toBe(true);
+    expect(registry.has('stats.overview@1.0.0')).toBe(true);
   });
 
   it('throws a helpful error for unknown block types', () => {

@@ -6,7 +6,14 @@
   "properties": {
     "backend": {
       "additionalProperties": false,
-      "properties": { "routes": { "type": "array" }, "tables": { "type": "array" } },
+      "properties": {
+        "routes": {
+          "type": "array"
+        },
+        "tables": {
+          "type": "array"
+        }
+      },
       "type": "object"
     },
     "category": {
@@ -30,11 +37,17 @@
       "description": "JSON Schema describing the block's user-editable configuration.",
       "type": "object"
     },
-    "defaultConfig": { "type": "object" },
-    "defaultVariant": { "type": "string" },
+    "defaultConfig": {
+      "type": "object"
+    },
+    "defaultVariant": {
+      "type": "string"
+    },
     "editSurface": {
       "description": "File globs the Block Editor agent may touch. Everything else is locked.",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "minItems": 1,
       "type": "array"
     },
@@ -45,18 +58,71 @@
     },
     "locked": {
       "description": "File globs the agent must never touch.",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "type": "array"
     },
     "ports": {
       "additionalProperties": false,
       "properties": {
-        "consumes": { "items": { "type": "string" }, "type": "array" },
-        "emits": { "items": { "type": "string" }, "type": "array" },
+        "consumes": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": ["port"],
+                "properties": {
+                  "port": {
+                    "type": "string"
+                  },
+                  "accepts": {
+                    "type": "object"
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "emits": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": ["event"],
+                "properties": {
+                  "event": {
+                    "type": "string"
+                  },
+                  "payload": {
+                    "type": "object"
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
         "provides": {
           "items": {
             "additionalProperties": false,
-            "properties": { "entity": { "type": "string" }, "type": { "type": "string" } },
+            "properties": {
+              "entity": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              }
+            },
             "required": ["entity"],
             "type": "object"
           },
@@ -65,7 +131,14 @@
         "requires": {
           "items": {
             "additionalProperties": false,
-            "properties": { "entity": { "type": "string" }, "optional": { "type": "boolean" } },
+            "properties": {
+              "entity": {
+                "type": "string"
+              },
+              "optional": {
+                "type": "boolean"
+              }
+            },
             "required": ["entity"],
             "type": "object"
           },
@@ -75,9 +148,14 @@
       "required": ["emits", "consumes"],
       "type": "object"
     },
-    "slots": { "type": "object" },
+    "slots": {
+      "type": "object"
+    },
     "variants": {
-      "items": { "pattern": "^[a-z][a-z0-9-]*$", "type": "string" },
+      "items": {
+        "pattern": "^[a-z][a-z0-9-]*$",
+        "type": "string"
+      },
       "minItems": 1,
       "type": "array"
     },

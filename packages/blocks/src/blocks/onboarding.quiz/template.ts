@@ -8,7 +8,7 @@ import { theme } from '../theme';
 export interface QuizQuestion {
   prompt: string;
   options: string[];
-  multi: boolean;
+  multi?: boolean;
 }
 
 export interface QuizConfig {
@@ -178,7 +178,7 @@ export function ${name}({ onComplete }: ${name}Props) {
         return (
           <Pressable
             key={option}
-            onPress={() => toggle(option, question.multi)}
+            onPress={() => toggle(option, question.multi ?? false)}
             style={({ pressed }) => [
               styles.option,
               isSelected && styles.optionSelected,
@@ -254,7 +254,7 @@ export function ${name}({ onComplete }: ${name}Props) {
               return (
                 <Pressable
                   key={option}
-                  onPress={() => toggle(qIndex, option, question.multi)}
+                  onPress={() => toggle(qIndex, option, question.multi ?? false)}
                   style={({ pressed }) => [
                     styles.option,
                     isSelected && styles.optionSelected,
@@ -305,5 +305,6 @@ export function render(ctx: RenderContext): RenderedBlock {
     fileName: `${ctx.instanceId}.tsx`,
     content: variant === 'quiz-list' ? renderList(ctx, configJson) : renderCards(ctx, configJson),
     acceptsOnComplete: true,
+    acceptsInput: false,
   };
 }

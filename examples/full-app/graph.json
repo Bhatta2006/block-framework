@@ -1,0 +1,227 @@
+{
+  "app": {
+    "name": "Habitual Pro",
+    "slug": "habitual-pro",
+    "theme": {
+      "backgroundColor": "#FFFFFF",
+      "primaryColor": "#4F46E5",
+      "textColor": "#111827"
+    },
+    "version": "1.0.0"
+  },
+  "blocks": [
+    {
+      "config": {
+        "ctaText": "Sign in",
+        "headline": "Welcome back",
+        "subheadline": "Sign in to continue to your account."
+      },
+      "id": "b1",
+      "type": "auth.email@1.0.0",
+      "variant": "signin"
+    },
+    {
+      "config": {
+        "questions": [
+          {
+            "options": ["Build a habit", "Break a habit", "Stay consistent"],
+            "prompt": "What brings you here?"
+          },
+          {
+            "multi": true,
+            "options": ["Morning", "Afternoon", "Evening"],
+            "prompt": "When do you want reminders?"
+          }
+        ]
+      },
+      "id": "b2",
+      "type": "onboarding.quiz@1.0.0"
+    },
+    {
+      "config": {
+        "ctaText": "Start my free trial",
+        "headline": "Unlock your full potential",
+        "products": [
+          {
+            "id": "monthly",
+            "period": "month",
+            "price": "$4.99",
+            "title": "Monthly"
+          }
+        ]
+      },
+      "id": "b3",
+      "type": "paywall.basic@1.0.0"
+    },
+    {
+      "config": {
+        "items": [
+          {
+            "id": "1",
+            "subtitle": "Drink 8 glasses of water",
+            "title": "Morning hydration"
+          },
+          {
+            "id": "2",
+            "subtitle": "Read for 20 minutes",
+            "title": "Deep work"
+          },
+          {
+            "id": "3",
+            "subtitle": "Walk after dinner",
+            "title": "Evening reset"
+          }
+        ],
+        "subtitle": "Your habits for today",
+        "title": "Today"
+      },
+      "id": "b4",
+      "type": "home.list@1.0.0"
+    },
+    {
+      "config": {
+        "ctaText": "Start now",
+        "showImage": true
+      },
+      "id": "b5",
+      "type": "content.detail@1.0.0",
+      "variant": "article"
+    },
+    {
+      "config": {
+        "stats": [
+          {
+            "delta": "+2 this week",
+            "label": "Day streak",
+            "value": "12"
+          },
+          {
+            "delta": "+3 this week",
+            "label": "Active habits",
+            "value": "8"
+          },
+          {
+            "delta": "+12% vs last week",
+            "label": "Completion",
+            "value": "96%"
+          }
+        ],
+        "title": "Your progress"
+      },
+      "id": "b6",
+      "type": "stats.overview@1.0.0"
+    },
+    {
+      "config": {
+        "bio": "Building better habits, one day at a time.",
+        "handle": "@habitbuilder",
+        "name": "Alex Morgan",
+        "stats": [
+          {
+            "label": "Day streak",
+            "value": "12"
+          },
+          {
+            "label": "Habits",
+            "value": "8"
+          },
+          {
+            "label": "Completed",
+            "value": "96"
+          }
+        ]
+      },
+      "id": "b7",
+      "type": "profile.card@1.0.0"
+    },
+    {
+      "config": {
+        "sections": [
+          {
+            "rows": [
+              {
+                "id": "notifications",
+                "kind": "toggle",
+                "label": "Notifications",
+                "value": true
+              },
+              {
+                "id": "reminders",
+                "kind": "toggle",
+                "label": "Reminders",
+                "value": true
+              }
+            ],
+            "title": "Preferences"
+          },
+          {
+            "rows": [
+              {
+                "id": "profile",
+                "kind": "link",
+                "label": "Edit profile"
+              },
+              {
+                "detail": "v1.0.0",
+                "id": "about",
+                "kind": "link",
+                "label": "About"
+              }
+            ],
+            "title": "Account"
+          }
+        ],
+        "title": "Settings"
+      },
+      "id": "b8",
+      "type": "settings.list@1.0.0"
+    }
+  ],
+  "schemaVersion": "0",
+  "screens": [
+    {
+      "block": "b1",
+      "id": "s1",
+      "title": "Sign in"
+    },
+    {
+      "block": "b2",
+      "id": "s2",
+      "title": "Welcome"
+    },
+    {
+      "block": "b3",
+      "id": "s3",
+      "title": "Go Premium"
+    },
+    {
+      "block": "b4",
+      "id": "s4",
+      "title": "Home"
+    },
+    {
+      "block": "b5",
+      "id": "s5",
+      "title": "Details"
+    },
+    {
+      "block": "b6",
+      "id": "s6",
+      "title": "Progress",
+      "lane": "tabs"
+    },
+    {
+      "block": "b7",
+      "id": "s7",
+      "title": "Profile",
+      "lane": "tabs"
+    },
+    {
+      "block": "b8",
+      "id": "s8",
+      "title": "Settings",
+      "lane": "tabs"
+    }
+  ],
+  "wires": []
+}

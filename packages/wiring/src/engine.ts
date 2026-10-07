@@ -2,7 +2,11 @@ import {
   parseBlockType,
   validateBlockConfig,
   validateProjectGraph,
+  normalizeEmits,
+  normalizeConsumes,
   type BlockManifest,
+  type ConsumePort,
+  type EventPort,
   type ProjectGraph,
 } from '@blockfw/manifest';
 import type { BlockRegistry } from '@blockfw/blocks';
@@ -28,23 +32,54 @@ interface ResolvedInstance {
   variant: string;
   config: Record<string, unknown>;
   screenId: string;
+  emits: EventPort[];
+  consumes: ConsumePort[];
+}
+
+/**
+ * Check that an emitter's payload satisfies a consumer's accepted shape.
+ * Returns a human-readable issue, or null when compatible (or when either
+ * side declares no schema — undeclared payloads are not checked).
+ */
+function checkPayload(emitter: EventPort, consumer: ConsumePort): string | null {
+  const payload = emitter.payload;
+  const accepts = consumer.accepts;
+  if (!payload || !accepts) return null;
+  if (payload.type !== undefined && payload.type !== 'object') return null;
+  if (accepts.type !== undefined && accepts.type !== 'object') return null;
+  const props = payload.properties ?? {};
+  const acceptProps = accepts.properties ?? {};
+  for (const req of accepts.required ?? []) {
+    const provided = props[req];
+    if (!provided) {
+      return (
+        `consumer requires property "${req}" but the "${emitter.event}" ` +
+        `payload declares no such property`
+      );
+    }
+    const want = acceptProps[req]?.type;
+    const have = provided.type;
+    if (want && have && want !== have) {
+      return `type mismatch for "${req}": consumer expects ${want}, emitter provides ${have}`;
+    }
+  }
+  return null;
 }
 
 /**
  * Resolve a project graph into concrete wires, deterministically and with
  * zero AI involvement.
  *
- * Steps:
- *  1. Validate the graph schema.
- *  2. Resolve every block instance against the registry; validate its
- *     config against the block's own config schema.
- *  3. Check requires/provides (platform entities + optional-service warnings).
- *  4. Route events: explicit user wires win; otherwise an event emitted on a
- *     non-last screen auto-wires to the next screen; events on the last
- *     screen are terminal and intentionally go nowhere.
- *  5. Check consumes against the convention table.
+ * Routing, in precedence order:
+ *  1. Explicit user wires win (validated strictly).
+ *  2. Semantic match: the event name matches exactly one other block's
+ *     consumed port → auto-wire to that block (payload-checked).
+ *  3. Convention fallback: no consumer declares the event → route to the
+ *     next screen in flow order (the M0 behavior, kept for navigation).
+ *  4. Terminal: last screen with no consumer → note, not an error.
  *
- * Any unmet wire, ambiguous wire, or unmet non-optional requirement throws.
+ * Multiple consumers (or multiple explicit targets) for one event is
+ * ambiguous and fails loudly. Payload mismatches fail loudly.
  */
 export function resolveWiring(graph: ProjectGraph, registry: BlockRegistry): WiringResult {
   validateProjectGraph(graph);
@@ -56,6 +91,7 @@ export function resolveWiring(graph: ProjectGraph, registry: BlockRegistry): Wir
     unmetRequirements: [],
     warnings: [],
     notes: [],
+    flow: { entry: '', screens: [], reachable: [], unreachable: [] },
   };
 
   // --- index screens and instances -----------------------------------------
@@ -94,8 +130,17 @@ export function resolveWiring(graph: ProjectGraph, registry: BlockRegistry): Wir
           issues.map((i) => `  ${i.path}: ${i.message}`).join('\n'),
       );
     }
-    instances.push({ id: inst.id, manifest, variant, config, screenId: screen.id });
+    instances.push({
+      id: inst.id,
+      manifest,
+      variant,
+      config,
+      screenId: screen.id,
+      emits: normalizeEmits(manifest.ports.emits),
+      consumes: normalizeConsumes(manifest.ports.consumes),
+    });
   }
+  const instanceByInstanceId = new Map(instances.map((i) => [i.id, i]));
 
   // Instances that exist but are placed on no screen are ignored by the
   // compiler. Note it loudly rather than failing: the library is the palette,
@@ -134,8 +179,24 @@ export function resolveWiring(graph: ProjectGraph, registry: BlockRegistry): Wir
     );
   }
 
+  // --- consumer index: event name -> instances consuming it -------------------
+  const consumerIndex = new Map<string, ResolvedInstance[]>();
+  const emitterIndex = new Map<string, ResolvedInstance[]>();
+  for (const inst of instances) {
+    for (const c of inst.consumes) {
+      const list = consumerIndex.get(c.port) ?? [];
+      list.push(inst);
+      consumerIndex.set(c.port, list);
+    }
+    for (const e of inst.emits) {
+      const list = emitterIndex.get(e.event) ?? [];
+      list.push(inst);
+      emitterIndex.set(e.event, list);
+    }
+  }
+
   // --- event routing ---------------------------------------------------------
-  const userWires = new Map<string, { screen: string }[]>();
+  const userWires = new Map<string, { screen: string; instance?: string; port?: string }[]>();
   for (const wire of graph.wires ?? []) {
     if (!screenById.has(wire.to.screen)) {
       throw new WiringError(
@@ -149,49 +210,131 @@ export function resolveWiring(graph: ProjectGraph, registry: BlockRegistry): Wir
     }
     const key = `${wire.from.instance}.${wire.from.event}`;
     const list = userWires.get(key) ?? [];
-    list.push({ screen: wire.to.screen });
+    list.push({ screen: wire.to.screen, instance: wire.to.instance, port: wire.to.port });
     userWires.set(key, list);
   }
 
   let wireSeq = 0;
   const nextWireId = () => `w${++wireSeq}`;
 
+  /** Resolve the semantic consumer for an explicit wire target. */
+  function resolveExplicitConsumer(
+    key: string,
+    ep: EventPort,
+    target: { screen: string; instance?: string; port?: string },
+  ): { consumer?: ResolvedInstance; port?: ConsumePort } {
+    if (target.instance !== undefined) {
+      const consumer = instanceByInstanceId.get(target.instance);
+      if (!consumer) {
+        throw new WiringError(`Wire ${key} targets unknown block instance "${target.instance}".`);
+      }
+      if (consumer.screenId !== target.screen) {
+        throw new WiringError(
+          `Wire ${key} targets instance "${target.instance}" on screen "${consumer.screenId}", ` +
+            `not "${target.screen}".`,
+        );
+      }
+      const portName = target.port ?? ep.event;
+      const port = consumer.consumes.find((c) => c.port === portName);
+      if (!port) {
+        throw new WiringError(
+          `Wire ${key} targets port "${portName}" but instance "${target.instance}" does not consume it.`,
+        );
+      }
+      return { consumer, port };
+    }
+    const onScreen = instances.filter(
+      (i) => i.screenId === target.screen && i.consumes.some((c) => c.port === ep.event),
+    );
+    if (onScreen.length > 1) {
+      report.ambiguous.push({
+        instance: key.split('.')[0] ?? key,
+        event: ep.event,
+        candidates: onScreen.map((i) => `${i.id} (screen "${target.screen}")`),
+      });
+      return {};
+    }
+    if (onScreen.length === 1) {
+      const consumer = onScreen[0] as ResolvedInstance;
+      return { consumer, port: consumer.consumes.find((c) => c.port === ep.event) };
+    }
+    return {};
+  }
+
   for (const inst of instances) {
-    for (const event of inst.manifest.ports.emits) {
-      const key = `${inst.id}.${event}`;
+    for (const ep of inst.emits) {
+      const key = `${inst.id}.${ep.event}`;
       const explicit = userWires.get(key) ?? [];
 
       if (explicit.length > 1) {
         report.ambiguous.push({
           instance: inst.id,
-          event,
+          event: ep.event,
           candidates: explicit.map((e) => e.screen),
         });
         continue;
       }
-      const explicitTarget = explicit.length === 1 ? explicit[0]?.screen : undefined;
-      const nextScreen = screenOrder[screenOrder.indexOf(inst.screenId) + 1];
 
-      if (explicitTarget !== undefined) {
+      if (explicit.length === 1) {
+        const target = explicit[0] as { screen: string; instance?: string; port?: string };
+        const { consumer, port } = resolveExplicitConsumer(key, ep, target);
+        if (report.ambiguous.length > 0) continue;
+        if (consumer && port) {
+          const issue = checkPayload(ep, port);
+          if (issue) {
+            throw new WiringError(`Wire ${key} -> ${consumer.id}.${port.port}: ${issue}.`);
+          }
+        }
         report.resolved.push({
           id: nextWireId(),
-          from: { instance: inst.id, event },
-          to: { screen: explicitTarget },
+          from: { instance: inst.id, event: ep.event },
+          to: { screen: target.screen, instance: consumer?.id, port: port?.port },
           origin: 'user',
-          reason: 'explicit wire in project graph',
+          reason:
+            consumer && port
+              ? `explicit wire to ${consumer.id}.${port.port}`
+              : 'explicit wire in project graph',
         });
-      } else if (nextScreen !== undefined) {
+        continue;
+      }
+
+      // No explicit wire: semantic match, then convention fallback.
+      const consumers = (consumerIndex.get(ep.event) ?? []).filter((c) => c.id !== inst.id);
+      if (consumers.length === 1) {
+        const consumer = consumers[0] as ResolvedInstance;
+        const port = consumer.consumes.find((c) => c.port === ep.event) as ConsumePort;
+        const issue = checkPayload(ep, port);
+        if (issue) {
+          throw new WiringError(`Auto-wire ${key} -> ${consumer.id}.${port.port}: ${issue}.`);
+        }
         report.resolved.push({
           id: nextWireId(),
-          from: { instance: inst.id, event },
-          to: { screen: nextScreen },
+          from: { instance: inst.id, event: ep.event },
+          to: { screen: consumer.screenId, instance: consumer.id, port: port.port },
           origin: 'auto',
-          reason: `convention: event on non-terminal screen routes to next screen ("${nextScreen}")`,
+          reason: `semantic: "${consumer.id}" consumes "${ep.event}"`,
+        });
+      } else if (consumers.length > 1) {
+        report.ambiguous.push({
+          instance: inst.id,
+          event: ep.event,
+          candidates: consumers.map((c) => `${c.id} (screen "${c.screenId}")`),
         });
       } else {
-        report.notes.push(
-          `Event "${event}" on "${inst.id}" is terminal (last screen) and intentionally routes nowhere.`,
-        );
+        const nextScreen = screenOrder[screenOrder.indexOf(inst.screenId) + 1];
+        if (nextScreen !== undefined) {
+          report.resolved.push({
+            id: nextWireId(),
+            from: { instance: inst.id, event: ep.event },
+            to: { screen: nextScreen },
+            origin: 'auto',
+            reason: `convention: no block consumes "${ep.event}"; routes to next screen ("${nextScreen}")`,
+          });
+        } else {
+          report.notes.push(
+            `Event "${ep.event}" on "${inst.id}" is terminal (last screen) and intentionally routes nowhere.`,
+          );
+        }
       }
     }
   }
@@ -207,16 +350,16 @@ export function resolveWiring(graph: ProjectGraph, registry: BlockRegistry): Wir
 
   // --- consumes --------------------------------------------------------------
   for (const inst of instances) {
-    for (const port of inst.manifest.ports.consumes) {
-      const convention = CONVENTION_CONSUMES[port];
+    for (const c of inst.consumes) {
+      const convention = CONVENTION_CONSUMES[c.port];
       if (convention) {
-        report.notes.push(`Consume port "${port}" on "${inst.id}": ${convention}.`);
-      } else {
-        report.unmet.push({
-          instance: inst.id,
-          event: port,
-          reason: `no convention or wire satisfies consumed port "${port}"`,
-        });
+        report.notes.push(`Consume port "${c.port}" on "${inst.id}": ${convention}.`);
+      } else if (!(emitterIndex.get(c.port) ?? []).some((e) => e.id !== inst.id)) {
+        // A named event port with no emitter anywhere: it simply never fires.
+        // Not an error — the block just never receives this event.
+        report.notes.push(
+          `Consume port "${c.port}" on "${inst.id}" has no emitter in this graph; it will never fire.`,
+        );
       }
     }
   }
@@ -226,15 +369,55 @@ export function resolveWiring(graph: ProjectGraph, registry: BlockRegistry): Wir
     );
   }
 
+  // --- flow analysis (Flow Lanes) --------------------------------------------
+  const screenOfInstance = new Map(instances.map((i) => [i.id, i.screenId]));
+  const adjacency = new Map<string, Set<string>>();
+  for (const w of report.resolved) {
+    const fromScreen = screenOfInstance.get(w.from.instance);
+    if (fromScreen === undefined) continue;
+    const set = adjacency.get(fromScreen) ?? new Set<string>();
+    set.add(w.to.screen);
+    adjacency.set(fromScreen, set);
+  }
+  const entry = screenOrder[0] as string;
+  const reachable: string[] = [];
+  const seen = new Set<string>([entry]);
+  const queue = [entry];
+  while (queue.length > 0) {
+    const cur = queue.shift() as string;
+    reachable.push(cur);
+    for (const next of adjacency.get(cur) ?? []) {
+      if (!seen.has(next)) {
+        seen.add(next);
+        queue.push(next);
+      }
+    }
+  }
+  // Screens in a non-"main" lane (e.g. "tabs") are reachable outside the
+  // event flow — tab bar, drawer, deep link — so they are not flagged.
+  const laneOf = new Map(graph.screens.map((s) => [s.id, s.lane ?? 'main']));
+  const unreachable = screenOrder.filter((s) => !seen.has(s) && laneOf.get(s) === 'main');
+  const laneScreens = graph.screens.filter((s) => (s.lane ?? 'main') !== 'main').map((s) => s.id);
+  report.flow = {
+    entry,
+    screens: graph.screens.map((s) => ({ id: s.id, title: s.title, block: s.block })),
+    reachable,
+    unreachable,
+  };
+  for (const s of unreachable) {
+    report.warnings.push(
+      `Screen "${s}" is not reachable from the entry screen ("${entry}"); it will still be compiled.`,
+    );
+  }
+  if (laneScreens.length > 0) {
+    report.flow.lanes = [...new Set(graph.screens.map((s) => s.lane ?? 'main'))];
+  }
+
   const wires: Wire[] = report.resolved;
   return { wires, report };
 }
 
-/**
- * Map each block instance to its navigation target: the screen its
- * onComplete prop navigates to. When an instance emits several events routed
- * to different screens, the first emitted event wins (deterministic).
- */
+/** Map each block instance to the screen its primary event navigates to. */
 export function navigationTargets(result: WiringResult): Map<string, string> {
   const targets = new Map<string, string>();
   for (const wire of result.wires) {

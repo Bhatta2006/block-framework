@@ -1,0 +1,39 @@
+{
+  "category": "home",
+  "config": {
+    "additionalProperties": false,
+    "properties": { "ctaText": { "type": "string" }, "showImage": { "type": "boolean" } },
+    "type": "object"
+  },
+  "defaultConfig": { "ctaText": "Get started", "showImage": true },
+  "defaultVariant": "article",
+  "editSurface": ["config.ctaText", "config.showImage"],
+  "id": "content.detail",
+  "locked": ["ports", "variants"],
+  "ports": {
+    "consumes": [
+      {
+        "accepts": {
+          "properties": {
+            "item": {
+              "properties": {
+                "id": { "type": "string" },
+                "subtitle": { "type": "string" },
+                "title": { "type": "string" }
+              },
+              "required": ["id", "title"],
+              "type": "object"
+            }
+          },
+          "required": ["item"],
+          "type": "object"
+        },
+        "port": "home.itemSelected"
+      }
+    ],
+    "emits": [],
+    "provides": []
+  },
+  "variants": ["article", "product"],
+  "version": "1.0.0"
+}

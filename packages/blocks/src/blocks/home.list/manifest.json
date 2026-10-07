@@ -7,9 +7,17 @@
         "items": {
           "additionalProperties": false,
           "properties": {
-            "id": { "minLength": 1, "type": "string" },
-            "subtitle": { "type": "string" },
-            "title": { "minLength": 1, "type": "string" }
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "subtitle": {
+              "type": "string"
+            },
+            "title": {
+              "minLength": 1,
+              "type": "string"
+            }
           },
           "required": ["id", "title"],
           "type": "object"
@@ -18,8 +26,13 @@
         "minItems": 1,
         "type": "array"
       },
-      "subtitle": { "type": "string" },
-      "title": { "minLength": 1, "type": "string" }
+      "subtitle": {
+        "type": "string"
+      },
+      "title": {
+        "minLength": 1,
+        "type": "string"
+      }
     },
     "required": ["title", "items"],
     "type": "object"
@@ -28,7 +41,36 @@
   "editSurface": ["src/blocks/<instance>.tsx"],
   "id": "home.list",
   "locked": ["src/services/*", "src/navigation.tsx", "src/theme.ts"],
-  "ports": { "consumes": ["app.launched"], "emits": [], "provides": [] },
+  "ports": {
+    "consumes": ["app.launched"],
+    "emits": [
+      {
+        "event": "home.itemSelected",
+        "payload": {
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "subtitle": {
+                  "type": "string"
+                }
+              },
+              "required": ["id", "title"]
+            }
+          },
+          "required": ["item"]
+        }
+      }
+    ],
+    "provides": []
+  },
   "variants": ["list", "grid"],
   "version": "1.0.0"
 }

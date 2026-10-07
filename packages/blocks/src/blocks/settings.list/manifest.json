@@ -1,0 +1,49 @@
+{
+  "category": "settings",
+  "config": {
+    "additionalProperties": false,
+    "properties": {
+      "sections": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "rows": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "detail": { "type": "string" },
+                  "id": { "minLength": 1, "type": "string" },
+                  "kind": { "enum": ["toggle", "link"], "type": "string" },
+                  "label": { "minLength": 1, "type": "string" },
+                  "value": { "type": "boolean" }
+                },
+                "required": ["id", "label", "kind"],
+                "type": "object"
+              },
+              "maxItems": 20,
+              "minItems": 1,
+              "type": "array"
+            },
+            "title": { "type": "string" }
+          },
+          "required": ["rows"],
+          "type": "object"
+        },
+        "maxItems": 10,
+        "minItems": 1,
+        "type": "array"
+      },
+      "title": { "minLength": 1, "type": "string" }
+    },
+    "required": ["title", "sections"],
+    "type": "object"
+  },
+  "defaultConfig": {},
+  "defaultVariant": "list",
+  "editSurface": ["config.title", "config.sections"],
+  "id": "settings.list",
+  "locked": ["ports", "variants"],
+  "ports": { "consumes": ["app.launched"], "emits": [], "provides": [] },
+  "variants": ["list", "grouped"],
+  "version": "1.0.0"
+}

@@ -2,7 +2,9 @@ import { performance } from 'node:perf_hooks';
 import { loadDefaultRegistry } from '@blockfw/blocks';
 import { compileProject, type CompiledFile, type CompileResult } from '@blockfw/compiler';
 import type { ProjectGraph } from '@blockfw/manifest';
+import { validateSpine, type SpineFile } from '@blockfw/spine';
 import baseGraphJson from './base/graph.json' with { type: 'json' };
+import baseSpineJson from './base/spine.json' with { type: 'json' };
 import { TASKS } from './tasks.js';
 import type {
   BenchmarkReport,
@@ -17,8 +19,22 @@ export function baseGraph(): ProjectGraph {
   return JSON.parse(JSON.stringify(baseGraphJson)) as ProjectGraph;
 }
 
-/** Apply a task's operation to a graph. Pure JSON surgery — no AI. */
-export function applyOperation(graph: ProjectGraph, op: TaskOperation): void {
+/** Deep-cloned base spine fixture. */
+export function baseSpine(): SpineFile {
+  const spine = JSON.parse(JSON.stringify(baseSpineJson)) as SpineFile;
+  validateSpine(spine);
+  return spine;
+}
+
+/** Mutable state a task operation works on: the graph plus an optional spine. */
+export interface TaskContext {
+  graph: ProjectGraph;
+  spine?: SpineFile;
+}
+
+/** Apply a task's operation to the context. Pure JSON surgery — no AI. */
+export function applyOperation(ctx: TaskContext, op: TaskOperation): void {
+  const graph = ctx.graph;
   const findBlock = (id: string) => {
     const b = graph.blocks.find((x) => x.id === id);
     if (!b) throw new Error(`benchmark: unknown block instance "${id}"`);
@@ -36,6 +52,13 @@ export function applyOperation(graph: ProjectGraph, op: TaskOperation): void {
     case 'set-block-type':
       findBlock(op.instance).type = op.type;
       break;
+    case 'replace-block': {
+      const b = findBlock(op.instance);
+      b.type = op.type;
+      if (op.variant !== undefined) b.variant = op.variant;
+      if (op.config !== undefined) b.config = op.config;
+      break;
+    }
     case 'set-screen-block': {
       const s = graph.screens.find((x) => x.id === op.screen);
       if (!s) throw new Error(`benchmark: unknown screen "${op.screen}"`);
@@ -73,6 +96,12 @@ export function applyOperation(graph: ProjectGraph, op: TaskOperation): void {
       graph.blocks = [...graph.blocks, op.block];
       graph.screens = [...graph.screens, op.screen];
       break;
+    case 'set-spine': {
+      const spine = op.spine as unknown;
+      validateSpine(spine);
+      ctx.spine = spine as SpineFile;
+      break;
+    }
   }
 }
 
@@ -88,11 +117,11 @@ export interface MockOutcome {
  */
 export function mockRun(task: BenchmarkTask): MockOutcome {
   const registry = loadDefaultRegistry();
-  const graph = baseGraph();
+  const ctx: TaskContext = { graph: baseGraph() };
   const start = performance.now();
   try {
-    applyOperation(graph, task.operation);
-    const result = compileProject(graph, registry);
+    applyOperation(ctx, task.operation);
+    const result = compileProject(ctx.graph, registry, ctx.spine);
     return { result, wallMs: performance.now() - start };
   } catch (err) {
     return {
@@ -166,7 +195,10 @@ function evalCheck(
 ): boolean {
   switch (check.kind) {
     case 'hash-stable': {
-      const again = compileProject(taskGraph(task), loadDefaultRegistry());
+      const again = (() => {
+        const ctx = taskContext(task);
+        return compileProject(ctx.graph, loadDefaultRegistry(), ctx.spine);
+      })();
       if (again.projectHash !== result.projectHash) {
         fail(`hash unstable: ${result.projectHash} != ${again.projectHash}`);
         return false;
@@ -196,7 +228,7 @@ function evalCheck(
       }
       return true;
     }
-    case 'wire-origin': {
+    case 'wire-target': {
       const wire = result.wiring.report.resolved.find(
         (w) => w.from.instance === check.instance && w.from.event === check.event,
       );
@@ -204,21 +236,44 @@ function evalCheck(
         fail(`no wire found for ${check.instance}.${check.event}`);
         return false;
       }
-      if (wire.origin !== check.origin) {
-        fail(`wire origin is ${wire.origin}, expected ${check.origin}`);
+      if (wire.to.screen !== check.screen) {
+        fail(`wire target screen is ${wire.to.screen}, expected ${check.screen}`);
         return false;
       }
-      notes.push(`wire ${check.instance}.${check.event} origin=${wire.origin}`);
+      if (check.toInstance !== undefined && wire.to.instance !== check.toInstance) {
+        fail(`wire target instance is ${wire.to.instance}, expected ${check.toInstance}`);
+        return false;
+      }
+      notes.push(
+        `wire ${check.instance}.${check.event} -> screen ${wire.to.screen}` +
+          (wire.to.instance ? ` (instance ${wire.to.instance})` : ''),
+      );
+      return true;
+    }
+    case 'file-contains': {
+      const files = fileMap(result.files);
+      const content = files.get(check.path);
+      if (content === undefined) {
+        fail(`file not emitted: ${check.path}`);
+        return false;
+      }
+      if (!content.includes(check.text)) {
+        fail(`file ${check.path} does not contain "${check.text.slice(0, 80)}"`);
+        return false;
+      }
+      notes.push(`${check.path} contains expected text`);
       return true;
     }
   }
+  // Unreachable: the switch above is exhaustive over TaskCheck.
+  return true;
 }
 
-/** Rebuild the task's graph (used for the hash-stability check). */
-function taskGraph(task: BenchmarkTask): ProjectGraph {
-  const graph = baseGraph();
-  applyOperation(graph, task.operation);
-  return graph;
+/** Rebuild the task's context (used for the hash-stability check). */
+function taskContext(task: BenchmarkTask): TaskContext {
+  const ctx: TaskContext = { graph: baseGraph() };
+  applyOperation(ctx, task.operation);
+  return ctx;
 }
 
 export function runTask(task: BenchmarkTask, baseFiles: CompiledFile[]): TaskReport {

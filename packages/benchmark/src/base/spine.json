@@ -1,0 +1,23 @@
+{
+  "entities": [
+    {
+      "description": "App users.",
+      "fields": [
+        { "default": "gen_random_uuid()", "name": "id", "primaryKey": true, "type": "uuid" },
+        { "name": "email", "type": "text", "unique": true },
+        { "default": "now()", "name": "created_at", "type": "timestamptz" }
+      ],
+      "name": "profiles"
+    },
+    {
+      "description": "Habits tracked by a user.",
+      "fields": [
+        { "default": "gen_random_uuid()", "name": "id", "primaryKey": true, "type": "uuid" },
+        { "name": "user_id", "references": "profiles.id", "type": "uuid" },
+        { "name": "title", "type": "text" },
+        { "default": "now()", "name": "created_at", "type": "timestamptz" }
+      ],
+      "name": "habits"
+    }
+  ]
+}

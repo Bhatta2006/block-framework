@@ -1,0 +1,41 @@
+{
+  "category": "auth",
+  "config": {
+    "additionalProperties": false,
+    "properties": {
+      "ctaText": { "type": "string" },
+      "headline": { "minLength": 1, "type": "string" },
+      "subheadline": { "type": "string" }
+    },
+    "required": ["headline"],
+    "type": "object"
+  },
+  "defaultConfig": { "ctaText": "Continue", "subheadline": "" },
+  "defaultVariant": "signin",
+  "editSurface": ["config.headline", "config.subheadline", "config.ctaText"],
+  "id": "auth.email",
+  "locked": ["ports", "variants"],
+  "ports": {
+    "consumes": ["app.launched"],
+    "emits": [
+      {
+        "event": "auth.completed",
+        "payload": {
+          "properties": {
+            "user": {
+              "properties": { "email": { "type": "string" }, "id": { "type": "string" } },
+              "required": ["id", "email"],
+              "type": "object"
+            }
+          },
+          "required": ["user"],
+          "type": "object"
+        }
+      }
+    ],
+    "provides": [],
+    "requires": [{ "entity": "AuthService", "optional": true }]
+  },
+  "variants": ["signin", "signup"],
+  "version": "1.0.0"
+}

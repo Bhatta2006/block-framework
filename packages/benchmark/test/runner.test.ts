@@ -9,10 +9,10 @@ import {
 } from '@blockfw/benchmark';
 
 describe('task suite', () => {
-  it('has 20 uniquely-identified tasks', () => {
-    expect(TASKS).toHaveLength(20);
+  it('has 32 uniquely-identified tasks', () => {
+    expect(TASKS).toHaveLength(32);
     const ids = TASKS.map((t) => t.id);
-    expect(new Set(ids).size).toBe(20);
+    expect(new Set(ids).size).toBe(32);
     for (const t of TASKS) {
       expect(t.title.length).toBeGreaterThan(0);
       expect(t.description.length).toBeGreaterThan(0);
@@ -22,14 +22,16 @@ describe('task suite', () => {
 
 describe('applyOperation', () => {
   it('applies a config edit', () => {
-    const g = baseGraph();
-    applyOperation(g, { kind: 'set-config', instance: 'b1', config: { questions: [] } });
+    const ctx = { graph: baseGraph() };
+    applyOperation(ctx, { kind: 'set-config', instance: 'b1', config: { questions: [] } });
+    const g = ctx.graph;
     expect(g.blocks.find((b) => b.id === 'b1')?.config).toEqual({ questions: [] });
   });
 
   it('applies a reorder', () => {
-    const g = baseGraph();
-    applyOperation(g, { kind: 'reorder-screens', order: ['s3', 's1', 's2'] });
+    const ctx = { graph: baseGraph() };
+    applyOperation(ctx, { kind: 'reorder-screens', order: ['s3', 's1', 's2'] });
+    const g = ctx.graph;
     expect(g.screens.map((s) => s.id)).toEqual(['s3', 's1', 's2']);
   });
 });
@@ -51,14 +53,14 @@ describe('diffFiles', () => {
 });
 
 describe('mock agent full suite', () => {
-  it('passes all 20 tasks with zero tokens', () => {
+  it('passes all 32 tasks with zero tokens', () => {
     const report = runBenchmark(TASKS, 'mock');
     const failed = report.tasks.filter((t) => !t.pass);
     expect(
       failed.map((t) => `${t.id}: ${t.notes.join('; ')}`),
       'failed tasks',
     ).toEqual([]);
-    expect(report.summary.passed).toBe(20);
+    expect(report.summary.passed).toBe(32);
     expect(report.summary.totalTokens).toBe(0);
   });
 

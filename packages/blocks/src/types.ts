@@ -25,6 +25,14 @@ export interface RenderContext {
    * the block's completion events are terminal in the current flow.
    */
   onCompleteTarget: string | null;
+  /**
+   * TypeScript type literal for the component's `input` prop, derived from
+   * the incoming wire's payload schema. Null when no incoming wire carries
+   * a payload. Templates interpolate this into the prop type.
+   */
+  inputType: string | null;
+  /** Event name of the incoming wire, if any. */
+  inputEvent: string | null;
 }
 
 export interface RenderedBlock {
@@ -34,6 +42,8 @@ export interface RenderedBlock {
   content: string;
   /** Whether the generated component accepts an optional onComplete prop. */
   acceptsOnComplete: boolean;
+  /** Whether the generated component accepts an optional input prop. */
+  acceptsInput: boolean;
 }
 
 export type BlockTemplate = (ctx: RenderContext) => RenderedBlock;

@@ -3,3 +3,7 @@ packages/*/dist/
 *.tgz
 .DS_Store
 /tmp-bf-*
+__render_out__/
+.ci-work/
+*.tsbuildinfo
+.audit-work/

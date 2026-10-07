@@ -1,0 +1,11 @@
+{
+  "config": {
+    "stats": [
+      { "delta": "+2 this week", "label": "Day streak", "value": "12" },
+      { "delta": "+3 this week", "label": "Active habits", "value": "8" },
+      { "delta": "+12% vs last week", "label": "Completion", "value": "96%" }
+    ],
+    "title": "Your progress"
+  },
+  "variant": "row"
+}

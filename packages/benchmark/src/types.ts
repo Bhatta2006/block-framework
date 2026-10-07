@@ -11,6 +11,13 @@ export type TaskOperation =
   | { kind: 'set-config'; instance: string; config: Record<string, unknown> }
   | { kind: 'set-variant'; instance: string; variant: string }
   | { kind: 'set-block-type'; instance: string; type: string }
+  | {
+      kind: 'replace-block';
+      instance: string;
+      type: string;
+      variant?: string;
+      config?: Record<string, unknown>;
+    }
   | { kind: 'set-screen-block'; screen: string; block: string }
   | { kind: 'set-slug'; slug: string }
   | {
@@ -29,12 +36,21 @@ export type TaskOperation =
       screen: { id: string; block: string; title: string };
       block: { id: string; type: string; variant?: string; config?: Record<string, unknown> };
     }
+  | { kind: 'set-spine'; spine: Record<string, unknown> }
   | { kind: 'none' };
 
 export type TaskCheck =
   | { kind: 'hash-stable' }
   | { kind: 'changed-files'; only?: string[]; not?: string[] }
-  | { kind: 'wire-origin'; instance: string; event: string; origin: 'auto' | 'user' };
+  | { kind: 'wire-origin'; instance: string; event: string; origin: 'auto' | 'user' }
+  | {
+      kind: 'wire-target';
+      instance: string;
+      event: string;
+      screen: string;
+      toInstance?: string;
+    }
+  | { kind: 'file-contains'; path: string; text: string };
 
 export type TaskCategory =
   'config-edit' | 'variant-swap' | 'graph-op' | 'wiring' | 'determinism' | 'invalid';

@@ -2,13 +2,40 @@ import type { BenchmarkTask } from './types.js';
 
 /**
  * The M0 benchmark suite: 20 tasks covering the operations a builder
- * performs constantly. Each task mutates the base app graph and asserts
- * the compiler's behavior — including that failures fail loudly.
+ * performs constantly. M1 adds T21-T32 for the new blocks, semantic
+ * routing, and the Entity Spine.
+ *
+ * Each task mutates the base app graph and asserts the compiler's
+ * behavior — including that failures fail loudly.
  *
  * The mock agent executes these mechanically (JSON edit + recompile, zero
  * tokens). The same tasks are designed to be replayed against a baseline
  * coding agent later; see README for the baseline procedure.
  */
+
+const SPINE_V1 = {
+  entities: [
+    {
+      name: 'profiles',
+      description: 'App users.',
+      fields: [
+        { name: 'id', type: 'uuid', primaryKey: true, default: 'gen_random_uuid()' },
+        { name: 'email', type: 'text', unique: true },
+        { name: 'created_at', type: 'timestamptz', default: 'now()' },
+      ],
+    },
+    {
+      name: 'habits',
+      description: 'Habits tracked by a user.',
+      fields: [
+        { name: 'id', type: 'uuid', primaryKey: true, default: 'gen_random_uuid()' },
+        { name: 'user_id', type: 'uuid', references: 'profiles.id' },
+        { name: 'title', type: 'text' },
+        { name: 'created_at', type: 'timestamptz', default: 'now()' },
+      ],
+    },
+  ],
+};
 export const TASKS: BenchmarkTask[] = [
   {
     id: 'T01',
@@ -237,5 +264,275 @@ export const TASKS: BenchmarkTask[] = [
     description: 'A config value of the wrong type must fail with a clear message.',
     operation: { kind: 'set-config', instance: 'b1', config: { skippable: 'yes' } },
     expects: 'compile-error',
+  },
+  // ---------------------------------------------------------------- M1 tasks
+  {
+    id: 'T21',
+    title: 'Settings block: add a settings screen',
+    category: 'config-edit',
+    description: 'Replace the home screen block with a settings list block.',
+    operation: {
+      kind: 'replace-block',
+      instance: 'b3',
+      type: 'settings.list@1.0.0',
+      variant: 'list',
+      config: {
+        title: 'Settings',
+        sections: [
+          {
+            title: 'Notifications',
+            rows: [{ id: 'push', label: 'Push notifications', kind: 'toggle', value: true }],
+          },
+        ],
+      },
+    },
+    expects: 'success',
+    checks: [
+      {
+        kind: 'changed-files',
+        only: ['src/blocks/b3.tsx', 'src/screens/s3.tsx', 'src/wiring-report.json'],
+      },
+    ],
+  },
+  {
+    id: 'T22',
+    title: 'Settings variant swap: list -> grouped',
+    category: 'variant-swap',
+    description: 'Switch the settings block to the grouped layout.',
+    operation: {
+      kind: 'replace-block',
+      instance: 'b3',
+      type: 'settings.list@1.0.0',
+      variant: 'grouped',
+      config: {
+        title: 'Settings',
+        sections: [
+          {
+            title: 'Notifications',
+            rows: [{ id: 'push', label: 'Push notifications', kind: 'toggle', value: true }],
+          },
+        ],
+      },
+    },
+    expects: 'success',
+    checks: [
+      {
+        kind: 'changed-files',
+        only: ['src/blocks/b3.tsx', 'src/screens/s3.tsx', 'src/wiring-report.json'],
+      },
+    ],
+  },
+  {
+    id: 'T23',
+    title: 'Profile card block: add a profile screen',
+    category: 'config-edit',
+    description: 'Replace the home screen block with a profile card block.',
+    operation: {
+      kind: 'replace-block',
+      instance: 'b3',
+      type: 'profile.card@1.0.0',
+      variant: 'card',
+      config: { name: 'Ada Lovelace', handle: '@ada', bio: 'First programmer.' },
+    },
+    expects: 'success',
+    checks: [
+      {
+        kind: 'changed-files',
+        only: ['src/blocks/b3.tsx', 'src/screens/s3.tsx', 'src/wiring-report.json'],
+      },
+    ],
+  },
+  {
+    id: 'T24',
+    title: 'Profile variant swap: card -> compact',
+    category: 'variant-swap',
+    description: 'Switch the profile block to the compact layout.',
+    operation: {
+      kind: 'replace-block',
+      instance: 'b3',
+      type: 'profile.card@1.0.0',
+      variant: 'compact',
+      config: { name: 'Ada Lovelace', handle: '@ada' },
+    },
+    expects: 'success',
+    checks: [
+      {
+        kind: 'changed-files',
+        only: ['src/blocks/b3.tsx', 'src/screens/s3.tsx', 'src/wiring-report.json'],
+      },
+    ],
+  },
+  {
+    id: 'T25',
+    title: 'Auth email block: add a sign-in screen',
+    category: 'config-edit',
+    description: 'Replace the paywall screen block with an email auth block (mock service).',
+    operation: {
+      kind: 'replace-block',
+      instance: 'b2',
+      type: 'auth.email@1.0.0',
+      variant: 'signin',
+      config: { headline: 'Welcome back', ctaText: 'Sign in' },
+    },
+    expects: 'success',
+    checks: [
+      {
+        kind: 'changed-files',
+        only: ['src/blocks/b2.tsx', 'src/services/auth.mock.ts', 'src/wiring-report.json'],
+      },
+    ],
+  },
+  {
+    id: 'T26',
+    title: 'Auth variant swap: signin -> signup',
+    category: 'variant-swap',
+    description: 'Switch the auth block to the signup layout.',
+    operation: {
+      kind: 'replace-block',
+      instance: 'b2',
+      type: 'auth.email@1.0.0',
+      variant: 'signup',
+      config: { headline: 'Create your account', ctaText: 'Sign up' },
+    },
+    expects: 'success',
+    checks: [
+      {
+        kind: 'changed-files',
+        only: ['src/blocks/b2.tsx', 'src/services/auth.mock.ts', 'src/wiring-report.json'],
+      },
+    ],
+  },
+  {
+    id: 'T27',
+    title: 'Stats overview block: add a stats screen',
+    category: 'config-edit',
+    description: 'Replace the home screen block with a stats overview block.',
+    operation: {
+      kind: 'replace-block',
+      instance: 'b3',
+      type: 'stats.overview@1.0.0',
+      variant: 'row',
+      config: {
+        title: 'This week',
+        stats: [
+          { label: 'Day streak', value: '12' },
+          { label: 'Completed', value: '34' },
+        ],
+      },
+    },
+    expects: 'success',
+    checks: [
+      {
+        kind: 'changed-files',
+        only: ['src/blocks/b3.tsx', 'src/screens/s3.tsx', 'src/wiring-report.json'],
+      },
+    ],
+  },
+  {
+    id: 'T28',
+    title: 'Stats variant swap: row -> grid',
+    category: 'variant-swap',
+    description: 'Switch the stats block to the grid layout.',
+    operation: {
+      kind: 'replace-block',
+      instance: 'b3',
+      type: 'stats.overview@1.0.0',
+      variant: 'grid',
+      config: {
+        title: 'This week',
+        stats: [
+          { label: 'Day streak', value: '12' },
+          { label: 'Completed', value: '34' },
+        ],
+      },
+    },
+    expects: 'success',
+    checks: [
+      {
+        kind: 'changed-files',
+        only: ['src/blocks/b3.tsx', 'src/screens/s3.tsx', 'src/wiring-report.json'],
+      },
+    ],
+  },
+  {
+    id: 'T29',
+    title: 'Semantic routing: tapping an item opens its detail',
+    category: 'wiring',
+    description:
+      'Adding a content.detail screen must auto-wire home.itemSelected to it semantically — no manual wire needed.',
+    operation: {
+      kind: 'add-screen',
+      screen: { id: 's4', block: 'b4', title: 'Detail' },
+      block: { id: 'b4', type: 'content.detail@1.0.0', variant: 'article', config: {} },
+    },
+    expects: 'success',
+    checks: [
+      { kind: 'wire-origin', instance: 'b3', event: 'home.itemSelected', origin: 'auto' },
+      {
+        kind: 'wire-target',
+        instance: 'b3',
+        event: 'home.itemSelected',
+        screen: 's4',
+        toInstance: 'b4',
+      },
+    ],
+  },
+  {
+    id: 'T30',
+    title: 'Entity Spine: attaching a spine emits SQL + types + client',
+    category: 'graph-op',
+    description:
+      'Attaching an Entity Spine must generate the migration, TS types, and Supabase client.',
+    operation: { kind: 'set-spine', spine: SPINE_V1 },
+    expects: 'success',
+    checks: [
+      {
+        kind: 'changed-files',
+        only: [
+          'package.json',
+          'src/spine-types.ts',
+          'src/supabase.ts',
+          'supabase/migrations/0001_spine.sql',
+          'src/wiring-report.json',
+        ],
+      },
+      {
+        kind: 'file-contains',
+        path: 'supabase/migrations/0001_spine.sql',
+        text: 'CREATE TABLE IF NOT EXISTS "profiles"',
+      },
+      { kind: 'file-contains', path: 'src/spine-types.ts', text: 'export interface Database' },
+    ],
+  },
+  {
+    id: 'T31',
+    title: 'Entity Spine: invalid spine rejected',
+    category: 'invalid',
+    description: 'A spine with a duplicate entity name must fail validation loudly.',
+    operation: {
+      kind: 'set-spine',
+      spine: {
+        entities: [
+          {
+            name: 'profiles',
+            fields: [{ name: 'id', type: 'uuid', primaryKey: true }],
+          },
+          {
+            name: 'profiles',
+            fields: [{ name: 'id', type: 'uuid', primaryKey: true }],
+          },
+        ],
+      },
+    },
+    expects: 'compile-error',
+  },
+  {
+    id: 'T32',
+    title: 'Entity Spine: spine compile is deterministic',
+    category: 'determinism',
+    description: 'Compiling with a spine twice must produce identical output.',
+    operation: { kind: 'set-spine', spine: SPINE_V1 },
+    expects: 'success',
+    checks: [{ kind: 'hash-stable' }],
   },
 ];

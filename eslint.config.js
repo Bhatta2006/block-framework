@@ -8,6 +8,16 @@ export default tseslint.config(
     ignores: ['**/dist/**', '**/node_modules/**', '**/*.js'],
   },
   {
+    // Node helper scripts (.mjs): allow Node globals.
+    files: ['**/*.mjs'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+      },
+    },
+  },
+  {
     rules: {
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': [

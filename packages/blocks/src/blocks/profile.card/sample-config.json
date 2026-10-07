@@ -1,0 +1,13 @@
+{
+  "config": {
+    "bio": "Building better habits, one day at a time.",
+    "handle": "@habitbuilder",
+    "name": "Alex Morgan",
+    "stats": [
+      { "label": "Day streak", "value": "12" },
+      { "label": "Habits", "value": "8" },
+      { "label": "Completed", "value": "96" }
+    ]
+  },
+  "variant": "card"
+}

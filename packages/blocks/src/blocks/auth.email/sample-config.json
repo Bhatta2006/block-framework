@@ -1,0 +1,8 @@
+{
+  "config": {
+    "ctaText": "Sign in",
+    "headline": "Welcome back",
+    "subheadline": "Sign in to continue to your account."
+  },
+  "variant": "signin"
+}

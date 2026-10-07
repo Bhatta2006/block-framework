@@ -1,0 +1,34 @@
+{
+  "category": "data",
+  "config": {
+    "additionalProperties": false,
+    "properties": {
+      "stats": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "delta": { "type": "string" },
+            "label": { "minLength": 1, "type": "string" },
+            "value": { "minLength": 1, "type": "string" }
+          },
+          "required": ["label", "value"],
+          "type": "object"
+        },
+        "maxItems": 8,
+        "minItems": 1,
+        "type": "array"
+      },
+      "title": { "type": "string" }
+    },
+    "required": ["stats"],
+    "type": "object"
+  },
+  "defaultConfig": { "title": "" },
+  "defaultVariant": "row",
+  "editSurface": ["config.title", "config.stats"],
+  "id": "stats.overview",
+  "locked": ["ports", "variants"],
+  "ports": { "consumes": ["app.launched"], "emits": [], "provides": [] },
+  "variants": ["row", "grid"],
+  "version": "1.0.0"
+}

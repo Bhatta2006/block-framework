@@ -1,0 +1,22 @@
+{
+  "config": {
+    "sections": [
+      {
+        "rows": [
+          { "id": "notifications", "kind": "toggle", "label": "Notifications", "value": true },
+          { "id": "dark", "kind": "toggle", "label": "Dark mode", "value": false }
+        ],
+        "title": "Preferences"
+      },
+      {
+        "rows": [
+          { "id": "profile", "kind": "link", "label": "Edit profile" },
+          { "detail": "v1.0.0", "id": "about", "kind": "link", "label": "About" }
+        ],
+        "title": "Account"
+      }
+    ],
+    "title": "Settings"
+  },
+  "variant": "list"
+}

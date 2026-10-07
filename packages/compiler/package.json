@@ -5,7 +5,8 @@
   "dependencies": {
     "@blockfw/blocks": "0.1.0",
     "@blockfw/manifest": "0.1.0",
-    "@blockfw/wiring": "0.1.0"
+    "@blockfw/wiring": "0.1.0",
+    "@blockfw/spine": "0.1.0"
   },
   "exports": {
     ".": {

@@ -13,11 +13,54 @@ export interface PortRequires {
   optional?: boolean;
 }
 
+/** Minimal JSON Schema shape for event payloads. */
+export interface JsonSchema {
+  type?: 'object' | 'array' | 'string' | 'number' | 'integer' | 'boolean' | 'null';
+  properties?: Record<string, JsonSchema>;
+  required?: string[];
+  items?: JsonSchema;
+  additionalProperties?: boolean;
+  [key: string]: unknown;
+}
+
+/**
+ * An event a block emits. String form is the M0 shorthand (payload unknown).
+ * Object form declares the payload shape so the wiring engine can check
+ * compatibility with consumers.
+ */
+export type EmitDecl = string | { event: string; payload?: JsonSchema };
+
+/**
+ * An event a block consumes. String form is the M0 shorthand.
+ * Object form declares the accepted shape for payload checking.
+ */
+export type ConsumeDecl = string | { port: string; accepts?: JsonSchema };
+
+export interface EventPort {
+  event: string;
+  payload?: JsonSchema;
+}
+
+export interface ConsumePort {
+  port: string;
+  accepts?: JsonSchema;
+}
+
 export interface BlockPorts {
-  emits: string[];
-  consumes: string[];
+  emits: EmitDecl[];
+  consumes: ConsumeDecl[];
   provides?: PortProvides[];
   requires?: PortRequires[];
+}
+
+/** Normalize an emits declaration to object form. */
+export function normalizeEmits(emits: EmitDecl[]): EventPort[] {
+  return emits.map((e) => (typeof e === 'string' ? { event: e } : e));
+}
+
+/** Normalize a consumes declaration to object form. */
+export function normalizeConsumes(consumes: ConsumeDecl[]): ConsumePort[] {
+  return consumes.map((c) => (typeof c === 'string' ? { port: c } : c));
 }
 
 export interface BlockManifest {
@@ -54,6 +97,12 @@ export interface GraphScreen {
   /** Block instance id rendered on this screen. */
   block: string;
   title: string;
+  /**
+   * Flow lane. Screens in the default "main" lane are reached via event
+   * wires; screens in other lanes (e.g. "tabs") are reachable outside the
+   * event flow and are excluded from reachability warnings.
+   */
+  lane?: string;
 }
 
 export interface GraphBlock {
@@ -66,7 +115,13 @@ export interface GraphBlock {
 
 export interface GraphWire {
   from: { instance: string; event: string };
-  to: { screen: string };
+  to: {
+    screen: string;
+    /** Semantic consumer: the block instance that handles the event. */
+    instance?: string;
+    /** The consumer's port (defaults to the event name). */
+    port?: string;
+  };
 }
 
 export interface ProjectGraph {

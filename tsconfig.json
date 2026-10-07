@@ -2,10 +2,23 @@
   "extends": "./tsconfig.base.json",
   "files": [],
   "references": [
-    { "path": "packages/manifest" },
-    { "path": "packages/blocks" },
-    { "path": "packages/wiring" },
-    { "path": "packages/compiler" },
-    { "path": "packages/benchmark" }
+    {
+      "path": "packages/manifest"
+    },
+    {
+      "path": "packages/spine"
+    },
+    {
+      "path": "packages/blocks"
+    },
+    {
+      "path": "packages/wiring"
+    },
+    {
+      "path": "packages/compiler"
+    },
+    {
+      "path": "packages/benchmark"
+    }
   ]
 }

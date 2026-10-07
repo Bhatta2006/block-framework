@@ -6,6 +6,16 @@ import paywallManifestJson from './blocks/paywall.basic/manifest.json' with { ty
 import { render as renderPaywall } from './blocks/paywall.basic/template.js';
 import homeManifestJson from './blocks/home.list/manifest.json' with { type: 'json' };
 import { render as renderHome } from './blocks/home.list/template.js';
+import settingsManifestJson from './blocks/settings.list/manifest.json' with { type: 'json' };
+import { render as renderSettings } from './blocks/settings.list/template.js';
+import profileManifestJson from './blocks/profile.card/manifest.json' with { type: 'json' };
+import { render as renderProfile } from './blocks/profile.card/template.js';
+import authManifestJson from './blocks/auth.email/manifest.json' with { type: 'json' };
+import { render as renderAuth } from './blocks/auth.email/template.js';
+import detailManifestJson from './blocks/content.detail/manifest.json' with { type: 'json' };
+import { render as renderDetail } from './blocks/content.detail/template.js';
+import statsManifestJson from './blocks/stats.overview/manifest.json' with { type: 'json' };
+import { render as renderStats } from './blocks/stats.overview/template.js';
 
 export interface RegisteredBlock {
   manifest: BlockManifest;
@@ -46,13 +56,23 @@ export class BlockRegistry {
   size(): number {
     return this.blocks.size;
   }
+
+  /** All registered blocks, for SDK validation. */
+  entries(): RegisteredBlock[] {
+    return [...this.blocks.values()];
+  }
 }
 
-/** The M0 library: the three hand-written blocks. */
+/** The block library: eight hand-written blocks. */
 export function loadDefaultRegistry(): BlockRegistry {
   const registry = new BlockRegistry();
   registry.register(quizManifestJson, renderQuiz);
   registry.register(paywallManifestJson, renderPaywall);
   registry.register(homeManifestJson, renderHome);
+  registry.register(settingsManifestJson, renderSettings);
+  registry.register(profileManifestJson, renderProfile);
+  registry.register(authManifestJson, renderAuth);
+  registry.register(detailManifestJson, renderDetail);
+  registry.register(statsManifestJson, renderStats);
   return registry;
 }
