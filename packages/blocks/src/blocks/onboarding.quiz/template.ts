@@ -1,8 +1,9 @@
 import { canonicalJson } from '../../canonical.js';
 import type { RenderContext, RenderedBlock } from '../../types.js';
 
-const HEADER = `import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+function header(rnImports: string): string {
+  return `import React, { useState } from 'react';
+import { ${rnImports} } from 'react-native';
 import { theme } from '../theme';
 
 export interface QuizQuestion {
@@ -21,6 +22,7 @@ export interface QuizResult {
   skipped: boolean;
 }
 `;
+}
 
 function stylesBlock(extra: string): string {
   return `
@@ -117,7 +119,7 @@ ${extra}});
 
 function renderCards(ctx: RenderContext, configJson: string): string {
   const name = ctx.componentName;
-  return `${HEADER}
+  return `${header('Pressable, StyleSheet, Text, View')}
 const CONFIG: QuizConfig = ${configJson};
 
 interface ${name}Props {
@@ -215,7 +217,7 @@ ${stylesBlock('')}`;
 
 function renderList(ctx: RenderContext, configJson: string): string {
   const name = ctx.componentName;
-  return `${HEADER}
+  return `${header('Pressable, ScrollView, StyleSheet, Text, View')}
 const CONFIG: QuizConfig = ${configJson};
 
 interface ${name}Props {

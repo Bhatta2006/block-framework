@@ -552,10 +552,11 @@ export function compileProject(
   const reportJson = canonicalJson({
     app: graph.app.slug,
     projectHash,
-    generatedBy: 'block-framework-m0',
+    generatedBy: 'block-framework-m2',
     wires: wiring.report.resolved,
     warnings: wiring.report.warnings,
     notes: wiring.report.notes,
+    flow: wiring.report.flow,
   });
   add('src/wiring-report.json', `${reportJson}\n`);
   add('README.md', renderReadme(graph));

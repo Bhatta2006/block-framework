@@ -19,6 +19,9 @@
     },
     {
       "path": "packages/benchmark"
+    },
+    {
+      "path": "packages/builder"
     }
   ]
 }

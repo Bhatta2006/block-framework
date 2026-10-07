@@ -4,14 +4,15 @@
   },
   "dependencies": {
     "@blockfw/blocks": "0.1.0",
+    "@blockfw/builder": "0.1.0",
     "@blockfw/compiler": "0.1.0",
     "@blockfw/manifest": "0.1.0",
     "@blockfw/wiring": "0.1.0"
   },
   "exports": {
     ".": {
-      "default": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     }
   },
   "name": "@blockfw/benchmark",

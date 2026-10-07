@@ -37,6 +37,8 @@ export type TaskOperation =
       block: { id: string; type: string; variant?: string; config?: Record<string, unknown> };
     }
   | { kind: 'set-spine'; spine: Record<string, unknown> }
+  | { kind: 'apply-profile'; profile: Record<string, string>; touched?: string[] }
+  | { kind: 'set-lane'; screen: string; lane?: string }
   | { kind: 'none' };
 
 export type TaskCheck =
@@ -50,7 +52,8 @@ export type TaskCheck =
       screen: string;
       toInstance?: string;
     }
-  | { kind: 'file-contains'; path: string; text: string };
+  | { kind: 'file-contains'; path: string; text: string }
+  | { kind: 'cards-stable' };
 
 export type TaskCategory =
   'config-edit' | 'variant-swap' | 'graph-op' | 'wiring' | 'determinism' | 'invalid';

@@ -1,4 +1,4 @@
-# Block Framework — M1
+# Block Framework — M2
 
 The deterministic core of Block Framework: a **project graph** (JSON) compiles
 into a complete, runnable **Expo app** with **zero AI involved**.
@@ -10,8 +10,8 @@ examples/full-app/graph.json  (+ optional spine.json)
 out/  →  npm install → npx expo start  →  runs on a phone via Expo Go
 ```
 
-M1 extends M0's two load-bearing claims (JSON → working app with no LLM;
-byte-identical rebuilds) with:
+M2 extends M0's two load-bearing claims (JSON → working app with no LLM;
+byte-identical rebuilds) and M1's library with:
 
 1. **Block SDK** — `blockc sdk scaffold|test|validate` for authoring blocks.
 2. **8-block library** — auth, quiz, paywall, home, detail, stats, profile,
@@ -24,30 +24,36 @@ byte-identical rebuilds) with:
 5. **Flow Lanes** — screens declare lanes (`main`, `tabs`, …); reachability
    analysis respects them.
 6. **32-task benchmark** — all tasks run with zero tokens.
+7. **Visual builder** — a browser canvas: lanes of screens with live static
+   previews, auto-generated config panels, variant switching, wiring view.
+8. **Profile Cascade** — six questions configure the whole app; hand-edits
+   always win over derived values.
+9. **Block Cards** — deterministic ≤300-token summaries of every block.
 
 ## Packages
 
-| Package              | What it is                                                                                      |
-| -------------------- | ----------------------------------------------------------------------------------------------- |
-| `@blockfw/manifest`  | JSON Schemas (v0) + validators for block manifests and project graphs                           |
+| Package              | What it is                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------ |
+| `@blockfw/manifest`  | JSON Schemas (v0) + validators for block manifests and project graphs                            |
 | `@blockfw/spine`     | Entity Spine: schema → PostgreSQL migration + TypeScript `Database` type                         |
-| `@blockfw/blocks`    | The 8 hand-written blocks + template renderer + block registry + Block SDK                      |
+| `@blockfw/blocks`    | The 8 hand-written blocks + template renderer + block registry + Block SDK                       |
 | `@blockfw/wiring`    | The deterministic wiring engine (config validation, semantic routing, flow lanes, wiring report) |
 | `@blockfw/compiler`  | Graph → Expo project compiler + `blockc` CLI                                                     |
-| `@blockfw/benchmark` | 32-task benchmark harness + `bf-bench` CLI                                                       |
+| `@blockfw/benchmark` | 36-task benchmark harness + `bf-bench` CLI                                                       |
+| `@blockfw/builder`   | Visual builder: Profile Cascade, block cards, `block-canvas` server + SPA                        |
 
 ## The M1 block library
 
-| Block                   | Variants                | Notes                                                      |
-| ----------------------- | ----------------------- | ---------------------------------------------------------- |
-| `auth.email@1.0.0`      | `signin`, `signup`      | Email auth; **mock service** (`src/services/auth.mock.ts`) |
-| `onboarding.quiz@1.0.0` | `quiz-cards`, `quiz-list` | Question flow                                            |
-| `paywall.basic@1.0.0`   | `cards`, `compact`      | Subscription paywall; **mock billing** (`billing.mock.ts`) |
-| `home.list@1.0.0`       | `list`, `grid`          | Item list; emits typed `home.itemSelected`                 |
-| `content.detail@1.0.0`  | `article`, `product`    | Consumes `home.itemSelected`; renders the routed item      |
-| `stats.overview@1.0.0`  | `row`, `grid`           | Stat cards                                                 |
-| `profile.card@1.0.0`    | `card`, `compact`       | Profile header                                             |
-| `settings.list@1.0.0`   | `list`, `grouped`       | Settings with toggles                                      |
+| Block                   | Variants                  | Notes                                                      |
+| ----------------------- | ------------------------- | ---------------------------------------------------------- |
+| `auth.email@1.0.0`      | `signin`, `signup`        | Email auth; **mock service** (`src/services/auth.mock.ts`) |
+| `onboarding.quiz@1.0.0` | `quiz-cards`, `quiz-list` | Question flow                                              |
+| `paywall.basic@1.0.0`   | `cards`, `compact`        | Subscription paywall; **mock billing** (`billing.mock.ts`) |
+| `home.list@1.0.0`       | `list`, `grid`            | Item list; emits typed `home.itemSelected`                 |
+| `content.detail@1.0.0`  | `article`, `product`      | Consumes `home.itemSelected`; renders the routed item      |
+| `stats.overview@1.0.0`  | `row`, `grid`             | Stat cards                                                 |
+| `profile.card@1.0.0`    | `card`, `compact`         | Profile header                                             |
+| `settings.list@1.0.0`   | `list`, `grouped`         | Settings with toggles                                      |
 
 ## Quick start
 
@@ -146,7 +152,7 @@ deep link) and are excluded from reachability warnings:
 { "id": "s6", "block": "b6", "title": "Progress", "lane": "tabs" }
 ```
 
-## What M1 deliberately does not include
+## What M2 deliberately does not include
 
 - **No LLM integration.** There is intentionally no model code path; that is
   the experiment. The Agent Gateway arrives in M3.

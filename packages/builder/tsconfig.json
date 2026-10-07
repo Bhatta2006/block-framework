@@ -1,11 +1,13 @@
 {
-  "compilerOptions": {
-    "composite": true,
-    "outDir": "dist",
-    "rootDir": "src"
-  },
   "extends": "../../tsconfig.base.json",
-  "include": ["src/**/*", "src/**/*.json"],
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "jsx": "react-jsx",
+    "types": ["node"],
+    "composite": true
+  },
+  "include": ["src/**/*.ts"],
   "references": [
     {
       "path": "../manifest"
@@ -18,9 +20,6 @@
     },
     {
       "path": "../compiler"
-    },
-    {
-      "path": "../builder"
     }
   ]
 }

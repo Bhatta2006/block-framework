@@ -5,7 +5,15 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/*.js'],
+    ignores: [
+      '**/dist/**',
+      '**/dist-ui/**',
+      '**/node_modules/**',
+      '**/*.js',
+      '.builder-cache/**',
+      '.ci-work/**',
+      '.audit-work/**',
+    ],
   },
   {
     // Node helper scripts (.mjs): allow Node globals.

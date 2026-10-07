@@ -88,7 +88,12 @@ const styles = StyleSheet.create({
 function renderVariant(ctx: RenderContext, configJson: string, signup: boolean): string {
   const name = ctx.componentName;
   const action = signup ? 'signUp' : 'signIn';
-  return `${HEADER}
+  const serviceImport = `import { ${action}, type MockUser } from '../services/auth.mock';`;
+  const header = HEADER.replace(
+    `import { signIn, signUp, type MockUser } from '../services/auth.mock';`,
+    serviceImport,
+  );
+  return `${header}
 const CONFIG: AuthConfig = ${configJson};
 
 export function ${name}({ onComplete }: { onComplete?: (output: AuthCompleted) => void }) {

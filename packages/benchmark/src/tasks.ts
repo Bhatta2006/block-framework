@@ -535,4 +535,85 @@ export const TASKS: BenchmarkTask[] = [
     expects: 'success',
     checks: [{ kind: 'hash-stable' }],
   },
+  // ---------------------------------------------------------------- M2 tasks
+  {
+    id: 'T33',
+    title: 'Profile Cascade: six answers configure the app',
+    category: 'graph-op',
+    description:
+      'Applying a profile derives the app name, slug, brand color, and paywall copy/price.',
+    operation: {
+      kind: 'apply-profile',
+      profile: {
+        appName: 'BenchApp',
+        audience: 'testers',
+        tone: 'professional',
+        brandColor: '#123456',
+        price: '9.99',
+        currency: 'EUR',
+      },
+    },
+    expects: 'success',
+    checks: [
+      {
+        kind: 'changed-files',
+        only: [
+          'README.md',
+          'app.json',
+          'package.json',
+          'src/blocks/b2.tsx',
+          'src/theme.ts',
+          'src/wiring-report.json',
+        ],
+      },
+      { kind: 'file-contains', path: 'src/theme.ts', text: '#123456' },
+      { kind: 'file-contains', path: 'src/blocks/b2.tsx', text: 'BenchApp Premium' },
+      { kind: 'file-contains', path: 'src/blocks/b2.tsx', text: '€9.99' },
+    ],
+  },
+  {
+    id: 'T34',
+    title: 'Profile Cascade: hand-edited fields are never overwritten',
+    category: 'graph-op',
+    description: 'A touched paywall headline survives re-cascade; the brand color still updates.',
+    operation: {
+      kind: 'apply-profile',
+      profile: {
+        appName: 'BenchApp',
+        audience: 'testers',
+        tone: 'professional',
+        brandColor: '#123456',
+        price: '9.99',
+        currency: 'EUR',
+      },
+      touched: ['block:b2.config.headline'],
+    },
+    expects: 'success',
+    checks: [
+      // The original headline (not the derived "BenchApp Premium") is still there.
+      { kind: 'file-contains', path: 'src/blocks/b2.tsx', text: 'Unlock your full potential' },
+      { kind: 'file-contains', path: 'src/theme.ts', text: '#123456' },
+    ],
+  },
+  {
+    id: 'T35',
+    title: 'Flow Lanes: moving a screen to the tabs lane',
+    category: 'graph-op',
+    description: 'Assigning a lane only changes the wiring report flow model — no block code.',
+    operation: { kind: 'set-lane', screen: 's3', lane: 'tabs' },
+    expects: 'success',
+    checks: [
+      { kind: 'changed-files', only: ['src/wiring-report.json'] },
+      { kind: 'file-contains', path: 'src/wiring-report.json', text: '"tabs"' },
+    ],
+  },
+  {
+    id: 'T36',
+    title: 'Block cards: deterministic and within budget',
+    category: 'determinism',
+    description: 'All 8 block cards generate deterministically within 300 tokens.',
+    operation: { kind: 'none' },
+    expects: 'success',
+    checks: [{ kind: 'cards-stable' }],
+  },
 ];

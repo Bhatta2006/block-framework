@@ -9,10 +9,10 @@ import {
 } from '@blockfw/benchmark';
 
 describe('task suite', () => {
-  it('has 32 uniquely-identified tasks', () => {
-    expect(TASKS).toHaveLength(32);
+  it('has 36 uniquely-identified tasks', () => {
+    expect(TASKS).toHaveLength(36);
     const ids = TASKS.map((t) => t.id);
-    expect(new Set(ids).size).toBe(32);
+    expect(new Set(ids).size).toBe(36);
     for (const t of TASKS) {
       expect(t.title.length).toBeGreaterThan(0);
       expect(t.description.length).toBeGreaterThan(0);
@@ -53,14 +53,14 @@ describe('diffFiles', () => {
 });
 
 describe('mock agent full suite', () => {
-  it('passes all 32 tasks with zero tokens', () => {
+  it('passes all 36 tasks with zero tokens', () => {
     const report = runBenchmark(TASKS, 'mock');
     const failed = report.tasks.filter((t) => !t.pass);
     expect(
       failed.map((t) => `${t.id}: ${t.notes.join('; ')}`),
       'failed tasks',
     ).toEqual([]);
-    expect(report.summary.passed).toBe(32);
+    expect(report.summary.passed).toBe(36);
     expect(report.summary.totalTokens).toBe(0);
   });
 

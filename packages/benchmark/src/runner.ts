@@ -3,6 +3,14 @@ import { loadDefaultRegistry } from '@blockfw/blocks';
 import { compileProject, type CompiledFile, type CompileResult } from '@blockfw/compiler';
 import type { ProjectGraph } from '@blockfw/manifest';
 import { validateSpine, type SpineFile } from '@blockfw/spine';
+import {
+  applyCascade,
+  assertCardsWithinBudget,
+  emptyProject,
+  generateAllCards,
+  markTouched,
+  type BuilderProfile,
+} from '@blockfw/builder';
 import baseGraphJson from './base/graph.json' with { type: 'json' };
 import baseSpineJson from './base/spine.json' with { type: 'json' };
 import { TASKS } from './tasks.js';
@@ -100,6 +108,21 @@ export function applyOperation(ctx: TaskContext, op: TaskOperation): void {
       const spine = op.spine as unknown;
       validateSpine(spine);
       ctx.spine = spine as SpineFile;
+      break;
+    }
+    case 'apply-profile': {
+      const project = emptyProject(ctx.graph);
+      project.profile = op.profile as unknown as BuilderProfile;
+      for (const t of op.touched ?? []) markTouched(project, t);
+      applyCascade(project);
+      ctx.graph = project.graph;
+      break;
+    }
+    case 'set-lane': {
+      const s = ctx.graph.screens.find((x) => x.id === op.screen);
+      if (!s) throw new Error(`benchmark: unknown screen "${op.screen}"`);
+      if (op.lane === undefined || op.lane === 'main') delete s.lane;
+      else s.lane = op.lane;
       break;
     }
   }
@@ -262,6 +285,17 @@ function evalCheck(
         return false;
       }
       notes.push(`${check.path} contains expected text`);
+      return true;
+    }
+    case 'cards-stable': {
+      const a = generateAllCards();
+      const b = generateAllCards();
+      assertCardsWithinBudget(a, 300);
+      if (JSON.stringify(a) !== JSON.stringify(b)) {
+        fail('block cards are not deterministic');
+        return false;
+      }
+      notes.push(`${a.length} cards within 300-token budget, deterministic`);
       return true;
     }
   }

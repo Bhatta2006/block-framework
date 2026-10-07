@@ -7,3 +7,5 @@ __render_out__/
 .ci-work/
 *.tsbuildinfo
 .audit-work/
+.builder-cache/
+packages/*/dist-ui/
