@@ -1,0 +1,93 @@
+{
+  "$id": "https://blockfw.dev/schema/block-manifest-v0.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Typed contract for a single Block Framework block.",
+  "properties": {
+    "backend": {
+      "additionalProperties": false,
+      "properties": { "routes": { "type": "array" }, "tables": { "type": "array" } },
+      "type": "object"
+    },
+    "category": {
+      "enum": [
+        "onboarding",
+        "paywall",
+        "home",
+        "auth",
+        "settings",
+        "profile",
+        "navigation",
+        "theme",
+        "data",
+        "media",
+        "social",
+        "utility"
+      ],
+      "type": "string"
+    },
+    "config": {
+      "description": "JSON Schema describing the block's user-editable configuration.",
+      "type": "object"
+    },
+    "defaultConfig": { "type": "object" },
+    "defaultVariant": { "type": "string" },
+    "editSurface": {
+      "description": "File globs the Block Editor agent may touch. Everything else is locked.",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "type": "array"
+    },
+    "id": {
+      "description": "Namespaced block id, e.g. onboarding.quiz",
+      "pattern": "^[a-z][a-z0-9]*\\.[a-z][a-z0-9-]*$",
+      "type": "string"
+    },
+    "locked": {
+      "description": "File globs the agent must never touch.",
+      "items": { "type": "string" },
+      "type": "array"
+    },
+    "ports": {
+      "additionalProperties": false,
+      "properties": {
+        "consumes": { "items": { "type": "string" }, "type": "array" },
+        "emits": { "items": { "type": "string" }, "type": "array" },
+        "provides": {
+          "items": {
+            "additionalProperties": false,
+            "properties": { "entity": { "type": "string" }, "type": { "type": "string" } },
+            "required": ["entity"],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "requires": {
+          "items": {
+            "additionalProperties": false,
+            "properties": { "entity": { "type": "string" }, "optional": { "type": "boolean" } },
+            "required": ["entity"],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": ["emits", "consumes"],
+      "type": "object"
+    },
+    "slots": { "type": "object" },
+    "variants": {
+      "items": { "pattern": "^[a-z][a-z0-9-]*$", "type": "string" },
+      "minItems": 1,
+      "type": "array"
+    },
+    "version": {
+      "description": "Semver. The compiler resolves instance types as id@version.",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+      "type": "string"
+    }
+  },
+  "required": ["id", "version", "category", "variants", "config", "ports", "editSurface", "locked"],
+  "title": "BlockManifest v0",
+  "type": "object"
+}

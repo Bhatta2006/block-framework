@@ -1,0 +1,92 @@
+{
+  "$id": "https://blockfw.dev/schema/project-graph-v0.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "The single source of truth for an app: screens in order, block instances, explicit wire overrides.",
+  "properties": {
+    "app": {
+      "additionalProperties": false,
+      "properties": {
+        "name": { "minLength": 1, "type": "string" },
+        "slug": { "pattern": "^[a-z][a-z0-9-]*$", "type": "string" },
+        "theme": {
+          "additionalProperties": false,
+          "properties": {
+            "backgroundColor": { "pattern": "^#[0-9a-fA-F]{6}$", "type": "string" },
+            "primaryColor": { "pattern": "^#[0-9a-fA-F]{6}$", "type": "string" },
+            "textColor": { "pattern": "^#[0-9a-fA-F]{6}$", "type": "string" }
+          },
+          "type": "object"
+        },
+        "version": {
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+          "type": "string"
+        }
+      },
+      "required": ["name", "slug", "version"],
+      "type": "object"
+    },
+    "blocks": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "config": { "type": "object" },
+          "id": { "pattern": "^[A-Za-z][A-Za-z0-9_-]*$", "type": "string" },
+          "type": {
+            "description": "Block type reference as id@semver, e.g. onboarding.quiz@1.0.0",
+            "pattern": "^[a-z][a-z0-9]*\\.[a-z][a-z0-9-]*@[0-9]+\\.[0-9]+\\.[0-9]+$",
+            "type": "string"
+          },
+          "variant": { "type": "string" }
+        },
+        "required": ["id", "type"],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "schemaVersion": { "const": "0" },
+    "screens": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "block": {
+            "description": "Block instance id rendered on this screen.",
+            "type": "string"
+          },
+          "id": { "pattern": "^[A-Za-z][A-Za-z0-9_-]*$", "type": "string" },
+          "title": { "type": "string" }
+        },
+        "required": ["id", "block", "title"],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "wires": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "additionalProperties": false,
+            "properties": { "event": { "type": "string" }, "instance": { "type": "string" } },
+            "required": ["instance", "event"],
+            "type": "object"
+          },
+          "to": {
+            "additionalProperties": false,
+            "properties": { "screen": { "type": "string" } },
+            "required": ["screen"],
+            "type": "object"
+          }
+        },
+        "required": ["from", "to"],
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "required": ["schemaVersion", "app", "screens", "blocks"],
+  "title": "ProjectGraph v0",
+  "type": "object"
+}

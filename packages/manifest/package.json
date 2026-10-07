@@ -1,0 +1,19 @@
+{
+  "name": "@blockfw/manifest",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "ajv": "8.20.0",
+    "fast-uri": "^3.0.1",
+    "require-from-string": "^2.0.2"
+  },
+  "exports": {
+    ".": {
+      "default": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  }
+}

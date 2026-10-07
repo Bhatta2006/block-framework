@@ -1,0 +1,31 @@
+{
+  "description": "Block Framework M0 \u2014 deterministic block-based app compiler. JSON graph in, runnable Expo app out, zero AI involved.",
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "^26.6.4",
+    "eslint": "10.12.0",
+    "prettier": "3.9.9",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.1",
+    "vitest": "5.0.3"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "name": "block-framework",
+  "private": true,
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "clean": "rm -rf node_modules package-lock.json packages/*/dist packages/*/tsconfig.tsbuildinfo",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "typecheck": "tsc -b tsconfig.json && tsc --noEmit -p tsconfig.tests.json"
+  },
+  "type": "module",
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/*"
+  ]
+}

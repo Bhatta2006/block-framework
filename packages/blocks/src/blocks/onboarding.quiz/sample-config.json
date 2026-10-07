@@ -1,0 +1,18 @@
+{
+  "config": {
+    "questions": [
+      {
+        "multi": false,
+        "options": ["Build a habit", "Ship a side project", "Learn something new"],
+        "prompt": "What brings you here?"
+      },
+      {
+        "multi": true,
+        "options": ["Morning", "Afternoon", "Evening"],
+        "prompt": "When do you want reminders?"
+      }
+    ],
+    "skippable": true
+  },
+  "variant": "quiz-cards"
+}

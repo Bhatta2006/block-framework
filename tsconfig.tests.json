@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "sourceMap": false
+  },
+  "extends": "./tsconfig.base.json",
+  "include": ["packages/*/test/**/*.ts", "vitest.config.ts"],
+  "references": [
+    { "path": "packages/manifest" },
+    { "path": "packages/blocks" },
+    { "path": "packages/wiring" },
+    { "path": "packages/compiler" },
+    { "path": "packages/benchmark" }
+  ]
+}

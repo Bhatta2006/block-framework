@@ -1,0 +1,12 @@
+{
+  "config": {
+    "ctaText": "Start free trial",
+    "headline": "Unlock everything",
+    "products": [
+      { "id": "monthly", "period": "month", "price": "$4.99", "title": "Monthly" },
+      { "id": "yearly", "period": "year", "price": "$39.99", "title": "Yearly" }
+    ],
+    "subheadline": "Join 10,000+ happy users."
+  },
+  "variant": "cards"
+}

@@ -1,0 +1,65 @@
+{
+  "app": {
+    "name": "Habitual",
+    "slug": "habitual",
+    "theme": { "backgroundColor": "#FFFFFF", "primaryColor": "#6C5CE7", "textColor": "#1A1A2E" },
+    "version": "1.0.0"
+  },
+  "blocks": [
+    {
+      "config": {
+        "questions": [
+          {
+            "multi": false,
+            "options": ["Build a habit", "Ship a side project", "Learn something new"],
+            "prompt": "What brings you here?"
+          },
+          {
+            "multi": true,
+            "options": ["Morning", "Afternoon", "Evening"],
+            "prompt": "When do you want reminders?"
+          }
+        ],
+        "skippable": true
+      },
+      "id": "b1",
+      "type": "onboarding.quiz@1.0.0",
+      "variant": "quiz-cards"
+    },
+    {
+      "config": {
+        "ctaText": "Start my free trial",
+        "headline": "Unlock your full potential",
+        "products": [
+          { "id": "monthly", "period": "month", "price": "$4.99", "title": "Monthly" },
+          { "id": "yearly", "period": "year", "price": "$39.99", "title": "Yearly" }
+        ],
+        "subheadline": "Join 10,000+ people building better habits."
+      },
+      "id": "b2",
+      "type": "paywall.basic@1.0.0",
+      "variant": "cards"
+    },
+    {
+      "config": {
+        "items": [
+          { "id": "1", "subtitle": "Drink 8 glasses of water", "title": "Morning hydration" },
+          { "id": "2", "subtitle": "Read for 20 minutes", "title": "Deep work" },
+          { "id": "3", "subtitle": "Walk after dinner", "title": "Evening reset" }
+        ],
+        "subtitle": "Your habits for today",
+        "title": "Today"
+      },
+      "id": "b3",
+      "type": "home.list@1.0.0",
+      "variant": "list"
+    }
+  ],
+  "schemaVersion": "0",
+  "screens": [
+    { "block": "b1", "id": "s1", "title": "Welcome" },
+    { "block": "b2", "id": "s2", "title": "Go Premium" },
+    { "block": "b3", "id": "s3", "title": "Home" }
+  ],
+  "wires": []
+}

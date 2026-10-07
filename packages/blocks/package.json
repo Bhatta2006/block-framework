@@ -1,0 +1,17 @@
+{
+  "dependencies": {
+    "@blockfw/manifest": "0.1.0"
+  },
+  "exports": {
+    ".": {
+      "default": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "name": "@blockfw/blocks",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "type": "module",
+  "version": "0.1.0"
+}

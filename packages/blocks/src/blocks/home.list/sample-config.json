@@ -1,0 +1,12 @@
+{
+  "config": {
+    "items": [
+      { "id": "1", "subtitle": "Drink 8 glasses of water", "title": "Morning hydration" },
+      { "id": "2", "subtitle": "Read for 20 minutes", "title": "Deep work" },
+      { "id": "3", "subtitle": "Walk after dinner", "title": "Evening reset" }
+    ],
+    "subtitle": "Your habits for today",
+    "title": "Today"
+  },
+  "variant": "list"
+}

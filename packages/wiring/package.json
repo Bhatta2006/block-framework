@@ -1,0 +1,18 @@
+{
+  "dependencies": {
+    "@blockfw/blocks": "0.1.0",
+    "@blockfw/manifest": "0.1.0"
+  },
+  "exports": {
+    ".": {
+      "default": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "name": "@blockfw/wiring",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "type": "module",
+  "version": "0.1.0"
+}
