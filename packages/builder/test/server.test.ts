@@ -27,6 +27,16 @@ async function api<T>(
 }
 
 describe('canvas server API', () => {
+  it('keeps the record namespace stable when a project file supplies another app id', async () => {
+    const catalog = (await api<{ activeId: string }>('GET', '/api/apps')).json;
+    const original = (await api<BuilderProject>('GET', '/api/project')).json;
+    const copied = structuredClone(original);
+    copied.graph.app.dataId = 'other-app';
+    expect((await api('PUT', '/api/project', copied)).status).toBe(200);
+    expect((await api<BuilderProject>('GET', '/api/project')).json.graph.app.dataId).toBe(
+      catalog.activeId,
+    );
+  });
   it('switches apps without mixing queued saves or pending agent plans and restores deleted apps', async () => {
     const catalog = (await api<{ activeId: string }>('GET', '/api/apps')).json;
     const original = (await api<BuilderProject>('GET', '/api/project')).json;
@@ -64,9 +74,9 @@ describe('canvas server API', () => {
 
   it('lists blocks and cards', async () => {
     const blocks = await api<Array<{ id: string }>>('GET', '/api/blocks');
-    expect(blocks.json).toHaveLength(11);
+    expect(blocks.json).toHaveLength(14);
     const cards = await api<Array<{ block: string; estimatedTokens: number }>>('GET', '/api/cards');
-    expect(cards.json).toHaveLength(11);
+    expect(cards.json).toHaveLength(14);
     for (const c of cards.json) expect(c.estimatedTokens).toBeLessThanOrEqual(300);
   });
 

@@ -10,6 +10,8 @@ npm run build:studio
 npm run studio
 ```
 
+To try a complete app, open **Switch apps → Create app → Notes app**. The included **Paper** template has persistent notes, autosave, search, folders, tags, favorites, pinning, archive, trash/restore, Markdown checklists, and import/export backups. Three reusable data blocks share collections across connected pages, and a page can be hidden from the app navigation. See [the notes app reality check](docs/notes-reality-check.md) for the gaps this build uncovered, instructions, verification, and remaining limits.
+
 Open **http://127.0.0.1:5174**. The CLI persists the active project to `.builder-cache/project.blockfw.json` and the app library to the adjacent `.apps.json` file. Use `node packages/builder/dist/bin.js --project path/to/project.blockfw.json --port 5174` to choose a different file. Keep both files when backing up the complete workspace.
 
 Click the app name in the sidebar to switch apps, create an app, delete an app, or restore a recently deleted app. **New starter app** creates a separate app with two connected pages and four editable blocks; it preserves existing apps.
@@ -150,4 +152,4 @@ npx playwright test --config packages/builder/playwright.config.ts --project fir
 
 These checks exercise the real editor and generated web behavior. Browser evidence is written to `.builder-cache/proof/`. The suite includes composition, configuration, undo/redo, node/port dragging, the demo app flow, same-page payload delivery, responsive preview, toggles, web/mobile downloads, invalid project edits, and small-screen navigation.
 
-Production authentication, billing, persistent app data, cloud collaboration, visual API/business-logic nodes, and managed deployment are future integration layers. The current export path gives developers ownership of the full source so they can add those capabilities now.
+Production authentication, billing, cloud data/sync, cloud collaboration, visual API/business-logic nodes, and managed deployment are future integration layers. Local persistent text-record collections are implemented for web and native exports. The current export path gives developers ownership of the full source so they can add further capabilities.

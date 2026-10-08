@@ -4,9 +4,9 @@ import { assertCardsWithinBudget, estimateTokens, generateAllCards } from '@bloc
 describe('block cards', () => {
   it('generates a card for every registered block', () => {
     const cards = generateAllCards();
-    expect(cards).toHaveLength(11);
+    expect(cards).toHaveLength(14);
     const ids = cards.map((c) => c.block);
-    expect(new Set(ids).size).toBe(11);
+    expect(new Set(ids).size).toBe(14);
   });
 
   it('every card is within the 300-token budget (estimate)', () => {

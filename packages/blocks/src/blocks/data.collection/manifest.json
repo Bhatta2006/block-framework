@@ -1,0 +1,112 @@
+{
+  "id": "data.collection",
+  "version": "1.0.0",
+  "category": "data",
+  "variants": ["default"],
+  "defaultVariant": "default",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "collectionKey": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "title": {
+        "type": "string"
+      },
+      "subtitle": {
+        "type": "string"
+      },
+      "view": {
+        "type": "string",
+        "enum": ["all", "favorites", "archive", "trash"]
+      },
+      "createLabel": {
+        "type": "string"
+      },
+      "enableSearch": {
+        "type": "boolean"
+      },
+      "enableFolders": {
+        "type": "boolean"
+      },
+      "enableBackup": {
+        "type": "boolean"
+      },
+      "seedRecords": {
+        "type": "array",
+        "maxItems": 100,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "body": {
+              "type": "string"
+            },
+            "folder": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "defaultConfig": {
+    "collectionKey": "notes",
+    "title": "All notes",
+    "subtitle": "Clear your mind. Keep what matters.",
+    "view": "all",
+    "createLabel": "New note",
+    "enableSearch": true,
+    "enableFolders": true,
+    "enableBackup": true,
+    "seedRecords": []
+  },
+  "ports": {
+    "emits": [
+      {
+        "event": "data.recordSelected",
+        "payload": {
+          "type": "object",
+          "properties": {
+            "collection": {
+              "type": "string"
+            },
+            "recordId": {
+              "type": "string"
+            }
+          },
+          "required": ["collection", "recordId"]
+        }
+      }
+    ],
+    "consumes": [],
+    "provides": []
+  },
+  "editSurface": [
+    "config.collectionKey",
+    "config.title",
+    "config.subtitle",
+    "config.view",
+    "config.createLabel",
+    "config.enableSearch",
+    "config.enableFolders",
+    "config.enableBackup",
+    "config.seedRecords"
+  ],
+  "locked": ["ports", "variants"]
+}

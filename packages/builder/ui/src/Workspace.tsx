@@ -1,3 +1,4 @@
+import notesGraph from '../../../../examples/notes/graph.json';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowLeft,
@@ -63,6 +64,9 @@ const descriptions: Record<string, string> = {
   'content.hero': 'A bold introduction and call to action',
   'content.text': 'A heading and supporting copy',
   'action.button': 'A focused, connected call to action',
+  'data.collection': 'Persistent notes, search, folders, and backups',
+  'data.editor': 'Autosave, tags, Markdown, and checklists',
+  'data.summary': 'Live counts from a shared collection',
 };
 function download(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
@@ -140,6 +144,34 @@ function Modal({
     </div>
   );
 }
+function NavigationToggle({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: boolean;
+  disabled: boolean;
+  onChange(value: boolean): Promise<void>;
+}) {
+  const [checked, setChecked] = useState(value);
+  useEffect(() => setChecked(value), [value]);
+  return (
+    <label style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 }}>
+      <input
+        type="checkbox"
+        aria-label="Show page in app navigation"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => {
+          const next = e.currentTarget.checked;
+          setChecked(next);
+          void onChange(next).catch(() => setChecked(value));
+        }}
+      />
+      In navigation
+    </label>
+  );
+}
 export function Workspace() {
   const {
     project,
@@ -163,6 +195,7 @@ export function Workspace() {
   const [exporting, setExporting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [jsonDraft, setJsonDraft] = useState('');
+  const [newAppTemplate, setNewAppTemplate] = useState('starter');
   const [newAppName, setNewAppName] = useState('My first app');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [libOpen, setLibOpen] = useState(true);
@@ -493,6 +526,16 @@ export function Workspace() {
                   <option value="grid">Grid layout</option>
                   <option value="split">Split layout</option>
                 </select>
+                <NavigationToggle
+                  key={page.id}
+                  value={page.navigation !== false}
+                  disabled={saving}
+                  onChange={(visible) =>
+                    edit((p) => {
+                      p.graph.screens.find((s) => s.id === page.id)!.navigation = visible;
+                    })
+                  }
+                />
               </>
             )}
             <div className="platform-switch" aria-label="Preview platform">
@@ -743,9 +786,21 @@ export function Workspace() {
                   starts here.
                 </h2>
                 <p>
-                  Start with two connected pages and four editable blocks. Build for web and mobile
-                  from the same canvas.
+                  {newAppTemplate === 'notes'
+                    ? 'A complete notes app with five connected pages, autosave, folders, search, favorites, archive, trash, and backups. Your notes stay on this device.'
+                    : 'Start with two connected pages and four editable blocks. Build for web and mobile from the same canvas.'}
                 </p>
+                <label className="field">
+                  <span>Template</span>
+                  <select
+                    aria-label="App template"
+                    value={newAppTemplate}
+                    onChange={(e) => setNewAppTemplate(e.target.value)}
+                  >
+                    <option value="starter">Starter app</option>
+                    <option value="notes">Notes app · persistent records</option>
+                  </select>
+                </label>
                 <label className="field">
                   <span>App name</span>
                   <input
@@ -837,15 +892,26 @@ export function Workspace() {
                         },
                       ],
                     };
+                    if (newAppTemplate === 'notes') {
+                      p.graph = structuredClone(notesGraph) as BuilderProject['graph'];
+                      p.graph.app.name = name;
+                      p.graph.app.slug =
+                        name
+                          .toLowerCase()
+                          .replace(/[^a-z0-9]+/g, '-')
+                          .replace(/^-+|-+$/g, '')
+                          .replace(/^[^a-z]+/, '') || 'notes-app';
+                    }
                     void manageApp('create', p)
                       .then(() => {
                         setDialog(null);
-                        openPage('welcome');
+                        openPage(newAppTemplate === 'notes' ? 'notes' : 'welcome');
                       })
                       .catch(() => {});
                   }}
                 >
-                  <Plus size={15} /> Create starter app
+                  <Plus size={15} />{' '}
+                  {newAppTemplate === 'notes' ? 'Create notes app' : 'Create starter app'}
                 </button>
                 <p className="export-note">Your existing apps stay in your app library.</p>
               </div>

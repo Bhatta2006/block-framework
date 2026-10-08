@@ -1,5 +1,7 @@
 /** The same runtime powers exported web apps and the builder's live preview. */
 export const WEB_RUNTIME = String.raw`
+import { DataProvider, DataCollection, DataEditor, DataSummary } from './data-runtime';
+import type { DataConfig, Note } from './data-core';
 import React, { useEffect, useState, useRef } from 'react';
 type Item = {
   id: string;
@@ -23,7 +25,7 @@ type Row = {
   value?: boolean;
   detail?: string;
 };
-type Config = {
+type Config = DataConfig & {
   title?: string;
   subtitle?: string;
   headline?: string;
@@ -82,6 +84,7 @@ export type Block = {
   design?: Design;
 };
 export type Page = {
+  navigation?: boolean;
   id: string;
   block: string;
   blocks?: string[];
@@ -91,6 +94,9 @@ export type Page = {
 };
 export type Graph = {
   app: {
+    dataId?: string;
+    slug?: string;
+    layout?: string;
     name: string;
     theme?: {
       primaryColor?: string;
@@ -111,7 +117,7 @@ export type Wire = {
     instance?: string;
   };
 };
-type Emit = (event: string, output?: unknown) => void;
+type Emit = (event: string, output?: unknown) => boolean | void;
 type Props = {
   block: Block;
   input?: unknown;
@@ -151,7 +157,13 @@ function elementStyle(value: ElementDesign = {}, button = false): React.CSSPrope
   };
 }
 function customize(tree: React.ReactNode, design?: Design): React.ReactNode {
-  const runAction = React.useContext(ActionContext);
+  return applyDesign(tree, design, React.useContext(ActionContext));
+}
+function applyDesign(
+  tree: React.ReactNode,
+  design: Design | undefined,
+  runAction: (id: string, action: Action) => void,
+): React.ReactNode {
   const inserted = new Set<string>();
   const added = (item: AddedElement) => {
     inserted.add(item.id);
@@ -651,8 +663,34 @@ function Settings({ block }: Props) {
   );
 }
 export function BlockView(props: Props) {
+  const runAction = React.useContext(ActionContext);
   const c = props.block.config ?? {};
   switch (props.block.type.split('@')[0]) {
+    case 'data.collection':
+      return (
+        <DataCollection
+          config={c}
+          emit={props.emit}
+          decorate={(tree) => applyDesign(tree, props.block.design, runAction)}
+        />
+      );
+    case 'data.editor':
+      return (
+        <DataEditor
+          config={c}
+          input={props.input}
+          emit={props.emit}
+          decorate={(tree) => applyDesign(tree, props.block.design, runAction)}
+        />
+      );
+    case 'data.summary':
+      return (
+        <DataSummary
+          config={c}
+          emit={props.emit}
+          decorate={(tree) => applyDesign(tree, props.block.design, runAction)}
+        />
+      );
     case 'auth.email':
       return customize(<Auth {...props} />, props.block.design);
     case 'onboarding.quiz':
@@ -723,7 +761,7 @@ export function BlockView(props: Props) {
       );
   }
 }
-export function Application({
+function ApplicationView({
   graph,
   wires,
   initialPage,
@@ -738,6 +776,8 @@ export function Application({
 }) {
   const [draftDesign, setDraftDesign] = useState<Record<string, ElementDesign>>({});
   const [selectedElement, setSelectedElement] = useState('button');
+  const selectedRef = useRef(selectedElement);
+  selectedRef.current = selectedElement;
   const draftRef = useRef(draftDesign);
   draftRef.current = draftDesign;
   useEffect(() => {
@@ -768,24 +808,33 @@ export function Application({
     if (!previewBlock || new URLSearchParams(location.search).get('editor') !== '1') return;
     const root = document.querySelector('.block-container');
     if (!root) return;
-    const elements = Array.from(root.querySelectorAll<HTMLElement>('[data-element]'));
+    let elements = Array.from(root.querySelectorAll<HTMLElement>('[data-element]'));
     const send = (payload: object) =>
       window.parent.postMessage(
         { source: 'block-studio-design', blockId: previewBlock, ...payload },
         window.location.origin,
       );
-    elements.forEach((el) =>
-      el.classList.toggle('design-selected', el.dataset.element === selectedElement),
-    );
-    send({
-      type: 'elements',
-      elements: elements.map((el) => ({
+    let lastElements = '';
+    const refreshElements = () => {
+      elements = Array.from(root.querySelectorAll<HTMLElement>('[data-element]'));
+      elements.forEach((el) =>
+        el.classList.toggle('design-selected', el.dataset.element === selectedRef.current),
+      );
+      const details = elements.map((el) => ({
         id: el.dataset.element,
         label: el.dataset.element,
         tag: el.tagName.toLowerCase(),
         text: el.textContent?.trim().slice(0, 40),
-      })),
-    });
+      }));
+      const signature = JSON.stringify(details);
+      if (signature !== lastElements) {
+        lastElements = signature;
+        send({ type: 'elements', elements: details });
+      }
+    };
+    refreshElements();
+    const observer = new MutationObserver(refreshElements);
+    observer.observe(root, { childList: true, subtree: true, characterData: true });
     let start: {
       element: HTMLElement;
       x: number;
@@ -849,6 +898,7 @@ export function Application({
     root.addEventListener('pointerup', up as EventListener, true);
     root.addEventListener('click', click, true);
     return () => {
+      observer.disconnect();
       root.removeEventListener('pointerdown', down as EventListener, true);
       root.removeEventListener('pointermove', move as EventListener, true);
       root.removeEventListener('pointerup', up as EventListener, true);
@@ -857,7 +907,7 @@ export function Application({
   }, [graph, previewBlock]);
 
   const readPage = () => {
-    const id = window.location.hash.slice(1);
+    const id = window.location.hash.slice(1).split('?')[0];
     return graph.screens.some((p) => p.id === id)
       ? id
       : (initialPage ?? graph.screens[0]?.id ?? '');
@@ -874,16 +924,26 @@ export function Application({
     };
   }, [graph, initialPage]);
   const page = graph.screens.find((p) => p.id === pageId) ?? graph.screens[0];
-  const navigate = (id: string) => {
+  const navigate = (id: string, output?: unknown) => {
     setPageId(id);
-    window.history.pushState(null, '', '#' + id);
+    const record = output as { recordId?: string; collection?: string } | undefined;
+    const query =
+      record?.recordId !== undefined
+        ? '?record=' +
+          encodeURIComponent(record.recordId) +
+          '&collection=' +
+          encodeURIComponent(record.collection ?? 'notes')
+        : '';
+    window.history.pushState(null, '', '#' + id + query);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const emit = (id: string, event: string, output?: unknown) => {
     const wire = wires.find((w) => w.from.instance === id && w.from.event === event);
-    if (!wire) return;
+    if (!wire) return false;
     if (wire.to.instance) setInputs((prev) => ({ ...prev, [wire.to.instance!]: output }));
-    if (wire.to.screen !== pageId) navigate(wire.to.screen);
+    if (wire.to.screen !== pageId || event === 'data.recordSelected')
+      navigate(wire.to.screen, output);
+    return true;
   };
   const style = {
     '--brand': graph.app.theme?.primaryColor ?? '#466d5e',
@@ -892,7 +952,14 @@ export function Application({
   } as React.CSSProperties;
   const blockIds = previewBlock ? [previewBlock] : (page?.blocks ?? (page ? [page.block] : []));
   return (
-    <div className={'generated-app ' + (embedded ? 'embedded' : '')} style={style}>
+    <div
+      className={
+        'generated-app ' +
+        (graph.app.layout === 'notes' ? 'notes-shell ' : '') +
+        (embedded ? 'embedded' : '')
+      }
+      style={style}
+    >
       {!embedded && (
         <header className="app-header">
           <a
@@ -907,15 +974,17 @@ export function Application({
             {graph.app.name}
           </a>
           <nav aria-label="Pages">
-            {graph.screens.map((p) => (
-              <button
-                className={pageId === p.id ? 'active' : ''}
-                key={p.id}
-                onClick={() => navigate(p.id)}
-              >
-                {p.title}
-              </button>
-            ))}
+            {graph.screens
+              .filter((p) => p.navigation !== false)
+              .map((p) => (
+                <button
+                  className={pageId === p.id ? 'active' : ''}
+                  key={p.id}
+                  onClick={() => navigate(p.id)}
+                >
+                  {p.title}
+                </button>
+              ))}
           </nav>
           <span className="app-header-note">Make a little progress.</span>
         </header>
@@ -949,7 +1018,19 @@ export function Application({
                         }
                       : block
                   }
-                  input={inputs[id]}
+                  input={
+                    block.type.startsWith('data.editor') &&
+                    new URLSearchParams(location.hash.split('?')[1]).has('record') &&
+                    (new URLSearchParams(location.hash.split('?')[1]).get('collection') ??
+                      'notes') === (block.config?.collectionKey ?? 'notes')
+                      ? {
+                          recordId: new URLSearchParams(location.hash.split('?')[1]).get('record'),
+                          collection: new URLSearchParams(location.hash.split('?')[1]).get(
+                            'collection',
+                          ),
+                        }
+                      : inputs[id]
+                  }
                   emit={(event, output) => emit(id, event, output)}
                 />
               </ActionContext.Provider>
@@ -964,6 +1045,23 @@ export function Application({
         </footer>
       )}
     </div>
+  );
+}
+export function Application(props: React.ComponentProps<typeof ApplicationView>) {
+  const seeds: Record<string, Partial<Note>[]> = {};
+  for (const block of props.graph.blocks) {
+    const c = block.config;
+    if (c?.seedRecords?.length) seeds[c.collectionKey ?? 'notes'] = c.seedRecords;
+  }
+  return (
+    <DataProvider
+      key={props.graph.app.dataId ?? props.graph.app.slug ?? props.graph.app.name}
+      namespace={props.graph.app.dataId ?? props.graph.app.slug ?? props.graph.app.name}
+      seeds={seeds}
+      transient={props.embedded || !!props.previewBlock}
+    >
+      <ApplicationView {...props} />
+    </DataProvider>
   );
 }
 `;

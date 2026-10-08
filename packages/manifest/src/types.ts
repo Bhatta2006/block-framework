@@ -86,6 +86,8 @@ export interface AppTheme {
 }
 
 export interface AppMeta {
+  dataId?: string;
+  layout?: 'standard' | 'notes';
   name: string;
   slug: string;
   version: string;
@@ -93,6 +95,7 @@ export interface AppMeta {
 }
 
 export interface GraphScreen {
+  navigation?: boolean;
   id: string;
   /** Block instance id rendered on this screen. */
   block: string;

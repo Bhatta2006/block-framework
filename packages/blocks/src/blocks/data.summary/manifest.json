@@ -1,0 +1,36 @@
+{
+  "id": "data.summary",
+  "version": "1.0.0",
+  "category": "data",
+  "variants": ["default"],
+  "defaultVariant": "default",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "collectionKey": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "title": {
+        "type": "string"
+      },
+      "subtitle": {
+        "type": "string"
+      }
+    }
+  },
+  "defaultConfig": {
+    "collectionKey": "notes",
+    "title": "Your notes",
+    "subtitle": ""
+  },
+  "ports": {
+    "emits": [],
+    "consumes": [],
+    "provides": []
+  },
+  "editSurface": ["config.collectionKey", "config.title", "config.subtitle"],
+  "locked": ["ports", "variants"]
+}

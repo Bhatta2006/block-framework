@@ -1,3 +1,5 @@
+import { DATA_CORE } from './data-core.js';
+import { NATIVE_DATA_RUNTIME } from './native-data.js';
 import { createHash } from 'node:crypto';
 import { customizeNative } from './customization.js';
 import {
@@ -93,6 +95,8 @@ function themeFor(graph: ProjectGraph): Required<BlockTheme> {
 
 function renderPackageJson(graph: ProjectGraph, spine?: SpineFile): string {
   const dependencies: Record<string, string> = { ...PINNED_DEPS };
+  if (graph.blocks.some((b) => b.type.startsWith('data.')))
+    dependencies['@react-native-async-storage/async-storage'] = '2.2.0';
   if (spine) {
     // The generated src/supabase.ts imports the Supabase client.
     dependencies['@supabase/supabase-js'] = '2.117.3';
@@ -152,16 +156,22 @@ registerRootComponent(App);
 `;
 }
 
-function renderApp(): string {
+function renderApp(graph: ProjectGraph): string {
+  const hasData = graph.blocks.some((b) => b.type.startsWith('data.'));
+  const seeds: Record<string, unknown> = {};
+  for (const b of graph.blocks)
+    if (b.config?.seedRecords)
+      seeds[String(b.config.collectionKey ?? 'notes')] = b.config.seedRecords;
   return `import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppNavigator } from './src/navigation';
+${hasData ? "import { DataProvider } from './src/data-runtime';" : ''}
 
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AppNavigator />
+      ${hasData ? '<DataProvider namespace=' + JSON.stringify(graph.app.dataId ?? graph.app.slug) + ' seeds={' + JSON.stringify(seeds) + '}><AppNavigator /></DataProvider>' : '<AppNavigator />'}
       <StatusBar style="auto" />
     </SafeAreaProvider>
   );
@@ -198,10 +208,10 @@ function renderNavigation(graph: ProjectGraph, paramsByScreen: Map<string, strin
     .join('\n');
   const first = screenIds[0] ?? '';
   const tabButtons = graph.screens
-    .filter((s) => s.lane === 'tabs')
+    .filter((s) => s.lane === 'tabs' && s.navigation !== false)
     .map(
       (s) =>
-        `<Pressable accessibilityRole="button" onPress={() => navigationRef.navigate(...(['${s.id}', undefined] as never))} style={{ padding: 12 }}><Text style={{ color: '#345E4F', fontWeight: '600' }}>{${JSON.stringify(s.title)}}</Text></Pressable>`,
+        `<Pressable accessibilityRole="button" onPress={() => navigationRef.navigate(...(['${s.id}', undefined] as never))} style={{ padding: 12 }}><Text style={{ color: '${graph.app.theme?.primaryColor ?? '#345E4F'}', fontWeight: '600' }}>{${JSON.stringify(s.title)}}</Text></Pressable>`,
     )
     .join('\n');
   return `import React from 'react';
@@ -485,7 +495,11 @@ export function compileProject(
   add('tsconfig.json', renderTsConfig());
   add('babel.config.js', renderBabelConfig());
   add('index.ts', renderIndex());
-  add('App.tsx', renderApp());
+  add('App.tsx', renderApp(graph));
+  if (graph.blocks.some((b) => b.type.startsWith('data.'))) {
+    add('src/data-core.ts', DATA_CORE);
+    add('src/data-runtime.tsx', NATIVE_DATA_RUNTIME);
+  }
   add('src/theme.ts', renderTheme(theme));
   add('src/navigation.tsx', renderNavigation(graph, paramsByScreen));
   add('src/services/billing.mock.ts', renderBillingMock());

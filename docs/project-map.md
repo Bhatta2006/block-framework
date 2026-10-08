@@ -16,7 +16,7 @@ Beginners can add pages and library blocks, edit content through generated forms
 | Package     | Responsibility                                                             | Important entry points                                                             |
 | ----------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `manifest`  | Authoritative JSON schemas, mirrored types, Ajv validation                 | `src/types.ts`, `src/validate.ts`, `src/schema/`                                   |
-| `blocks`    | Registry, eleven built-in blocks, native source templates, authoring SDK   | `src/registry.ts`, `src/types.ts`, `src/sdk.ts`, `src/blocks/`                     |
+| `blocks`    | Registry, fourteen built-in blocks, native source templates, authoring SDK | `src/registry.ts`, `src/types.ts`, `src/sdk.ts`, `src/blocks/`                     |
 | `wiring`    | Config validation, service requirements, event routing, reachability       | `src/engine.ts`, `src/types.ts`                                                    |
 | `compiler`  | Pure compilation to web or Expo source; CLI and audited ZIP export         | `src/compile-web.ts`, `src/web-runtime.ts`, `src/compile.ts`, `src/cli.ts`         |
 | `spine`     | Entity definitions to PostgreSQL DDL and typed database contracts          | `src/index.ts`                                                                     |
@@ -33,6 +33,8 @@ The saved builder project contains `version: 1`, `profile`, `touched`, and `grap
 `screens[].block` remains the required primary block for legacy files. `screens[].blocks`, when present, is the complete ordered composition and must include that primary block. A block instance can appear on only one page; duplication creates a new instance. Page layouts are `stack`, `grid`, and `split`. Both pages and blocks may store `{x, y}` canvas positions.
 
 Block manifests define identifiers, versions, variants, default configuration, a configuration schema, emitted and consumed event ports, provided and required entities, editable AI fields, and locked fields. Configuration is merged with defaults before validation and generation. The palette combines defaults with valid sample content so newly added blocks are immediately usable.
+
+`app.dataId` provides a stable per-app storage namespace. App creation assigns a fresh ID; renaming and project-file imports preserve it. `app.layout: notes` selects the monochrome notes shell. `screens[].navigation: false` hides a page from the app menu without removing its event connections.
 
 The wiring engine resolves each emitted event in this order:
 
@@ -54,6 +56,8 @@ The engine also reports optional service fallbacks, unsatisfied requirements, un
 The runtime renders ordered blocks, applies responsive page layouts, routes each event by both instance and event name, delivers payloads to consumer inputs, and supports URL-hash navigation plus browser back/forward. Same-page payload updates do not navigate away. Forms, onboarding choices, mock checkout, content selection, detail actions, and local settings toggles work interactively.
 
 The phone preview is the responsive web runtime at phone width. It is explicitly labelled as a responsive preview; it is not an embedded native emulator.
+
+`data.collection`, `data.editor`, and `data.summary` share persistent text records by collection key. The web export includes `data-core.ts` and `data-runtime.tsx`, with localStorage persistence, autosave, search, folders, record lifecycle actions, backups, and Markdown/checklists. Web editor hashes include record IDs so selections survive refresh. Embedded canvas and design previews use temporary stores. The native export conditionally emits the same data core and a React Native runtime with Expo-compatible AsyncStorage. See [the notes reality check](notes-reality-check.md) for the exact feature contract and platform differences.
 
 ### Mobile
 
@@ -104,9 +108,9 @@ The server binds to loopback by default. It is a local editing service, not a mu
 
 ## Current limits and next product layers
 
-The visual editor, graph composition, deterministic compilation, source exports, and local interactive flows are implemented. Production identity, billing, durable app data, shared cloud workspaces, deployment orchestration, permissions, and general visual business-logic nodes are still integration work. Authentication and checkout are demonstrations, not real services. Settings toggles are local component state; link rows require integrations. Web custom blocks need a renderer in the exported runtime; the native SDK registry is not automatically a browser plugin system.
+The visual editor, graph composition, deterministic compilation, source exports, local interactive flows, and durable local text-record collections are implemented. Production identity, billing, cloud data/sync, shared cloud workspaces, deployment orchestration, permissions, and general visual business-logic nodes are still integration work. Authentication and checkout are demonstrations, not real services. Settings toggles are local component state; link rows require integrations. Web custom blocks need a renderer in the exported runtime; the native SDK registry is not automatically a browser plugin system.
 
-The next substantial product layers are explicit data/API and condition/action nodes, persistent application state, reusable components and design tokens, custom web/native renderer registration, backend connectors, and deployment/provider configuration. These should share typed contracts and explain their execution in the same canvas, preserving the beginner workflow and the developer extension path.
+The next substantial product layers are arbitrary data schemas, API and condition/action nodes, cloud application state, reusable components and design tokens, custom web/native renderer registration, backend connectors, and deployment/provider configuration. These should share typed contracts and explain their execution in the same canvas, preserving the beginner workflow and the developer extension path.
 
 ## Validation
 

@@ -354,6 +354,7 @@ test('preview has responsive devices, live settings, and downloadable web/mobile
 });
 
 test('invalid developer edits preserve the saved project', async ({ page, request }) => {
+  const before = ((await (await request.get('/api/project')).json()) as BuilderProject).graph;
   await page.goto('/');
   await page.getByRole('button', { name: 'Developer tools', exact: true }).click();
   const invalid = structuredClone(initial);
@@ -362,7 +363,7 @@ test('invalid developer edits preserve the saved project', async ({ page, reques
   await page.getByRole('button', { name: 'Validate & apply', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('unknown block');
   const saved = (await (await request.get('/api/project')).json()) as BuilderProject;
-  expect(saved.graph).toEqual(initial.graph);
+  expect(saved.graph).toEqual(before);
 });
 
 test('small screen workspace keeps navigation and editing accessible', async ({ page }) => {

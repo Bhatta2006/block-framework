@@ -30,6 +30,9 @@ export const blockNames: Record<string, string> = {
   'content.hero': 'Hero section',
   'content.text': 'Rich content',
   'action.button': 'Action button',
+  'data.collection': 'Record collection',
+  'data.editor': 'Record editor',
+  'data.summary': 'Collection summary',
 };
 export const blockName = (type: string) => blockNames[type.split('@')[0]!] ?? type.split('@')[0]!;
 export const pageIds = (s: BuilderProject['graph']['screens'][number]) => s.blocks ?? [s.block];

@@ -36,6 +36,14 @@
         "version": {
           "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
           "type": "string"
+        },
+        "dataId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "layout": {
+          "type": "string",
+          "enum": ["standard", "notes"]
         }
       },
       "required": ["name", "slug", "version"],
@@ -316,6 +324,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "navigation": {
+            "type": "boolean"
           }
         },
         "required": ["id", "block", "title"],

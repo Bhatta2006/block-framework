@@ -2,6 +2,28 @@
 
 Verified on Windows with Node 24.21.0 and npm 11.19.0.
 
+## Notes app reality check — 2026-10-08
+
+| Check                                                    | Result                                                                                         |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Studio production build, lint, strict root/UI typechecks | Passed                                                                                         |
+| Vitest regression suite                                  | 170 tests passed in 16 files                                                                   |
+| Firefox browser checks                                   | All 28 passed in the final full run                                                            |
+| SDK validation                                           | All 14 registered blocks passed                                                                |
+| Standalone Paper web export                              | Strict TypeScript and Vite production build passed                                             |
+| Standalone Paper mobile export                           | Installed and strict TypeScript check passed                                                   |
+| Android Metro/Hermes export                              | Passed, 841 modules bundled                                                                    |
+| Web and mobile source ZIP audits                         | Passed                                                                                         |
+| Manual in-app browser check                              | Created Paper through Studio; note content, metadata, and selected editor URL survived refresh |
+
+The final full Vitest and browser runs are green. Testing reproduced a Windows `EPERM` during atomic catalog-file replacement. Catalog saves now retry transient file locks for a bounded interval and roll back in-memory app changes on failure; regression tests cover retry limits, permanent failures, and rollback. The corrected browser assertion compares the saved graph against the server's normalized baseline, including its stable data ID, so invalid edits still have to leave every saved field unchanged.
+
+Notes coverage adds real record persistence, Markdown/checklist editing, search/filtering, folders, favorites, pinning, archive/trash/restore/delete, backup merging and rejection, storage errors and corruption recovery, app isolation, temporary previews, asynchronous field discovery and live customization, hidden navigation pages, responsive layout, deep links, same-page collection/editor composition, and feedback for disconnected actions. See [the detailed reality check](notes-reality-check.md).
+
+Physical-device/emulator interaction testing and signed native binaries were not performed. Chromium's browser executable remains unavailable; browser automation uses Firefox and manual inspection uses the in-app browser. Offline benchmarks below are the earlier renovation baseline and were not rerun for this feature addition.
+
+## Previous renovation baseline
+
 | Check                                             | Result                                                 |
 | ------------------------------------------------- | ------------------------------------------------------ |
 | Workspace and editor production builds            | Passed                                                 |

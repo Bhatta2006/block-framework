@@ -22,6 +22,10 @@ import textManifest from './blocks/content.text/manifest.json' with { type: 'jso
 import buttonManifest from './blocks/action.button/manifest.json' with { type: 'json' };
 import { renderHero, renderText, renderButton } from './primitives.js';
 
+import collectionManifest from './blocks/data.collection/manifest.json' with { type: 'json' };
+import editorManifest from './blocks/data.editor/manifest.json' with { type: 'json' };
+import summaryManifest from './blocks/data.summary/manifest.json' with { type: 'json' };
+import { renderCollection, renderEditor, renderSummary } from './data.js';
 export interface RegisteredBlock {
   manifest: BlockManifest;
   render: BlockTemplate;
@@ -68,7 +72,7 @@ export class BlockRegistry {
   }
 }
 
-/** The built-in library: eleven block contracts and native renderers. */
+/** The built-in library: fourteen block contracts and native renderers. */
 export function loadDefaultRegistry(): BlockRegistry {
   const registry = new BlockRegistry();
   registry.register(quizManifestJson, renderQuiz);
@@ -82,5 +86,8 @@ export function loadDefaultRegistry(): BlockRegistry {
   registry.register(heroManifest, renderHero);
   registry.register(textManifest, renderText);
   registry.register(buttonManifest, renderButton);
+  registry.register(collectionManifest, renderCollection);
+  registry.register(editorManifest, renderEditor);
+  registry.register(summaryManifest, renderSummary);
   return registry;
 }

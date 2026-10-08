@@ -14,6 +14,29 @@ interface Catalog {
   apps: AppRecord[];
 }
 
+/** Retain atomic replacement when Windows scanners briefly lock the old catalog. */
+export function replaceCatalogFile(
+  source: string,
+  target: string,
+  rename: typeof renameSync = renameSync,
+  wait: (milliseconds: number) => void = (milliseconds) => {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+  },
+) {
+  const delays = [25, 50, 100, 200, 300];
+  for (let attempt = 0; ; attempt++) {
+    try {
+      rename(source, target);
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (!['EPERM', 'EACCES', 'EBUSY'].includes(code ?? '') || attempt >= delays.length)
+        throw error;
+      wait(delays[attempt]!);
+    }
+  }
+}
+
 /** Local app library. Deleted apps stay recoverable in the library's trash. */
 export class AppLibrary {
   private catalog: Catalog;
@@ -27,6 +50,9 @@ export class AppLibrary {
         : { version: 1, activeId: randomUUID(), apps: [] };
     if (!this.catalog.apps.length)
       this.catalog.apps.push({ id: this.catalog.activeId, project: initial });
+    this.catalog.apps.forEach((a) => {
+      a.project.graph.app.dataId = a.id;
+    });
     if (!this.catalog.apps.some((a) => a.id === this.catalog.activeId && !a.deleted))
       throw new Error('App library has no active app.');
   }
@@ -37,8 +63,11 @@ export class AppLibrary {
     return this.catalog.apps.find((a) => a.id === this.activeId)!.project;
   }
   update(project: BuilderProject) {
-    this.catalog.apps.find((a) => a.id === this.activeId)!.project = structuredClone(project);
-    this.persist();
+    const copy = structuredClone(project);
+    copy.graph.app.dataId = this.activeId;
+    this.change(() => {
+      this.catalog.apps.find((a) => a.id === this.activeId)!.project = copy;
+    });
   }
   list() {
     return {
@@ -52,15 +81,19 @@ export class AppLibrary {
   }
   create(project: BuilderProject) {
     const id = randomUUID();
-    this.catalog.apps.push({ id, project: structuredClone(project) });
-    this.catalog.activeId = id;
-    this.persist();
+    const copy = structuredClone(project);
+    copy.graph.app.dataId = id;
+    this.change(() => {
+      this.catalog.apps.push({ id, project: copy });
+      this.catalog.activeId = id;
+    });
   }
   activate(id: string) {
     if (!this.catalog.apps.some((a) => a.id === id && !a.deleted))
       throw new Error('App not found.');
-    this.catalog.activeId = id;
-    this.persist();
+    this.change(() => {
+      this.catalog.activeId = id;
+    });
   }
   remove(id: string) {
     const app = this.catalog.apps.find((a) => a.id === id && !a.deleted);
@@ -68,20 +101,32 @@ export class AppLibrary {
     const remaining = this.catalog.apps.filter((a) => a.id !== id && !a.deleted);
     if (!remaining.length)
       throw new Error('Keep at least one app. Create another before deleting this app.');
-    app.deleted = true;
-    if (this.activeId === id) this.catalog.activeId = remaining[0]!.id;
-    this.persist();
+    this.change(() => {
+      app.deleted = true;
+      if (this.activeId === id) this.catalog.activeId = remaining[0]!.id;
+    });
   }
   restore(id: string) {
     const app = this.catalog.apps.find((a) => a.id === id && a.deleted);
     if (!app) throw new Error('Deleted app not found.');
-    delete app.deleted;
-    this.persist();
+    this.change(() => {
+      delete app.deleted;
+    });
+  }
+  private change(write: () => void) {
+    const before = structuredClone(this.catalog);
+    try {
+      write();
+      this.persist();
+    } catch (error) {
+      this.catalog = before;
+      throw error;
+    }
   }
   private persist() {
     if (!this.path) return;
     mkdirSync(dirname(this.path), { recursive: true });
     writeFileSync(this.path + '.tmp', JSON.stringify(this.catalog, null, 2) + '\n');
-    renameSync(this.path + '.tmp', this.path);
+    replaceCatalogFile(this.path + '.tmp', this.path);
   }
 }

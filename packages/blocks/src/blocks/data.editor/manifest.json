@@ -1,0 +1,52 @@
+{
+  "id": "data.editor",
+  "version": "1.0.0",
+  "category": "data",
+  "variants": ["default"],
+  "defaultVariant": "default",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "collectionKey": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "title": {
+        "type": "string"
+      },
+      "subtitle": {
+        "type": "string"
+      }
+    }
+  },
+  "defaultConfig": {
+    "collectionKey": "notes",
+    "title": "Edit note",
+    "subtitle": ""
+  },
+  "ports": {
+    "emits": ["data.closed"],
+    "consumes": [
+      {
+        "port": "data.recordSelected",
+        "accepts": {
+          "type": "object",
+          "properties": {
+            "collection": {
+              "type": "string"
+            },
+            "recordId": {
+              "type": "string"
+            }
+          },
+          "required": ["collection", "recordId"]
+        }
+      }
+    ],
+    "provides": []
+  },
+  "editSurface": ["config.collectionKey", "config.title", "config.subtitle"],
+  "locked": ["ports", "variants"]
+}

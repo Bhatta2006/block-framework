@@ -2,6 +2,8 @@ import { canonicalJson, type BlockRegistry } from '@blockfw/blocks';
 import type { ProjectGraph } from '@blockfw/manifest';
 import { resolveWiring } from '@blockfw/wiring';
 import { hashFiles, type CompileResult } from './compile.js';
+import { DATA_CORE } from './data-core.js';
+import { WEB_DATA_RUNTIME, DATA_STYLES } from './web-data.js';
 import { WEB_RUNTIME, WEB_STYLES } from './web-runtime.js';
 
 /** The standalone web export and the editor preview share this exact runtime. */
@@ -60,7 +62,9 @@ export function compileWebProject(graph: ProjectGraph, registry: BlockRegistry):
         }) + '\n',
     },
     { path: 'src/runtime.tsx', content: WEB_RUNTIME },
-    { path: 'src/styles.css', content: WEB_STYLES },
+    { path: 'src/data-core.ts', content: DATA_CORE },
+    { path: 'src/data-runtime.tsx', content: WEB_DATA_RUNTIME },
+    { path: 'src/styles.css', content: WEB_STYLES + DATA_STYLES },
     { path: 'src/project.json', content: canonicalJson(hydrated) + '\n' },
     { path: 'src/wires.json', content: canonicalJson(wiring.wires) + '\n' },
     {

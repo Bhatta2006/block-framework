@@ -48,6 +48,7 @@ export function useProject() {
       const next = structuredClone(before);
       try {
         fn(next);
+        next.graph.app.dataId = before.graph.app.dataId;
         await api.saveProject(next);
         setCatalog((prev) =>
           prev

@@ -1,0 +1,11 @@
+{
+  "collectionKey": "notes",
+  "title": "All notes",
+  "subtitle": "Clear your mind. Keep what matters.",
+  "view": "all",
+  "createLabel": "New note",
+  "enableSearch": true,
+  "enableFolders": true,
+  "enableBackup": true,
+  "seedRecords": []
+}

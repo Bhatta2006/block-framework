@@ -52,6 +52,8 @@ export interface BuilderProject {
   graph: {
     schemaVersion: string;
     app: {
+      dataId?: string;
+      layout?: 'standard' | 'notes';
       name: string;
       slug: string;
       version: string;
@@ -66,6 +68,7 @@ export interface BuilderProject {
       position?: { x: number; y: number };
     }>;
     screens: Array<{
+      navigation?: boolean;
       id: string;
       block: string;
       blocks?: string[];

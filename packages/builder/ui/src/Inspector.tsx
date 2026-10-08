@@ -82,6 +82,13 @@ export function Inspector({
             : blockName(block.type)}
         </h2>
         <p className="muted">Changes appear in your app and both export targets.</p>
+        {block.type.startsWith('data.') && (
+          <p className="muted">
+            Blocks with the same collectionKey share records within this app. Live previews save on
+            this device; canvas thumbnails use temporary records. Connect data.recordSelected to a
+            Record editor to open or create notes. Seed records are used only for a new collection.
+          </p>
+        )}
         <button className="primary full" onClick={customize}>
           Customize inside this block
         </button>

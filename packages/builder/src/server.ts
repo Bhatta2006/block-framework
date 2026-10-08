@@ -102,6 +102,7 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
   project = structuredClone(apps.project);
   validateProjectGraph(project.graph);
   const saveProject = () => {
+    project.graph.app.dataId = apps.activeId;
     apps.update(project);
     if (opts.projectPath) {
       mkdirSync(dirname(resolve(opts.projectPath)), { recursive: true });
@@ -497,6 +498,8 @@ async function webPreviewBundle(compiled: ReturnType<typeof compileWebProject>):
   mkdirSync(cacheDir, { recursive: true });
   const runtime = compiled.files.find((f) => f.path === 'src/runtime.tsx')!.content;
   writeFileSync(join(cacheDir, 'runtime.tsx'), runtime);
+  for (const file of compiled.files.filter((f) => f.path.startsWith('src/data-')))
+    writeFileSync(join(cacheDir, file.path.slice(4)), file.content);
   const graph = compiled.files.find((f) => f.path === 'src/project.json')!.content;
   const wires = compiled.files.find((f) => f.path === 'src/wires.json')!.content;
   const contents =
