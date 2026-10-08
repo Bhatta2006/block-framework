@@ -1,4 +1,4 @@
-# Block Framework — M3
+# Block Framework — M4
 
 The deterministic core of Block Framework: a **project graph** (JSON) compiles
 into a complete, runnable **Expo app** with **zero AI involved**.
@@ -10,30 +10,20 @@ examples/full-app/graph.json  (+ optional spine.json)
 out/  →  npm install → npx expo start  →  runs on a phone via Expo Go
 ```
 
-M3 adds the **Agent Gateway**: plain-language instructions become scoped,
-reviewable, reversible edits — the agent only touches fields inside each
-block's `editSurface`, never locked fields or hand-edited paths.
+M4 adds the **export and device-delivery path**: from the visual builder to an
+installable app on a real phone.
 
-M3 extends M2 (visual builder, Profile Cascade, 8-block library) with:
+M4 extends M3 (Agent Gateway) with:
 
-1. **Agent Gateway** (`@blockfw/agent`) — provider abstraction (`LlmProvider`),
-   deterministic recorded provider for offline tests, OpenAI-compatible live
-   provider via `BLOCKFW_LLM_*` env vars (no keys in code).
-2. **Scoped edit engine** — the model sees only compact block cards (never
-   source code); every proposed op is validated against path shape, block
-   existence, `editSurface`, `locked`, touched paths, and JSON Schema.
-3. **Plan → review → apply** — the UI shows a field-level diff (before/after)
-   with rationale; nothing applies without human approval. Stale plans
-   (project changed since planning) are rejected.
-4. **Undo** — every apply pushes a snapshot; one click restores.
-5. **Token logging** — per-call and session totals, honestly labeled as
-   recorded-demo vs. live-model.
-6. **Live previews** — agent edits invalidate the hash-keyed preview cache;
-   iframes reload automatically (no full rebuild).
-7. **42-task benchmark** — 36 mechanical (zero tokens) + 6 agent safety tasks
-   (recorded, deterministic); T43 live-model spot check runs only with a key.
-8. **Adversarial tests** — locked-field edits, schema violations, screen
-   deletion, scope escape, prompt-injection-shaped outputs: all rejected.
+1. **One-click ZIP export** — `blockc export` or the ⬇ Export ZIP button.
+   Audited (no secrets, no scratch, no absolute paths). The README works
+   from a clean machine.
+2. **Android build guide** — EAS Build vs local Gradle vs Expo Go, compared
+   on reliability, speed, cost, and setup. `expo prebuild` verified.
+3. **Demo package** — runbook, reset script, failure-mode plan, 10x rehearsal
+   (9/10 passed).
+4. **Gateway improvement** — partial acceptance: valid ops apply even if some
+   are rejected (e.g., touched paths are skipped, not blocking).
 9. **Block Cards** — deterministic ≤300-token summaries of every block.
 
 ## Packages

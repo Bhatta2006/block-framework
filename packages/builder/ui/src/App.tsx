@@ -18,6 +18,7 @@ export function App() {
   const [wiring, setWiring] = useState<WiringReport | null>(null);
   const [hash, setHash] = useState<string | null>(null);
   const [compiling, setCompiling] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [agentUsage, setAgentUsage] = useState({ calls: 0, inputTokens: 0, outputTokens: 0 });
   // Bumps whenever the project changes so preview iframes reload (the
   // preview cache is keyed by project hash, so new hashes re-render).
@@ -40,6 +41,26 @@ export function App() {
       setCompiling(false);
     }
   }, []);
+
+  const exportZip = useCallback(async () => {
+    setExporting(true);
+    try {
+      const blob = await api.exportZip();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${project?.graph.app.slug || 'app'}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert(`Export failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setExporting(false);
+    }
+  }, [project]);
 
   useEffect(() => {
     if (project) {
@@ -84,6 +105,13 @@ export function App() {
           )}
           <button onClick={() => void compile()} disabled={compiling}>
             {compiling ? 'Compiling…' : '⟳ Compile'}
+          </button>
+          <button
+            onClick={() => void exportZip()}
+            disabled={exporting}
+            title="Download a ZIP of the generated app (audited, no secrets)"
+          >
+            {exporting ? 'Exporting…' : '⬇ Export ZIP'}
           </button>
         </div>
       </header>

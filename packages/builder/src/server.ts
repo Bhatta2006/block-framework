@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname, resolve, extname } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { compileProject } from '@blockfw/compiler';
@@ -173,6 +174,24 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
         });
         return;
       }
+      if (path === '/api/export/zip' && req.method === 'POST') {
+        // M4: One-click ZIP export. Compiles the current project, audits, zips.
+        const { exportZip } = await import('@blockfw/compiler');
+        const tmpZip = join(tmpdir(), `bf-export-${Date.now()}.zip`);
+        const result = await exportZip(project.graph, tmpZip);
+        if (!result.audit.ok) {
+          json(res, 500, { ok: false, violations: result.audit.violations });
+          return;
+        }
+        const zipData = readFileSync(tmpZip);
+        res.writeHead(200, {
+          'Content-Type': 'application/zip',
+          'Content-Disposition': `attachment; filename="${project.graph.app.slug || 'app'}.zip"`,
+          'Content-Length': zipData.length,
+        });
+        res.end(zipData);
+        return;
+      }
       if (path === '/api/cards' && req.method === 'GET') {
         json(res, 200, generateAllCards());
         return;
@@ -219,6 +238,7 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
           planId,
           plan: result.plan,
           diff: result.diff,
+          warnings: result.warnings,
           attempts: result.attempts,
           usage: result.usage,
           provider: provider.name,

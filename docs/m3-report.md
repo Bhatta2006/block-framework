@@ -39,35 +39,39 @@ Undo restores snapshot
 
 ### Adversarial tests (all pass)
 
-| Attack | Result |
-|--------|--------|
-| Edit locked field (`config.ports`) | Rejected, retried 3x, plan fails |
-| Schema violation (empty headline, minLength 1) | Rejected |
-| Screen deletion (`block:s1.delete`) | Rejected (bad path shape) |
-| Scope escape (`app.slug`, `graph.screens`) | Rejected |
-| Touched-path overwrite | Rejected |
-| Malformed JSON from model | Parsed/rejected, retried |
-| Provider throws | Clear error, no partial state |
+| Attack                                         | Result                           |
+| ---------------------------------------------- | -------------------------------- |
+| Edit locked field (`config.ports`)             | Rejected, retried 3x, plan fails |
+| Schema violation (empty headline, minLength 1) | Rejected                         |
+| Screen deletion (`block:s1.delete`)            | Rejected (bad path shape)        |
+| Scope escape (`app.slug`, `graph.screens`)     | Rejected                         |
+| Touched-path overwrite                         | Rejected                         |
+| Malformed JSON from model                      | Parsed/rejected, retried         |
+| Provider throws                                | Clear error, no partial state    |
 
 ## Verification
 
 ### Tests
+
 - **121 unit/render tests** pass (12 files), including 16 new agent tests.
 - **8/8 Playwright E2E** (Firefox) pass, including the full agent flow:
   plan → diff review → apply → preview update → undo → state restored.
 - **42/42 benchmark tasks**: 36 mechanical (zero tokens) + 6 agent safety tasks.
 
 ### Determinism
+
 - Compile hash stable across 3 separate processes: `5f06c3ba...`
 - Recorded provider: byte-identical plans for same instruction.
 - E2E agent test asserts exact diff (5 ops for "make it playful").
 
 ### CI
+
 - `scripts/ci.sh`: clean install → build → 121 tests → E2E → lint → typecheck →
   prettier → benchmark → Metro export. All green.
 - Fixed CI bug: E2E exit code is now checked (was reporting "green" on failure).
 
 ### Demo dry run
+
 1. "make it playful" → 5-op plan, diff shown, `◌ recorded demo` badge.
 2. Apply → project updated, 5 paths marked touched.
 3. Preview iframes reload automatically with new copy.
@@ -76,11 +80,11 @@ Undo restores snapshot
 
 ## Token / cost honesty
 
-| Source | Tokens | Cost |
-|--------|--------|------|
-| Recorded demo ("make it playful") | 530 | $0 (no model call) |
-| Benchmark agent tasks (6) | ~8,000 total | $0 (recorded) |
-| Live model | — | **NOT RUN** — no key in environment |
+| Source                            | Tokens       | Cost                                |
+| --------------------------------- | ------------ | ----------------------------------- |
+| Recorded demo ("make it playful") | 530          | $0 (no model call)                  |
+| Benchmark agent tasks (6)         | ~8,000 total | $0 (recorded)                       |
+| Live model                        | —            | **NOT RUN** — no key in environment |
 
 The UI labels every response as `◌ recorded demo` or `● live model`.
 No model outputs were faked or presented as real.
@@ -98,6 +102,7 @@ No model outputs were faked or presented as real.
 ## Reuse log
 
 See `docs/m3-reuse-log.md`. Key decisions:
+
 - Reused Ajv (MIT) for schema validation — already a dependency.
 - Rejected `openai` SDK and Vercel `ai` SDK — thin `fetch` client is sufficient.
 - Custom diff/undo — field-level JSON diff, not text diff.

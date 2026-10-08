@@ -27,6 +27,7 @@ import type { ProjectGraph } from '@blockfw/manifest';
 import { resolveWiring, type WiringResult } from '@blockfw/wiring';
 import { validateSpine, spineToSql, spineToTypes, type SpineFile } from '@blockfw/spine';
 import { compileProject } from './compile.js';
+import { exportZipFromFile } from './export-zip.js';
 
 function loadGraph(path: string): ProjectGraph {
   const raw = readFileSync(resolve(path), 'utf8');
@@ -116,6 +117,25 @@ function cmdCompile(graphPath: string, outDir: string, spinePath?: string): void
     console.log(`compiled ${result.files.length} files -> ${out}`);
     printWiring(result.wiring);
     console.log(`project hash: ${result.projectHash}`);
+  } catch (err) {
+    fail(err instanceof Error ? err.message : String(err));
+  }
+}
+
+async function cmdExport(graphPath: string, zipPath: string): Promise<void> {
+  try {
+    const out = resolve(zipPath);
+    mkdirSync(dirname(out), { recursive: true });
+    const result = await exportZipFromFile(graphPath, out);
+    if (!result.audit.ok) {
+      console.error('export audit FAILED:');
+      for (const v of result.audit.violations) {
+        console.error(`  - ${v}`);
+      }
+      process.exit(1);
+    }
+    console.log(`exported ${result.fileCount} files -> ${out}`);
+    console.log('audit: clean (no secrets, no scratch, no absolute paths)');
   } catch (err) {
     fail(err instanceof Error ? err.message : String(err));
   }
@@ -245,6 +265,10 @@ async function main(): Promise<void> {
     const out = values.out;
     if (!out) fail('compile requires --out <dir>');
     cmdCompile(rest[0], out, values.spine);
+  } else if (command === 'export' && rest[0]) {
+    const out = values.out;
+    if (!out) fail('export requires --out <zipfile>');
+    await cmdExport(rest[0], out);
   } else if (command === 'sdk') {
     await cmdSdk(rest, { category: values.category });
   } else if (command === 'spine') {

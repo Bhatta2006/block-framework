@@ -105,6 +105,7 @@ export const api = {
       planId?: string;
       plan?: { ops: Array<{ path: string; value: unknown }>; rationale: string };
       diff?: Array<{ path: string; before: unknown; after: unknown }>;
+      warnings?: string[];
       attempts?: number;
       usage?: Array<{ inputTokens: number; outputTokens: number }>;
       errors?: string[];
@@ -124,4 +125,9 @@ export const api = {
       provider: string;
       liveModel: boolean;
     }>('/api/agent/usage'),
+  exportZip: async (): Promise<Blob> => {
+    const res = await fetch('/api/export/zip', { method: 'POST' });
+    if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+    return res.blob();
+  },
 };

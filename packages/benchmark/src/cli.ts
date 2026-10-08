@@ -16,6 +16,7 @@ import { parseArgs } from 'node:util';
 import { canonicalJson } from '@blockfw/blocks';
 import { runBenchmark, TASKS } from './runner.js';
 import { runAgentBenchmark, runLiveModelCheck } from './agent-tasks.js';
+import { runExportBenchmark } from './export-tasks.js';
 
 function cmdList(): void {
   console.log('id   category      expects       title');
@@ -51,6 +52,18 @@ async function cmdRun(agent: string, out: string | undefined): Promise<void> {
     console.log(`${mark} ${t.id} ${t.title} (${t.wallMs}ms, ${t.tokensIn + t.tokensOut} tokens)`);
     for (const n of t.notes) console.log(`       ${n}`);
   }
+  // M4: export benchmark (ZIP creation + audit).
+  console.log('\n--- export tasks (M4) ---');
+  const exportReports = await runExportBenchmark();
+  let exportFailed = 0;
+  for (const t of exportReports) {
+    const mark = t.pass ? 'PASS' : 'FAIL';
+    if (!t.pass) exportFailed++;
+    console.log(`${mark} ${t.id} ${t.title} (${t.wallMs}ms)`);
+    for (const n of t.notes) console.log(`       ${n}`);
+  }
+  agentReports.push(...exportReports);
+  agentFailed += exportFailed;
   // M3: live-model spot check, only when BLOCKFW_LLM_* is configured.
   const live = await runLiveModelCheck();
   if (live) {

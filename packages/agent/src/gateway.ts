@@ -113,7 +113,9 @@ export class AgentGateway<P extends AgentProject = AgentProject> {
         continue;
       }
       const check = checkScope(project, plan);
-      if (check.ok) {
+      if (check.accepted.length > 0) {
+        // Proceed with the valid ops. Rejections are reported but don't
+        // block the valid ones (e.g., a touched path is skipped, others apply).
         this.usageLog.push(...usage);
         return {
           ok: true,
@@ -121,6 +123,7 @@ export class AgentGateway<P extends AgentProject = AgentProject> {
           diff: diffOf(project, check.accepted),
           usage,
           attempts: attempt,
+          warnings: check.rejections,
         };
       }
       lastErrors = check.rejections;

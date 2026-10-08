@@ -9,6 +9,7 @@ interface PendingPlan {
   planId: string;
   rationale: string;
   diff: Array<{ path: string; before: unknown; after: unknown }>;
+  warnings?: string[];
   usage: Array<{ inputTokens: number; outputTokens: number }>;
   provider: string;
   liveModel: boolean;
@@ -56,6 +57,7 @@ export function AgentView({ onChanged }: Props) {
         planId: res.planId,
         rationale: res.plan.rationale,
         diff: res.diff,
+        warnings: res.warnings,
         usage: res.usage,
         provider: res.provider,
         liveModel: res.liveModel,
@@ -171,6 +173,15 @@ export function AgentView({ onChanged }: Props) {
             </span>
           </div>
           {pending.rationale && <p className="hint">{pending.rationale}</p>}
+          {pending.warnings && pending.warnings.length > 0 && (
+            <div className="warnings">
+              {pending.warnings.map((w, i) => (
+                <div key={i} className="warning">
+                  Skipped: {w}
+                </div>
+              ))}
+            </div>
+          )}
           {pending.diff.length === 0 ? (
             <p className="hint">No editable fields match this instruction — nothing to change.</p>
           ) : (

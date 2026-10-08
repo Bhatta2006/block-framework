@@ -49,6 +49,8 @@ export interface AgentResult {
   usage?: TokenUsage[];
   /** Machine-readable rejection reasons; set when !ok. */
   errors?: string[];
+  /** Non-blocking warnings (e.g., ops skipped due to touched paths); set when ok. */
+  warnings?: string[];
   /** How many LLM attempts were used (1 + retries). */
   attempts?: number;
 }
