@@ -195,7 +195,11 @@ export function applyCascade(project: BuilderProject): CascadeResult {
       for (const block of project.graph.blocks) {
         if (rule.blockTypes && !rule.blockTypes.includes(baseType(block.type))) continue;
         const path = `block:${block.id}.${suffix}`;
-        if (touched.has(path)) {
+        if (
+          [...touched].some(
+            (t) => path === t || path.startsWith(t + '.') || t.startsWith(path + '.'),
+          )
+        ) {
           skippedTouched.push(path);
           continue;
         }
@@ -207,7 +211,11 @@ export function applyCascade(project: BuilderProject): CascadeResult {
         applied.push(path);
       }
     } else {
-      if (touched.has(rule.path)) {
+      if (
+        [...touched].some(
+          (t) => rule.path === t || rule.path.startsWith(t + '.') || t.startsWith(rule.path + '.'),
+        )
+      ) {
         skippedTouched.push(rule.path);
         continue;
       }

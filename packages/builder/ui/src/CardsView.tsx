@@ -14,19 +14,20 @@ export function CardsView() {
     <div className="cards-view">
       <h2>Block cards</h2>
       <p className="hint">
-        Deterministic ≤300-token summaries of every block — the compact context the future AI agent
-        will read instead of full manifests. Token counts are estimates (chars ÷ 4).
+        Explore each block’s configuration, event ports, variants, and editable fields. Token counts
+        are compact-summary estimates (characters ÷ 4).
       </p>
       <div className="card-grid">
         {cards.map((c) => (
           <div key={c.block} className="block-card">
-            <div
+            <button
+              type="button"
               className="block-card-head"
               onClick={() => setOpen(open === c.block ? null : c.block)}
             >
               <code>{c.block}</code>
               <span className="token-badge">~{c.estimatedTokens} tokens</span>
-            </div>
+            </button>
             {open === c.block && <pre className="block-card-body">{c.markdown}</pre>}
           </div>
         ))}

@@ -52,6 +52,14 @@ function projectWithProfile(): BuilderProject {
 }
 
 describe('applyCascade', () => {
+  it('protects an edited parent array from nested derived writes', () => {
+    const p = projectWithProfile();
+    markTouched(p, 'block:b1.config.products');
+    const before = structuredClone(p.graph.blocks[0]!.config!.products);
+    const result = applyCascade(p);
+    expect(p.graph.blocks[0]!.config!.products).toEqual(before);
+    expect(result.skippedTouched).toContain('block:b1.config.products.0.price');
+  });
   it('derives app fields, theme, and block configs from the profile', () => {
     const p = projectWithProfile();
     const { applied } = applyCascade(p);

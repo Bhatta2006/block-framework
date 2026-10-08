@@ -1,0 +1,26 @@
+{
+  "version": "1.0.0",
+  "category": "utility",
+  "variants": ["default", "compact"],
+  "defaultVariant": "default",
+  "locked": ["ports", "variants"],
+  "id": "action.button",
+  "config": {
+    "type": "object",
+    "properties": {
+      "ctaText": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "additionalProperties": false
+  },
+  "defaultConfig": {
+    "ctaText": "Explore what\u2019s next"
+  },
+  "editSurface": ["config.ctaText"],
+  "ports": {
+    "emits": ["action.pressed"],
+    "consumes": []
+  }
+}

@@ -59,6 +59,202 @@
           },
           "variant": {
             "type": "string"
+          },
+          "position": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              }
+            },
+            "required": ["x", "y"]
+          },
+          "design": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "content": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["id", "type"],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^custom-[a-zA-Z0-9-]+$"
+                    },
+                    "type": {
+                      "enum": ["button", "text", "divider"]
+                    },
+                    "text": {
+                      "type": "string",
+                      "maxLength": 4000
+                    },
+                    "before": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "actions": {
+                "type": "object",
+                "propertyNames": {
+                  "pattern": "^[a-zA-Z][a-zA-Z0-9-]*$"
+                },
+                "additionalProperties": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["type"],
+                      "properties": {
+                        "type": {
+                          "enum": ["none", "back"]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["type", "screen"],
+                      "properties": {
+                        "type": {
+                          "const": "navigate"
+                        },
+                        "screen": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["type", "url"],
+                      "properties": {
+                        "type": {
+                          "const": "url"
+                        },
+                        "url": {
+                          "type": "string",
+                          "minLength": 1,
+                          "pattern": "^https?://"
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["type", "message"],
+                      "properties": {
+                        "type": {
+                          "const": "message"
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "disconnectedEvents": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "type": "string"
+                }
+              },
+              "elements": {
+                "type": "object",
+                "propertyNames": {
+                  "pattern": "^[a-zA-Z][a-zA-Z0-9-]*$"
+                },
+                "additionalProperties": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "x": {
+                      "type": "number",
+                      "minimum": -2000,
+                      "maximum": 2000
+                    },
+                    "y": {
+                      "type": "number",
+                      "minimum": -2000,
+                      "maximum": 2000
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 2000
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 2000
+                    },
+                    "padding": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 2000
+                    },
+                    "marginTop": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 2000
+                    },
+                    "marginBottom": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 2000
+                    },
+                    "borderRadius": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 2000
+                    },
+                    "fontSize": {
+                      "type": "number",
+                      "minimum": 8,
+                      "maximum": 200
+                    },
+                    "fontWeight": {
+                      "enum": ["400", "500", "600", "700", "800"]
+                    },
+                    "color": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$"
+                    },
+                    "backgroundColor": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$"
+                    },
+                    "opacity": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "textAlign": {
+                      "enum": ["left", "center", "right"]
+                    },
+                    "alignSelf": {
+                      "enum": ["flex-start", "center", "flex-end", "stretch"]
+                    },
+                    "hidden": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "required": ["id", "type"],
@@ -89,6 +285,37 @@
             "description": "Flow lane. Screens in the default \"main\" lane are reached via event wires; screens in other lanes (e.g. \"tabs\") are reachable outside the event flow (tab bar, drawer) and are not flagged as unreachable.",
             "type": "string",
             "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+          },
+          "blocks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "layout": {
+            "enum": ["stack", "grid", "split"]
+          },
+          "position": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              }
+            },
+            "required": ["x", "y"]
+          },
+          "disconnectedLayout": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": ["id", "block", "title"],

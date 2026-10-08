@@ -15,11 +15,14 @@ import type { BlockManifest } from '@blockfw/manifest';
 
 /** One-line purpose statements, curated per block (the only hand-written part). */
 const SUMMARIES: Record<string, string> = {
+  'content.hero': 'Responsive introduction with a headline, supporting copy, and event button.',
+  'content.text': 'Composable section heading and supporting text.',
+  'action.button': 'A configurable call to action that emits action.pressed.',
   'auth.email': 'Email sign-in / sign-up screen with validation and a mock auth service.',
   'onboarding.quiz': 'Multi-step question flow that collects answers and emits them on completion.',
   'paywall.basic': 'Subscription paywall with product cards and a mock billing service.',
   'home.list': 'Scrollable item list; tapping an item emits the selected item.',
-  'content.detail': 'Detail screen that renders an item routed from a list.',
+  'content.detail': 'Detail view of a selected item with a connected call to action.',
   'stats.overview': 'Row or grid of stat cards (label, value, optional delta).',
   'profile.card': 'Profile header with name, handle, bio, and stats.',
   'settings.list': 'Grouped settings sections with toggle and link rows.',

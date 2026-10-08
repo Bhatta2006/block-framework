@@ -67,15 +67,15 @@ const styles = StyleSheet.create({
   },
   option: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 12,
+    borderColor: '#E1E7DD',
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     backgroundColor: '#FFFFFF',
   },
   optionSelected: {
     borderColor: theme.colors.primary,
-    backgroundColor: '#F5F3FF',
+    backgroundColor: '#F1F5EF',
   },
   optionPressed: {
     opacity: 0.7,
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     marginTop: 12,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     backgroundColor: theme.colors.primary,

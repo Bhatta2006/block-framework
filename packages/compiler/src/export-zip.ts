@@ -9,6 +9,7 @@ import { resolve } from 'node:path';
 import { ZipArchive } from 'archiver';
 import { shouldExclude, auditFileContent, type AuditResult } from './export-audit.js';
 import { compileProject } from './compile.js';
+import { compileWebProject } from './compile-web.js';
 import { loadDefaultRegistry } from '@blockfw/blocks';
 import type { ProjectGraph } from '@blockfw/manifest';
 
@@ -24,9 +25,14 @@ export interface ExportResult {
  * @param zipPath Where to write the ZIP file.
  * @returns Export result with audit findings.
  */
-export async function exportZip(graph: ProjectGraph, zipPath: string): Promise<ExportResult> {
+export async function exportZip(
+  graph: ProjectGraph,
+  zipPath: string,
+  target: 'web' | 'mobile' = 'mobile',
+): Promise<ExportResult> {
   const registry = loadDefaultRegistry();
-  const result = compileProject(graph, registry);
+  const result =
+    target === 'web' ? compileWebProject(graph, registry) : compileProject(graph, registry);
 
   const violations: string[] = [];
   const files: Array<{ path: string; content: string }> = [];
@@ -57,7 +63,11 @@ export async function exportZip(graph: ProjectGraph, zipPath: string): Promise<E
     archive.on('error', (...args: unknown[]) => reject(args[0] as Error));
     archive.pipe(output);
     for (const file of files) {
-      archive.append(file.content, { name: file.path });
+      archive.append(file.content, {
+        name: file.path,
+        date: new Date('2000-01-01T00:00:00Z'),
+        mode: 0o644,
+      });
     }
     archive.finalize();
   });
@@ -72,7 +82,11 @@ export async function exportZip(graph: ProjectGraph, zipPath: string): Promise<E
 /**
  * Export from a graph file on disk (CLI helper).
  */
-export async function exportZipFromFile(graphPath: string, zipPath: string): Promise<ExportResult> {
+export async function exportZipFromFile(
+  graphPath: string,
+  zipPath: string,
+  target: 'web' | 'mobile' = 'mobile',
+): Promise<ExportResult> {
   const graph = JSON.parse(readFileSync(resolve(graphPath), 'utf8')) as ProjectGraph;
-  return exportZip(graph, zipPath);
+  return exportZip(graph, zipPath, target);
 }

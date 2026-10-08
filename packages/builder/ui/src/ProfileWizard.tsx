@@ -40,6 +40,12 @@ interface Props {
  */
 export function ProfileWizard({ project, onChanged }: Props) {
   const [values, setValues] = useState<Record<string, string>>(() => ({
+    appName: project.graph.app.name,
+    audience: 'everyone',
+    tone: 'minimal',
+    brandColor: project.graph.app.theme?.primaryColor ?? '#345E4F',
+    price: '4.99',
+    currency: 'USD',
     ...(project.profile ?? {}),
   }));
   const [errors, setErrors] = useState<string[]>([]);
@@ -87,6 +93,7 @@ export function ProfileWizard({ project, onChanged }: Props) {
             <span>{q.label}</span>
             {q.kind === 'select' ? (
               <select
+                aria-label={q.label}
                 value={values[q.key] ?? ''}
                 onChange={(e) => setValues({ ...values, [q.key]: e.target.value })}
               >
@@ -101,11 +108,13 @@ export function ProfileWizard({ project, onChanged }: Props) {
               <div className="color-row">
                 <input
                   type="color"
+                  aria-label={q.label + ' picker'}
                   value={/^#[0-9a-fA-F]{6}$/.test(values[q.key] ?? '') ? values[q.key]! : '#4F46E5'}
                   onChange={(e) => setValues({ ...values, [q.key]: e.target.value })}
                 />
                 <input
                   type="text"
+                  aria-label={q.label + ' hex'}
                   placeholder={q.placeholder}
                   value={values[q.key] ?? ''}
                   onChange={(e) => setValues({ ...values, [q.key]: e.target.value })}
@@ -114,6 +123,7 @@ export function ProfileWizard({ project, onChanged }: Props) {
             ) : (
               <input
                 type="text"
+                aria-label={q.label}
                 placeholder={q.placeholder}
                 value={values[q.key] ?? ''}
                 onChange={(e) => setValues({ ...values, [q.key]: e.target.value })}

@@ -9,7 +9,8 @@
     }
   },
   "scripts": {
-    "build": "tsc -b tsconfig.json && vite build"
+    "build": "tsc -b tsconfig.json && tsc -p tsconfig.ui.json && vite build",
+    "typecheck:ui": "tsc -p tsconfig.ui.json"
   },
   "dependencies": {
     "@blockfw/agent": "0.1.0",
@@ -17,7 +18,9 @@
     "@blockfw/compiler": "0.1.0",
     "@blockfw/manifest": "0.1.0",
     "@blockfw/wiring": "0.1.0",
+    "@xyflow/react": "^12.12.0",
     "esbuild": "0.24.2",
+    "lucide-react": "^1.53.0",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },

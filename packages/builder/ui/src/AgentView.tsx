@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { api } from './api';
+import { api, type BuilderProject } from './api';
 
 interface Props {
   onChanged: () => void;
+  project: BuilderProject;
+  blockId: string | null;
 }
 
 interface PendingPlan {
@@ -22,7 +24,10 @@ interface PendingPlan {
  * A "recorded" badge marks deterministic demo responses; a "live" badge
  * marks real model output.
  */
-export function AgentView({ onChanged }: Props) {
+export function AgentView({ onChanged, project, blockId }: Props) {
+  const [focus, setFocus] = useState(blockId ?? 'all');
+  const [allowTouched, setAllowTouched] = useState(false);
+  const [live, setLive] = useState(false);
   const [instruction, setInstruction] = useState('');
   const [pending, setPending] = useState<PendingPlan | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
@@ -34,6 +39,8 @@ export function AgentView({ onChanged }: Props) {
     try {
       const u = await api.agentUsage();
       setTotalUsage(u.total);
+      setLive(u.liveModel);
+      setUndoDepth(u.undoDepth);
     } catch {
       /* ignore */
     }
@@ -48,17 +55,21 @@ export function AgentView({ onChanged }: Props) {
     setErrors([]);
     setPending(null);
     try {
-      const res = await api.agentEdit(instruction);
-      if (!res.ok) {
+      const res = await api.agentEdit(
+        instruction,
+        focus === 'all' ? undefined : [focus],
+        allowTouched,
+      );
+      if (!res.ok || !res.planId || !res.plan) {
         setErrors(res.errors ?? ['Planning failed']);
         return;
       }
       setPending({
         planId: res.planId,
         rationale: res.plan.rationale,
-        diff: res.diff,
+        diff: res.diff ?? [],
         warnings: res.warnings,
-        usage: res.usage,
+        usage: res.usage ?? [],
         provider: res.provider,
         liveModel: res.liveModel,
       });
@@ -72,6 +83,7 @@ export function AgentView({ onChanged }: Props) {
 
   const apply = async () => {
     if (!pending) return;
+    setErrors([]);
     setBusy(true);
     try {
       const res = await api.agentApply(pending.planId);
@@ -92,6 +104,7 @@ export function AgentView({ onChanged }: Props) {
   };
 
   const undo = async () => {
+    setErrors([]);
     setBusy(true);
     try {
       const res = await api.agentUndo();
@@ -112,10 +125,44 @@ export function AgentView({ onChanged }: Props) {
     <div className="agent-view">
       <h2>AI edit</h2>
       <p className="hint">
-        Describe a change in plain language. The agent plans small edits inside each block's
-        editable fields only — locked fields and anything you hand-edited are never touched. You
-        review the diff before anything is applied, and every edit can be undone.
+        Edit content, variants, or element styles in one block or across your app. Review the
+        proposed changes before applying.
       </p>
+      {!live && (
+        <p className="dialog-feedback">
+          Recorded demo mode. Free-form AI customization requires a configured live model. Manual
+          design controls work without a model.
+        </p>
+      )}
+      <label className="field">
+        <span>Edit scope</span>
+        <select
+          aria-label="AI edit scope"
+          value={focus}
+          onChange={(e) => {
+            setFocus(e.target.value);
+            setPending(null);
+          }}
+        >
+          <option value="all">All blocks · common app changes</option>
+          {project.graph.blocks.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.id} · {b.type.split('@')[0]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="design-check">
+        <input
+          type="checkbox"
+          checked={allowTouched}
+          onChange={(e) => {
+            setAllowTouched(e.target.checked);
+            setPending(null);
+          }}
+        />{' '}
+        Allow this request to update my previously customized fields
+      </label>
 
       <div className="agent-form">
         <input

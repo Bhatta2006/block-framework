@@ -23,7 +23,7 @@ import type {
   TokenUsage,
 } from './types.js';
 import { planPrompt } from './planner.js';
-import { checkScope, parsePlan } from './scoping.js';
+import { checkScope, parsePlan, type EditScope } from './scoping.js';
 
 export interface GatewayOptions {
   /** Max LLM attempts per edit (1 + retries). Default 3. */
@@ -38,18 +38,23 @@ interface UndoEntry<P> {
 }
 
 function getPath(project: AgentProject, path: string): unknown {
-  const m = /^block:([A-Za-z0-9_-]+)\.config\.([A-Za-z0-9_]+)$/.exec(path);
-  if (!m) return undefined;
-  return project.graph.blocks.find((b) => b.id === m[1])?.config?.[m[2] as string];
+  const [reference, ...keys] = path.split('.');
+  let value: unknown = project.graph.blocks.find((b) => b.id === reference?.slice(6));
+  for (const key of keys) value = (value as Record<string, unknown> | undefined)?.[key];
+  return value;
 }
-
 function setPath(project: AgentProject, path: string, value: unknown): void {
-  const m = /^block:([A-Za-z0-9_-]+)\.config\.([A-Za-z0-9_]+)$/.exec(path);
-  if (!m) throw new Error(`cannot set ${path}`);
-  const block = project.graph.blocks.find((b) => b.id === m[1]);
-  if (!block) throw new Error(`unknown block ${(m as string[])[1]}`);
-  block.config = block.config ?? {};
-  block.config[(m as string[])[2] as string] = value;
+  const [reference, ...keys] = path.split('.');
+  let target = project.graph.blocks.find((b) => b.id === reference?.slice(6)) as unknown as Record<
+    string,
+    unknown
+  >;
+  if (!target) throw new Error('Unknown block.');
+  for (const key of keys.slice(0, -1)) {
+    target[key] ??= {};
+    target = target[key] as Record<string, unknown>;
+  }
+  target[keys.at(-1)!] = value;
 }
 
 function diffOf(before: AgentProject, ops: AgentEditOp[]): FieldDiff[] {
@@ -78,8 +83,13 @@ export class AgentGateway<P extends AgentProject = AgentProject> {
   }
 
   /** Plan an edit without applying it. Returns the plan + reviewable diff. */
-  async plan(project: P, instruction: string): Promise<AgentResult> {
-    const { system, user } = planPrompt(project, instruction);
+  async plan(project: P, instruction: string, scope: EditScope = {}): Promise<AgentResult> {
+    const { system, user } = planPrompt(
+      project,
+      instruction,
+      scope.focusInstanceIds,
+      scope.allowTouched,
+    );
     const usage: TokenUsage[] = [];
     let lastErrors: string[] = [];
 
@@ -112,8 +122,8 @@ export class AgentGateway<P extends AgentProject = AgentProject> {
         lastErrors = [`unparseable output: ${error}`];
         continue;
       }
-      const check = checkScope(project, plan);
-      if (check.accepted.length > 0) {
+      const check = checkScope(project, plan, scope);
+      if (check.accepted.length > 0 || (plan.ops.length === 0 && check.ok)) {
         // Proceed with the valid ops. Rejections are reported but don't
         // block the valid ones (e.g., a touched path is skipped, others apply).
         this.usageLog.push(...usage);
@@ -143,8 +153,12 @@ export class AgentGateway<P extends AgentProject = AgentProject> {
    * changed since planning). Returns the updated project; the input is not
    * mutated.
    */
-  apply(project: P, plan: AgentPlan): { project: P; applied: AgentEditOp[] } {
-    const check = checkScope(project, plan);
+  apply(
+    project: P,
+    plan: AgentPlan,
+    scope: EditScope = {},
+  ): { project: P; applied: AgentEditOp[] } {
+    const check = checkScope(project, plan, scope);
     if (!check.ok) {
       throw new Error(`refusing to apply: ${check.rejections.join('; ')}`);
     }

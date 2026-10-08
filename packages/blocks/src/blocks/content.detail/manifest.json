@@ -2,10 +2,20 @@
   "category": "home",
   "config": {
     "additionalProperties": false,
-    "properties": { "ctaText": { "type": "string" }, "showImage": { "type": "boolean" } },
+    "properties": {
+      "ctaText": {
+        "type": "string"
+      },
+      "showImage": {
+        "type": "boolean"
+      }
+    },
     "type": "object"
   },
-  "defaultConfig": { "ctaText": "Get started", "showImage": true },
+  "defaultConfig": {
+    "ctaText": "Get started",
+    "showImage": true
+  },
   "defaultVariant": "article",
   "editSurface": ["config.ctaText", "config.showImage"],
   "id": "content.detail",
@@ -17,9 +27,15 @@
           "properties": {
             "item": {
               "properties": {
-                "id": { "type": "string" },
-                "subtitle": { "type": "string" },
-                "title": { "type": "string" }
+                "id": {
+                  "type": "string"
+                },
+                "subtitle": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                }
               },
               "required": ["id", "title"],
               "type": "object"
@@ -31,7 +47,32 @@
         "port": "home.itemSelected"
       }
     ],
-    "emits": [],
+    "emits": [
+      {
+        "event": "content.action",
+        "payload": {
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "subtitle": {
+                  "type": "string"
+                }
+              },
+              "required": ["id", "title"]
+            }
+          },
+          "required": ["item"]
+        }
+      }
+    ],
     "provides": []
   },
   "variants": ["article", "product"],

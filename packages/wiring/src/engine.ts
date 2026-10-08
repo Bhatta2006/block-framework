@@ -1,9 +1,11 @@
 import {
+  pageBlockIds,
   parseBlockType,
   validateBlockConfig,
   validateProjectGraph,
   normalizeEmits,
   normalizeConsumes,
+  elementEvent,
   type BlockManifest,
   type ConsumePort,
   type EventPort,
@@ -107,45 +109,64 @@ export function resolveWiring(graph: ProjectGraph, registry: BlockRegistry): Wir
   }
 
   const instances: ResolvedInstance[] = [];
+  const placement = new Set<string>();
   for (const screen of graph.screens) {
-    const inst = instanceById.get(screen.block);
-    if (!inst) {
-      throw new WiringError(
-        `Screen "${screen.id}" references unknown block instance "${screen.block}".`,
-      );
+    if (screen.blocks && !screen.blocks.includes(screen.block)) {
+      throw new WiringError(`Page "${screen.id}" must include its primary block in blocks.`);
     }
-    const { manifest } = registry.get(inst.type);
-    const variant = inst.variant ?? manifest.defaultVariant ?? manifest.variants[0];
-    if (variant === undefined || !manifest.variants.includes(variant)) {
-      throw new WiringError(
-        `Block instance "${inst.id}" requests unknown variant "${inst.variant}". ` +
-          `Available: ${manifest.variants.join(', ')}.`,
-      );
+    for (const blockId of pageBlockIds(screen)) {
+      if (placement.has(blockId))
+        throw new WiringError(
+          `Block "${blockId}" is placed more than once. Duplicate the block to reuse it.`,
+        );
+      placement.add(blockId);
+      const inst = instanceById.get(blockId);
+      if (!inst) {
+        throw new WiringError(
+          `Screen "${screen.id}" references unknown block instance "${blockId}".`,
+        );
+      }
+      const { manifest } = registry.get(inst.type);
+      const variant = inst.variant ?? manifest.defaultVariant ?? manifest.variants[0];
+      if (variant === undefined || !manifest.variants.includes(variant)) {
+        throw new WiringError(
+          `Block instance "${inst.id}" requests unknown variant "${inst.variant}". ` +
+            `Available: ${manifest.variants.join(', ')}.`,
+        );
+      }
+      const config = { ...(manifest.defaultConfig ?? {}), ...(inst.config ?? {}) };
+      const issues = validateBlockConfig(manifest, config);
+      if (issues.length > 0) {
+        throw new WiringError(
+          `Block instance "${inst.id}" has invalid config:\n` +
+            issues.map((i) => `  ${i.path}: ${i.message}`).join('\n'),
+        );
+      }
+      instances.push({
+        id: inst.id,
+        manifest,
+        variant,
+        config,
+        screenId: screen.id,
+        emits: [
+          ...normalizeEmits(manifest.ports.emits),
+          ...[
+            ...new Set([
+              ...(inst.design?.content ?? []).filter((e) => e.type === 'button').map((e) => e.id),
+              ...Object.keys(inst.design?.actions ?? {}),
+            ]),
+          ].map((id) => ({ event: elementEvent(id) })),
+        ],
+        consumes: normalizeConsumes(manifest.ports.consumes),
+      });
     }
-    const config = { ...(manifest.defaultConfig ?? {}), ...(inst.config ?? {}) };
-    const issues = validateBlockConfig(manifest, config);
-    if (issues.length > 0) {
-      throw new WiringError(
-        `Block instance "${inst.id}" has invalid config:\n` +
-          issues.map((i) => `  ${i.path}: ${i.message}`).join('\n'),
-      );
-    }
-    instances.push({
-      id: inst.id,
-      manifest,
-      variant,
-      config,
-      screenId: screen.id,
-      emits: normalizeEmits(manifest.ports.emits),
-      consumes: normalizeConsumes(manifest.ports.consumes),
-    });
   }
   const instanceByInstanceId = new Map(instances.map((i) => [i.id, i]));
 
   // Instances that exist but are placed on no screen are ignored by the
   // compiler. Note it loudly rather than failing: the library is the palette,
   // the screens are the painting.
-  const placed = new Set(graph.screens.map((s) => s.block));
+  const placed = new Set(graph.screens.flatMap(pageBlockIds));
   for (const b of graph.blocks) {
     if (!placed.has(b.id)) {
       report.notes.push(
@@ -197,6 +218,26 @@ export function resolveWiring(graph: ProjectGraph, registry: BlockRegistry): Wir
 
   // --- event routing ---------------------------------------------------------
   const userWires = new Map<string, { screen: string; instance?: string; port?: string }[]>();
+  for (const inst of graph.blocks) {
+    const ids = (inst.design?.content ?? []).map((e) => e.id);
+    if (new Set(ids).size !== ids.length)
+      throw new WiringError(`Duplicate added element ids in block "${inst.id}".`);
+    for (const [id, action] of Object.entries(inst.design?.actions ?? {})) {
+      if (action.type === 'url') {
+        try {
+          const url = new URL(action.url);
+          if (!['http:', 'https:'].includes(url.protocol) || !url.hostname) throw new Error();
+        } catch {
+          throw new WiringError(`Button "${id}" needs a complete HTTP or HTTPS URL.`);
+        }
+      }
+      if (action.type !== 'navigate') continue;
+      if (!screenById.has(action.screen))
+        throw new WiringError(`Button "${id}" targets unknown page "${action.screen}".`);
+      userWires.set(`${inst.id}.${elementEvent(id)}`, [{ screen: action.screen }]);
+    }
+  }
+  const explicitKeys = new Set<string>();
   for (const wire of graph.wires ?? []) {
     if (!screenById.has(wire.to.screen)) {
       throw new WiringError(
@@ -208,8 +249,13 @@ export function resolveWiring(graph: ProjectGraph, registry: BlockRegistry): Wir
         `Wire targets screen "${wire.to.screen}" from unknown block instance "${wire.from.instance}".`,
       );
     }
+    const source = instanceByInstanceId.get(wire.from.instance);
+    if (!source?.emits.some((e) => e.event === wire.from.event)) {
+      throw new WiringError(`Block "${wire.from.instance}" does not emit "${wire.from.event}".`);
+    }
     const key = `${wire.from.instance}.${wire.from.event}`;
-    const list = userWires.get(key) ?? [];
+    const list = explicitKeys.has(key) ? (userWires.get(key) ?? []) : [];
+    explicitKeys.add(key);
     list.push({ screen: wire.to.screen, instance: wire.to.instance, port: wire.to.port });
     userWires.set(key, list);
   }
@@ -264,6 +310,15 @@ export function resolveWiring(graph: ProjectGraph, registry: BlockRegistry): Wir
   for (const inst of instances) {
     for (const ep of inst.emits) {
       const key = `${inst.id}.${ep.event}`;
+      const design = instanceById.get(inst.id)?.design;
+      const builtInEvents = normalizeEmits(inst.manifest.ports.emits);
+      const overridden =
+        (design?.actions?.button && ep.event === builtInEvents[0]?.event) ||
+        (design?.actions?.secondaryButton && ep.event === builtInEvents[1]?.event);
+      if (overridden || design?.disconnectedEvents?.includes(ep.event)) {
+        report.notes.push(`Connection ${key} was cut by the user.`);
+        continue;
+      }
       const explicit = userWires.get(key) ?? [];
 
       if (explicit.length > 1) {
@@ -299,7 +354,10 @@ export function resolveWiring(graph: ProjectGraph, registry: BlockRegistry): Wir
       }
 
       // No explicit wire: semantic match, then convention fallback.
-      const consumers = (consumerIndex.get(ep.event) ?? []).filter((c) => c.id !== inst.id);
+      if (ep.event.startsWith('element.')) continue;
+      const candidates = (consumerIndex.get(ep.event) ?? []).filter((c) => c.id !== inst.id);
+      const local = candidates.filter((c) => c.screenId === inst.screenId);
+      const consumers = local.length > 0 ? local : candidates;
       if (consumers.length === 1) {
         const consumer = consumers[0] as ResolvedInstance;
         const port = consumer.consumes.find((c) => c.port === ep.event) as ConsumePort;
@@ -421,6 +479,7 @@ export function resolveWiring(graph: ProjectGraph, registry: BlockRegistry): Wir
 export function navigationTargets(result: WiringResult): Map<string, string> {
   const targets = new Map<string, string>();
   for (const wire of result.wires) {
+    if (wire.from.event.startsWith('element.')) continue;
     if (!targets.has(wire.from.instance)) {
       targets.set(wire.from.instance, wire.to.screen);
     }

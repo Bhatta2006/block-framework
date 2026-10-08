@@ -33,6 +33,8 @@ export interface RenderContext {
   inputType: string | null;
   /** Event name of the incoming wire, if any. */
   inputEvent: string | null;
+  /** A composed page owns scrolling; list blocks render inline in that context. */
+  composed?: boolean;
 }
 
 export interface RenderedBlock {

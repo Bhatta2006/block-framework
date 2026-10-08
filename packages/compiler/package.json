@@ -7,7 +7,8 @@
     "@blockfw/manifest": "0.1.0",
     "@blockfw/spine": "0.1.0",
     "@blockfw/wiring": "0.1.0",
-    "archiver": "8.0.0"
+    "archiver": "8.0.0",
+    "typescript": "5.9.3"
   },
   "exports": {
     ".": {
@@ -20,6 +21,5 @@
     "build": "tsc -p tsconfig.json"
   },
   "type": "module",
-  "version": "0.1.0",
-  "devDependencies": {}
+  "version": "0.1.0"
 }

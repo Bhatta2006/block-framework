@@ -96,6 +96,12 @@ export interface GraphScreen {
   id: string;
   /** Block instance id rendered on this screen. */
   block: string;
+  /** Ordered page composition. Omitted for legacy single-block pages. */
+  blocks?: string[];
+  layout?: 'stack' | 'grid' | 'split';
+  /** Incoming layout guides cut by the user; blocks still render in page order. */
+  disconnectedLayout?: string[];
+  position?: { x: number; y: number };
   title: string;
   /**
    * Flow lane. Screens in the default "main" lane are reached via event
@@ -106,11 +112,18 @@ export interface GraphScreen {
 }
 
 export interface GraphBlock {
+  design?: import('./design.js').BlockDesign;
   id: string;
   /** Block type reference as `id@semver`, e.g. `onboarding.quiz@1.0.0`. */
   type: string;
   variant?: string;
   config?: Record<string, unknown>;
+  /** Position on the page's workflow canvas; independent of rendered layout. */
+  position?: { x: number; y: number };
+}
+
+export function pageBlockIds(screen: GraphScreen): string[] {
+  return screen.blocks ?? [screen.block];
 }
 
 export interface GraphWire {

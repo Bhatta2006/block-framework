@@ -28,7 +28,7 @@ function ctxFor(
 describe('default registry', () => {
   it('loads the eight library blocks', () => {
     const registry = loadDefaultRegistry();
-    expect(registry.size()).toBe(8);
+    expect(registry.size()).toBe(11);
     expect(registry.has('onboarding.quiz@1.0.0')).toBe(true);
     expect(registry.has('paywall.basic@1.0.0')).toBe(true);
     expect(registry.has('home.list@1.0.0')).toBe(true);

@@ -27,6 +27,7 @@ import type { ProjectGraph } from '@blockfw/manifest';
 import { resolveWiring, type WiringResult } from '@blockfw/wiring';
 import { validateSpine, spineToSql, spineToTypes, type SpineFile } from '@blockfw/spine';
 import { compileProject } from './compile.js';
+import { compileWebProject } from './compile-web.js';
 import { exportZipFromFile } from './export-zip.js';
 
 function loadGraph(path: string): ProjectGraph {
@@ -103,11 +104,23 @@ function cmdSpine(args: string[], values: { out?: string }): void {
   }
 }
 
-function cmdCompile(graphPath: string, outDir: string, spinePath?: string): void {
+function cmdCompile(
+  graphPath: string,
+  outDir: string,
+  spinePath?: string,
+  target: 'web' | 'mobile' = 'mobile',
+): void {
   try {
     const graph = loadGraph(graphPath);
     const spine = spinePath ? loadSpine(spinePath) : undefined;
-    const result = compileProject(graph, loadDefaultRegistry(), spine);
+    if (target === 'web' && spine)
+      fail(
+        '--spine currently supports the mobile compiler; add backend code to the exported web source.',
+      );
+    const result =
+      target === 'web'
+        ? compileWebProject(graph, loadDefaultRegistry())
+        : compileProject(graph, loadDefaultRegistry(), spine);
     const out = resolve(outDir);
     for (const file of result.files) {
       const full = resolve(out, file.path);
@@ -122,11 +135,15 @@ function cmdCompile(graphPath: string, outDir: string, spinePath?: string): void
   }
 }
 
-async function cmdExport(graphPath: string, zipPath: string): Promise<void> {
+async function cmdExport(
+  graphPath: string,
+  zipPath: string,
+  target: 'web' | 'mobile' = 'mobile',
+): Promise<void> {
   try {
     const out = resolve(zipPath);
     mkdirSync(dirname(out), { recursive: true });
-    const result = await exportZipFromFile(graphPath, out);
+    const result = await exportZipFromFile(graphPath, out, target);
     if (!result.audit.ok) {
       console.error('export audit FAILED:');
       for (const v of result.audit.violations) {
@@ -249,9 +266,13 @@ async function main(): Promise<void> {
       out: { type: 'string', short: 'o' },
       category: { type: 'string' },
       spine: { type: 'string' },
+      target: { type: 'string' },
     },
   });
   const [command, ...rest] = positionals;
+  if (values.target && !['web', 'mobile'].includes(values.target))
+    fail('--target must be web or mobile');
+  const target = (values.target ?? 'mobile') as 'web' | 'mobile';
   if (command === 'validate' && rest[0]) {
     cmdValidate(rest[0]);
   } else if (command === 'wires' && rest[0]) {
@@ -264,11 +285,11 @@ async function main(): Promise<void> {
   } else if (command === 'compile' && rest[0]) {
     const out = values.out;
     if (!out) fail('compile requires --out <dir>');
-    cmdCompile(rest[0], out, values.spine);
+    cmdCompile(rest[0], out, values.spine, target);
   } else if (command === 'export' && rest[0]) {
     const out = values.out;
     if (!out) fail('export requires --out <zipfile>');
-    await cmdExport(rest[0], out);
+    await cmdExport(rest[0], out, target);
   } else if (command === 'sdk') {
     await cmdSdk(rest, { category: values.category });
   } else if (command === 'spine') {
@@ -278,7 +299,7 @@ async function main(): Promise<void> {
       'usage:\n' +
         '  blockc validate <graph.json>\n' +
         '  blockc wires <graph.json>\n' +
-        '  blockc compile <graph.json> --out <dir> [--spine <spine.json>]\n' +
+        '  blockc compile <graph.json> --out <dir> [--target web|mobile] [--spine <spine.json>]\n' +
         '  blockc sdk scaffold <block-id> --category <category>\n' +
         '  blockc sdk validate [block-id]\n' +
         '  blockc sdk test [block-id]\n' +

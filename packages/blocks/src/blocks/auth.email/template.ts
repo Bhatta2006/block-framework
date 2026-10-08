@@ -27,7 +27,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headline: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
     color: theme.colors.text,
     marginBottom: 8,
@@ -46,8 +46,8 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 12,
+    borderColor: '#E1E7DD',
+    borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 16,
     fontSize: 16,
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: theme.colors.primary,
-    borderRadius: 12,
+    borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 8,
@@ -120,6 +120,7 @@ export function ${name}({ onComplete }: { onComplete?: (output: AuthCompleted) =
 
   return (
     <View style={styles.container}>
+      <Text style={styles.label}>${signup ? 'CREATE YOUR ACCOUNT' : 'SIGN IN'}</Text>
       <Text style={styles.headline}>{CONFIG.headline}</Text>
       {CONFIG.subheadline ? <Text style={styles.subheadline}>{CONFIG.subheadline}</Text> : null}
       <Text style={styles.label}>Email</Text>

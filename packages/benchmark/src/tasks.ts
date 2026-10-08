@@ -599,11 +599,12 @@ export const TASKS: BenchmarkTask[] = [
     id: 'T35',
     title: 'Flow Lanes: moving a screen to the tabs lane',
     category: 'graph-op',
-    description: 'Assigning a lane only changes the wiring report flow model — no block code.',
+    description:
+      'Assigning a tabs lane adds navigation controls and updates the flow model — no block code.',
     operation: { kind: 'set-lane', screen: 's3', lane: 'tabs' },
     expects: 'success',
     checks: [
-      { kind: 'changed-files', only: ['src/wiring-report.json'] },
+      { kind: 'changed-files', only: ['src/navigation.tsx', 'src/wiring-report.json'] },
       { kind: 'file-contains', path: 'src/wiring-report.json', text: '"tabs"' },
     ],
   },

@@ -87,6 +87,7 @@ export interface AgentProject {
       type: string;
       variant?: string;
       config?: Record<string, unknown>;
+      design?: import('@blockfw/manifest').BlockDesign;
     }>;
     screens: Array<{ id: string; block: string; title: string; lane?: string }>;
   };

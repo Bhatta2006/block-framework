@@ -1,5 +1,5 @@
 {
-  "description": "Block Framework M0 — deterministic block-based app compiler. JSON graph in, runnable Expo app out, zero AI involved.",
+  "description": "Block Framework M0 \u00e2\u20ac\u201d deterministic block-based app compiler. JSON graph in, runnable Expo app out, zero AI involved.",
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@testing-library/react": "^16.3.3",
@@ -28,7 +28,9 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "test": "vitest run",
-    "typecheck": "tsc -b tsconfig.json && tsc --noEmit -p tsconfig.tests.json"
+    "typecheck": "tsc -b tsconfig.json && tsc --noEmit -p tsconfig.tests.json && npm run typecheck:ui --workspace=@blockfw/builder",
+    "build:studio": "npm run build && npm run build --workspace=@blockfw/builder",
+    "studio": "node packages/builder/dist/bin.js"
   },
   "type": "module",
   "version": "0.1.0",

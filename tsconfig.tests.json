@@ -9,6 +9,7 @@
     "types": ["node", "react", "react-dom"]
   },
   "extends": "./tsconfig.base.json",
+  "exclude": ["packages/*/test/__render_out__/**"],
   "include": ["packages/*/test/**/*.ts", "packages/*/test/**/*.tsx", "vitest.config.ts"],
   "references": [
     {

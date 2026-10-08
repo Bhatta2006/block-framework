@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
@@ -123,8 +123,30 @@ export function render(ctx: RenderContext): RenderedBlock {
   const variant = ctx.variant === 'grid' ? 'grid' : 'list';
   return {
     fileName: `${ctx.instanceId}.tsx`,
-    content: variant === 'grid' ? renderGrid(ctx, configJson) : renderList(ctx, configJson),
+    content: ctx.composed
+      ? renderInline(ctx, configJson, variant === 'grid')
+      : variant === 'grid'
+        ? renderGrid(ctx, configJson)
+        : renderList(ctx, configJson),
     acceptsOnComplete: true,
     acceptsInput: false,
   };
+}
+
+function renderInline(ctx: RenderContext, configJson: string, grid: boolean): string {
+  return `${HEADER}
+const CONFIG: HomeConfig = ${configJson};
+export function ${ctx.componentName}({ onComplete }: { onComplete?: (output: HomeItemSelected) => void }) {
+  return <View style={styles.container}>
+    <Text style={styles.title}>{CONFIG.title}</Text>
+    {CONFIG.subtitle ? <Text style={styles.subtitle}>{CONFIG.subtitle}</Text> : null}
+    <View style={{ flexDirection: '${grid ? 'row' : 'column'}', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+      {CONFIG.items.map((item) => <Pressable key={item.id} style={[styles.card, { width: '${grid ? '48%' : '100%'}' }]} onPress={() => onComplete?.({ item })}>
+        <Text style={styles.itemTitle}>{item.title}</Text>
+        {item.subtitle ? <Text style={styles.itemSubtitle}>{item.subtitle}</Text> : null}
+      </Pressable>)}
+    </View>
+  </View>;
+}
+${STYLES}`;
 }

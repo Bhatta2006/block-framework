@@ -1,0 +1,30 @@
+{
+  "version": "1.0.0",
+  "category": "utility",
+  "variants": ["default", "compact"],
+  "defaultVariant": "default",
+  "locked": ["ports", "variants"],
+  "id": "content.text",
+  "config": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "minLength": 1
+      },
+      "body": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "defaultConfig": {
+    "title": "Designed around you",
+    "body": "Bring your ideas to life, one thoughtful step at a time."
+  },
+  "editSurface": ["config.title", "config.body"],
+  "ports": {
+    "emits": [],
+    "consumes": []
+  }
+}

@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
     color: theme.colors.text,
     marginBottom: 12,
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
   },
   cta: {
     backgroundColor: theme.colors.primary,
-    borderRadius: 12,
+    borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
   },
@@ -116,13 +116,13 @@ const CONFIG: DetailConfig = ${configJson};
 
 const FALLBACK_ITEM: DetailItem = ${fallbackItem};
 
-export function ${name}({ input }: { input?: ${inputType} }) {
+export function ${name}({ input, onComplete }: { input?: ${inputType}; onComplete?: (output: { item: DetailItem }) => void }) {
   const item = (input as { item?: DetailItem } | undefined)?.item ?? FALLBACK_ITEM;
   return (
     <ScrollView style={styles.container}>
       {CONFIG.showImage !== false ? (
         <View style={styles.hero}>
-          <Text style={styles.heroText}>${product ? '📦' : '📄'}</Text>
+          <Text style={styles.heroText}>${product ? '✧' : '◒'}</Text>
         </View>
       ) : null}
       <View style={styles.body}>
@@ -143,7 +143,7 @@ export function ${name}({ input }: { input?: ${inputType} }) {
             <Text style={styles.metaLabel}>${product ? 'Sold' : 'Complete'}</Text>
           </View>
         </View>
-        <Pressable style={styles.cta} onPress={() => undefined}>
+        <Pressable style={styles.cta} onPress={() => onComplete?.({ item })}>
           <Text style={styles.ctaText}>{CONFIG.ctaText ?? 'Get started'}</Text>
         </Pressable>
       </View>
@@ -159,7 +159,7 @@ export function render(ctx: RenderContext): RenderedBlock {
   return {
     fileName: `${ctx.instanceId}.tsx`,
     content: renderVariant(ctx, configJson, product),
-    acceptsOnComplete: false,
+    acceptsOnComplete: true,
     acceptsInput: true,
   };
 }

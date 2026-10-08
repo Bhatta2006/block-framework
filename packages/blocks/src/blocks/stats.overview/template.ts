@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   value: {
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: '800',
     color: theme.colors.text,
   },

@@ -150,10 +150,10 @@ export function validateBlock(
       message: `"${manifest.defaultVariant}" is not in variants`,
     });
   }
-  if (!Array.isArray(manifest.editSurface) || manifest.editSurface.length === 0) {
+  if (!Array.isArray(manifest.editSurface)) {
     issues.push({
       path: 'editSurface',
-      message: 'block must declare a non-empty editSurface (what the AI may change)',
+      message: 'block must declare a editSurface (what the AI may change)',
     });
   }
   if (!Array.isArray(manifest.locked)) {
@@ -222,6 +222,7 @@ export function scaffoldTemplate(): string {
 // When you register the block in the monorepo, you can import the shared
 // types from '../../types.js' instead.
 interface RenderContext {
+  instanceId: string;
   componentName: string;
   variant: string;
   config: Record<string, unknown>;
@@ -235,7 +236,7 @@ interface RenderedBlock {
 }
 
 export function render(ctx: RenderContext): RenderedBlock {
-  const { componentName, variant, config } = ctx;
+  const { instanceId, componentName, variant, config } = ctx;
   const title = JSON.stringify(String(config['title'] ?? 'Hello'));
   const titleSize = variant === 'compact' ? 20 : 28;
 
@@ -270,7 +271,7 @@ export function render(ctx: RenderContext): RenderedBlock {
     '',
   ].join('\\n');
 
-  return { fileName: \`\${componentName}.tsx\`, content, acceptsOnComplete: false, acceptsInput: false };
+  return { fileName: \`\${instanceId}.tsx\`, content, acceptsOnComplete: false, acceptsInput: false };
 }
 `;
 }

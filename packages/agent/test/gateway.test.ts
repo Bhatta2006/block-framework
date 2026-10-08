@@ -33,6 +33,119 @@ const PLAYFUL = JSON.stringify({
 });
 
 describe('AgentGateway', () => {
+  it('applies a common element design across every block in the app', async () => {
+    const p = project();
+    const ops = p.graph.blocks.map((b) => ({
+      path: 'block:' + b.id + '.design.elements.button',
+      value: { borderRadius: 12, backgroundColor: '#345E4F' },
+    }));
+    const gw = new AgentGateway(
+      new RecordedProvider([
+        {
+          matchUserIncludes: 'common',
+          response: JSON.stringify({ ops, rationale: 'Common button design.' }),
+        },
+      ]),
+    );
+    const result = await gw.plan(p, 'apply a common button design');
+    expect(result.plan?.ops).toHaveLength(p.graph.blocks.length);
+    const next = gw.apply(p, result.plan!).project;
+    expect(next.graph.blocks.every((b) => b.design?.elements?.button?.borderRadius === 12)).toBe(
+      true,
+    );
+    expect(next.graph.blocks.map((b) => b.config)).toEqual(p.graph.blocks.map((b) => b.config));
+  });
+  it('customizes selected elements and variants, supports reviewed overwrite, and restores the original on undo', async () => {
+    const p = project();
+    p.touched = ['block:b1.design.elements.button'];
+    p.graph.blocks.find((b) => b.id === 'b1')!.design = { elements: { button: { x: 5 } } };
+    const gw = new AgentGateway(
+      new RecordedProvider([
+        {
+          matchUserIncludes: 'design',
+          response: JSON.stringify({
+            ops: [
+              {
+                path: 'block:b1.design.elements.button',
+                value: { x: 40, width: 180, backgroundColor: '#123456' },
+              },
+              { path: 'block:b1.variant', value: 'signup' },
+              { path: 'block:b3.config.ctaText', value: 'Outside scope' },
+            ],
+            rationale: 'Move the button and use sign-up.',
+          }),
+        },
+      ]),
+    );
+    const scope = { focusInstanceIds: ['b1'], allowTouched: true };
+    const result = await gw.plan(p, 'design selected block', scope);
+    expect(result.ok).toBe(true);
+    expect(result.plan?.ops).toHaveLength(2);
+    expect(result.warnings?.join(' ')).toContain('outside the selected blocks');
+    const next = gw.apply(p, result.plan!, scope).project;
+    expect(next.graph.blocks.find((b) => b.id === 'b1')?.design?.elements?.button?.x).toBe(40);
+    expect(next.graph.blocks.find((b) => b.id === 'b1')?.variant).toBe('signup');
+    expect(gw.undo()).toEqual(p);
+    expect(() => gw.apply(p, result.plan!, { focusInstanceIds: ['b1'] })).toThrow('hand-edited');
+  });
+  it('rejects invalid design styles without modifying the graph', () => {
+    const p = project();
+    const gw = new AgentGateway(new RecordedProvider([]));
+    expect(() =>
+      gw.apply(p, {
+        ops: [
+          { path: 'block:b1.design.elements.button', value: { x: 'far', backgroundColor: 'red' } },
+        ],
+        rationale: '',
+      }),
+    ).toThrow('invalid element design');
+    expect(p.graph.blocks.find((b) => b.id === 'b1')?.design).toBeUndefined();
+  });
+  it('accepts an empty plan as a successful no-op without retries', async () => {
+    const gw = new AgentGateway(
+      new RecordedProvider([
+        {
+          matchUserIncludes: 'nothing',
+          response: JSON.stringify({ ops: [], rationale: 'Already correct.' }),
+        },
+      ]),
+    );
+    const result = await gw.plan(project(), 'change nothing');
+    expect(result.ok).toBe(true);
+    expect(result.attempts).toBe(1);
+    expect(result.diff).toEqual([]);
+  });
+  it('protects edited nested fields from whole-array agent replacements', async () => {
+    const p = project();
+    p.touched = ['block:b8.config.sections.0.rows.0.value'];
+    const gw = new AgentGateway(
+      new RecordedProvider([
+        {
+          matchUserIncludes: 'price',
+          response: JSON.stringify({
+            ops: [
+              {
+                path: 'block:b8.config.sections',
+                value: [
+                  {
+                    title: 'Preferences',
+                    rows: [
+                      { id: 'push', label: 'Push notifications', kind: 'toggle', value: false },
+                    ],
+                  },
+                ],
+              },
+            ],
+            rationale: 'Price edit.',
+          }),
+        },
+      ]),
+      { maxAttempts: 1 },
+    );
+    const result = await gw.plan(p, 'change price');
+    expect(result.ok).toBe(false);
+    expect(result.errors?.join(' ')).toContain('hand-edited');
+  });
   it('plans a scoped edit and returns a reviewable diff without applying', async () => {
     const gw = new AgentGateway(
       new RecordedProvider([{ matchUserIncludes: 'make it playful', response: PLAYFUL }]),

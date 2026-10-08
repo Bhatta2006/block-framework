@@ -42,7 +42,7 @@
     "skippable": false
   },
   "defaultVariant": "quiz-cards",
-  "editSurface": [],
+  "editSurface": ["config.questions", "config.skippable"],
   "id": "onboarding.quiz",
   "locked": ["ports", "variants"],
   "ports": {

@@ -1,0 +1,39 @@
+{
+  "version": "1.0.0",
+  "category": "utility",
+  "variants": ["default", "compact"],
+  "defaultVariant": "default",
+  "locked": ["ports", "variants"],
+  "id": "content.hero",
+  "config": {
+    "type": "object",
+    "properties": {
+      "eyebrow": {
+        "type": "string"
+      },
+      "title": {
+        "type": "string",
+        "minLength": 1
+      },
+      "body": {
+        "type": "string"
+      },
+      "ctaText": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "additionalProperties": false
+  },
+  "defaultConfig": {
+    "eyebrow": "MAKE ROOM FOR BETTER",
+    "title": "Small steps. Remarkable days.",
+    "body": "A little intention goes a long way. Build a routine that feels like you.",
+    "ctaText": "Start your journey"
+  },
+  "editSurface": ["config.eyebrow", "config.title", "config.body", "config.ctaText"],
+  "ports": {
+    "emits": ["action.pressed"],
+    "consumes": []
+  }
+}

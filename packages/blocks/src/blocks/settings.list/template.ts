@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   header: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
     color: theme.colors.text,
     paddingHorizontal: 24,
@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 16,
     marginHorizontal: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -130,9 +130,7 @@ export function ${name}() {
                     trackColor={{ false: '#E5E7EB', true: theme.colors.primary }}
                   />
                 ) : (
-                  <Pressable onPress={() => undefined}>
-                    <Text style={styles.chevron}>›</Text>
-                  </Pressable>
+                  <Text style={styles.chevron}>Not connected</Text>
                 )}
               </View>
             ))}

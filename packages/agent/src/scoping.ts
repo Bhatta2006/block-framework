@@ -14,6 +14,7 @@
  * nothing is applied.
  */
 import { Ajv } from 'ajv';
+import { blockDesignSchema, elementDesignSchema } from '@blockfw/manifest';
 import { loadDefaultRegistry } from '@blockfw/blocks';
 import type { AgentEditOp, AgentPlan, AgentProject } from './types.js';
 
@@ -27,9 +28,18 @@ export interface ScopeCheck {
   rejections: string[];
 }
 
-const PATH_RE = /^block:([A-Za-z0-9_-]+)\.config\.([A-Za-z0-9_]+)$/;
+export interface EditScope {
+  focusInstanceIds?: string[];
+  allowTouched?: boolean;
+}
+const PATH_RE =
+  /^block:([A-Za-z0-9_-]+)\.(config\.[A-Za-z0-9_]+|variant|design|design\.elements\.[A-Za-z][A-Za-z0-9-]*)$/;
 
-export function checkScope(project: AgentProject, plan: AgentPlan): ScopeCheck {
+export function checkScope(
+  project: AgentProject,
+  plan: AgentPlan,
+  scope: EditScope = {},
+): ScopeCheck {
   const registry = loadDefaultRegistry();
   const accepted: AgentEditOp[] = [];
   const rejections: string[] = [];
@@ -39,7 +49,7 @@ export function checkScope(project: AgentProject, plan: AgentPlan): ScopeCheck {
   }
 
   for (const op of plan.ops) {
-    const why = checkOp(project, registry, op);
+    const why = checkOp(project, registry, op, scope);
     if (why === null) accepted.push(op);
     else rejections.push(why);
   }
@@ -50,13 +60,14 @@ function checkOp(
   project: AgentProject,
   registry: ReturnType<typeof loadDefaultRegistry>,
   op: AgentEditOp,
+  scope: EditScope,
 ): string | null {
   if (!op || typeof op.path !== 'string') return 'op has no string path';
   const m = PATH_RE.exec(op.path);
   if (!m) {
     return `rejected ${JSON.stringify(op.path)}: path must look like "block:<id>.config.<key>" — nothing else is editable`;
   }
-  const [, instanceId, key] = m as unknown as [string, string, string];
+  const [, instanceId, surfaceKey] = m as unknown as [string, string, string];
 
   const block = project.graph.blocks.find((b) => b.id === instanceId);
   if (!block) return `rejected ${op.path}: unknown block instance "${instanceId}"`;
@@ -65,14 +76,38 @@ function checkOp(
   if (!entry) return `rejected ${op.path}: unknown block type "${block.type}"`;
   const manifest = entry.manifest;
 
-  const surfaceKey = `config.${key}`;
+  if (scope.focusInstanceIds && !scope.focusInstanceIds.includes(instanceId))
+    return `rejected ${op.path}: outside the selected blocks`;
+  if (
+    !scope.allowTouched &&
+    project.touched.some(
+      (t) => op.path === t || op.path.startsWith(t + '.') || t.startsWith(op.path + '.'),
+    )
+  )
+    return `rejected ${op.path}: hand-edited by the user — the agent must not overwrite it`;
+  if (surfaceKey === 'variant')
+    return manifest.variants.includes(String(op.value))
+      ? null
+      : `rejected ${op.path}: unknown variant`;
+  if (surfaceKey === 'design' || surfaceKey.startsWith('design.elements.')) {
+    const validate = ajv.compile(surfaceKey === 'design' ? blockDesignSchema : elementDesignSchema);
+    return validate(op.value)
+      ? null
+      : `rejected ${op.path}: invalid element design (${ajv.errorsText(validate.errors)})`;
+  }
+  const key = surfaceKey.slice('config.'.length);
   if (!manifest.editSurface.includes(surfaceKey)) {
     return `rejected ${op.path}: "${surfaceKey}" is not in the block's editSurface (${manifest.editSurface.join(', ') || 'empty'})`;
   }
   if (manifest.locked.some((l) => surfaceKey === l || surfaceKey.startsWith(l + '.'))) {
     return `rejected ${op.path}: "${surfaceKey}" is locked and can never be agent-edited`;
   }
-  if (project.touched.includes(op.path)) {
+  if (
+    !scope.allowTouched &&
+    project.touched.some(
+      (t) => op.path === t || op.path.startsWith(t + '.') || t.startsWith(op.path + '.'),
+    )
+  ) {
     return `rejected ${op.path}: hand-edited by the user — the agent must not overwrite it`;
   }
 

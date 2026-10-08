@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headline: {
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: '800',
     color: theme.colors.text,
     textAlign: 'center',
@@ -50,8 +50,8 @@ const styles = StyleSheet.create({
   },
   productCard: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 12,
+    borderColor: '#E1E7DD',
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     backgroundColor: '#FFFFFF',
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
   },
   productCardSelected: {
     borderColor: theme.colors.primary,
-    backgroundColor: '#F5F3FF',
+    backgroundColor: '#F1F5EF',
     borderWidth: 2,
   },
   productTitle: {
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     marginTop: 12,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     backgroundColor: theme.colors.primary,
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     alignSelf: 'center',
     backgroundColor: '#FEF3C7',
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },

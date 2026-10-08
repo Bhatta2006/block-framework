@@ -1,191 +1,153 @@
-# Block Framework — M4
+# Block Studio — web and mobile, from one graph
 
-The deterministic core of Block Framework: a **project graph** (JSON) compiles
-into a complete, runnable **Expo app** with **zero AI involved**.
+Block Framework now includes **Block Studio**, a visual node-based workspace for building responsive web applications and native mobile applications. Connect pages on a flow canvas, compose blocks inside each page, preview the behavior, and export an editable codebase.
 
-```
-examples/full-app/graph.json  (+ optional spine.json)
-        │  blockc compile --spine spine.json
-        ▼
-out/  →  npm install → npx expo start  →  runs on a phone via Expo Go
-```
+## Start the studio
 
-M4 adds the **export and device-delivery path**: from the visual builder to an
-installable app on a real phone.
-
-M4 extends M3 (Agent Gateway) with:
-
-1. **One-click ZIP export** — `blockc export` or the ⬇ Export ZIP button.
-   Audited (no secrets, no scratch, no absolute paths). The README works
-   from a clean machine.
-2. **Android build guide** — EAS Build vs local Gradle vs Expo Go, compared
-   on reliability, speed, cost, and setup. `expo prebuild` verified.
-3. **Demo package** — runbook, reset script, failure-mode plan, 10x rehearsal
-   (9/10 passed).
-4. **Gateway improvement** — partial acceptance: valid ops apply even if some
-   are rejected (e.g., touched paths are skipped, not blocking).
-9. **Block Cards** — deterministic ≤300-token summaries of every block.
-
-## Packages
-
-| Package              | What it is                                                                                       |
-| -------------------- | ------------------------------------------------------------------------------------------------ |
-| `@blockfw/manifest`  | JSON Schemas (v0) + validators for block manifests and project graphs                            |
-| `@blockfw/spine`     | Entity Spine: schema → PostgreSQL migration + TypeScript `Database` type                         |
-| `@blockfw/blocks`    | The 8 hand-written blocks + template renderer + block registry + Block SDK                       |
-| `@blockfw/wiring`    | The deterministic wiring engine (config validation, semantic routing, flow lanes, wiring report) |
-| `@blockfw/compiler`  | Graph → Expo project compiler + `blockc` CLI                                                     |
-| `@blockfw/benchmark` | 36-task benchmark harness + `bf-bench` CLI                                                       |
-| `@blockfw/builder`   | Visual builder: Profile Cascade, block cards, `block-canvas` server + SPA                        |
-
-## The M1 block library
-
-| Block                   | Variants                  | Notes                                                      |
-| ----------------------- | ------------------------- | ---------------------------------------------------------- |
-| `auth.email@1.0.0`      | `signin`, `signup`        | Email auth; **mock service** (`src/services/auth.mock.ts`) |
-| `onboarding.quiz@1.0.0` | `quiz-cards`, `quiz-list` | Question flow                                              |
-| `paywall.basic@1.0.0`   | `cards`, `compact`        | Subscription paywall; **mock billing** (`billing.mock.ts`) |
-| `home.list@1.0.0`       | `list`, `grid`            | Item list; emits typed `home.itemSelected`                 |
-| `content.detail@1.0.0`  | `article`, `product`      | Consumes `home.itemSelected`; renders the routed item      |
-| `stats.overview@1.0.0`  | `row`, `grid`             | Stat cards                                                 |
-| `profile.card@1.0.0`    | `card`, `compact`         | Profile header                                             |
-| `settings.list@1.0.0`   | `list`, `grouped`         | Settings with toggles                                      |
-
-## Quick start
-
-```bash
-npm install
-npm run build      # tsc -b (project references, topological)
-npm test           # vitest, 84 tests (unit + headless render)
-npm run lint
-npm run typecheck  # build + test-file typecheck
-bash scripts/ci.sh # full clean-install CI: build, tests, benchmark, emitted-app typecheck + Metro export
+```sh
+npm ci
+npm run build:studio
+npm run studio
 ```
 
-```bash
-# Validate a graph and print its wiring report
-node packages/compiler/dist/cli.js validate examples/full-app/graph.json
+Open **http://127.0.0.1:5174**. The CLI persists the active project to `.builder-cache/project.blockfw.json` and the app library to the adjacent `.apps.json` file. Use `node packages/builder/dist/bin.js --project path/to/project.blockfw.json --port 5174` to choose a different file. Keep both files when backing up the complete workspace.
 
-# Compile the full 8-block example to an Expo project (with Entity Spine)
-node packages/compiler/dist/cli.js compile examples/full-app/graph.json \
-  --out /tmp/bf-app --spine examples/full-app/spine.json
+Click the app name in the sidebar to switch apps, create an app, delete an app, or restore a recently deleted app. **New starter app** creates a separate app with two connected pages and four editable blocks; it preserves existing apps.
 
-# Run it (needs the Expo Go app on a phone)
-cd /tmp/bf-app && npm install && npx expo start
-# Scan the QR code with Expo Go on your phone.
+The bundled Habitual example includes authentication, onboarding, pricing, a composed home page, details, progress, profile, and settings. Authentication and billing are local demo services.
 
-# Benchmark: 32 tasks, mock agent, zero tokens
-node packages/benchmark/dist/cli.js run --agent mock --out results.json
-```
+## Build visually
 
-## Block SDK
+1. **Page flow:** drag pages around; double-click a page or select it in the sidebar. Drag an event port to another page to override its automatic route. Select a wire and choose **Cut connection**, or press Delete. Cuts persist; reconnect a port or use Undo to restore it. Cutting a page canvas layout guide keeps both blocks on the page.
+2. **Page canvas:** click or drag a library block onto the canvas. Blocks connect in rendering order automatically. Event ports connect compatible producers and consumers.
+3. **Properties:** select a block to edit its content, appearance, rendering order, or event destination. Use stack, grid, or split page layouts.
+4. **Preview:** run the app at desktop or phone width. The phone view is a responsive web preview; native source is a separate export target.
+5. **Export:** download a React/Vite web application or an Expo/React Native mobile application. Both include complete source and run instructions.
 
-```bash
-# Scaffold a new block (manifest + template + sample config + test stub)
-node packages/compiler/dist/cli.js sdk scaffold my.block --category mycat
+Manual changes support undo/redo and Ctrl/Cmd+Z. Node positions persist independently of the finished page layout. Developer tools let you save/import project files, inspect block contracts, and edit the graph directly. The optional AI assistant proposes scoped edits for review; its default responses are labelled recorded demos.
 
-# Validate one block (or all): manifest, sample config, render, determinism
-node packages/compiler/dist/cli.js sdk validate
-node packages/compiler/dist/cli.js sdk validate my.block@1.0.0
+## Customize inside a block
 
-# Test-render every variant headlessly
-node packages/compiler/dist/cli.js sdk test
-```
+Select a block and choose **Customize inside this block**. Click an element in the design preview, then drag it to change its offset or use the property controls for precise position, width, height, padding, spacing, corner radius, colors, typography, alignment, opacity, and visibility. Style controls preview immediately; **Apply design** saves them without reloading the design canvas. Check desktop and phone widths. **Reset element** restores the template's appearance. The checkbox **Apply to matching elements in all blocks** applies a common style throughout the current app.
 
-## Entity Spine
+Open **Element library** inside the designer to insert buttons, text, or dividers into the selected block. Added elements can be placed before an existing element or at the end, styled individually, dragged, and removed. Change their labels with **Element text**.
 
-`spine.json` declares entities; the compiler generates everything else:
+Select a button and choose **When this button is pressed**: no action, go to a specific page, go back, open a complete HTTP/HTTPS URL, or show a message. **Save element & action** saves that button's content and behavior. Each button has its own destination; new buttons have no action by default. Existing buttons keep their original block behavior until you explicitly override it. Navigation actions appear as separate event ports in the canvas and can be connected or cut there too. Deleting a destination page resets its button actions to no action.
 
-```bash
-# Print the PostgreSQL migration
-node packages/compiler/dist/cli.js spine sql examples/full-app/spine.json
+Styles are saved under `block.design.elements`. The shared web runtime applies styles to rendered elements; native export translates corresponding template styles into typed React Native JSX. Main parts such as `container`, `title`, `subtitle`, `button`, and `input` have shared identities. Web-specific decorative elements and individually repeated rows do not necessarily have identical counterparts in native templates; check the exported native app for those details. Layout customization preserves event handlers unless you explicitly choose a different button action. Added elements/actions also compile into the mobile source.
 
-# Print the TypeScript Database type
-node packages/compiler/dist/cli.js spine types examples/full-app/spine.json
+**Ask AI to edit this block** selects that block in the AI assistant. Choose **All blocks** for app-wide changes. The assistant can edit declared content fields (including quiz questions), variants, and element designs. To revise previously customized fields, explicitly select the overwrite checkbox for that request, then review the diff. Free-form AI requests need `BLOCKFW_LLM_PROVIDER=openai-compatible`, `BLOCKFW_LLM_BASE_URL`, `BLOCKFW_LLM_MODEL`, and `BLOCKFW_LLM_API_KEY` configured before starting the server. Recorded demo responses do not provide arbitrary AI design generation.
 
-# Compile an app with the spine: emits supabase/migrations/0001_spine.sql,
-# src/spine-types.ts, src/supabase.ts, and adds @supabase/supabase-js
-node packages/compiler/dist/cli.js compile graph.json --out out --spine spine.json
-```
+## The block library
 
-Apply the migration with `psql $DATABASE_URL -f supabase/migrations/0001_spine.sql`
-or paste it into the Supabase dashboard SQL editor. The generated app reads
-`EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` at runtime.
+| Block             | Purpose                                    | Variants              |
+| ----------------- | ------------------------------------------ | --------------------- |
+| `content.hero`    | Introduction and connected call to action  | default, compact      |
+| `content.text`    | Section heading and supporting copy        | default, compact      |
+| `action.button`   | Connected action button                    | default, compact      |
+| `auth.email`      | Email sign-in/sign-up demo                 | signin, signup        |
+| `onboarding.quiz` | Questions, progress, and answers           | quiz-cards, quiz-list |
+| `paywall.basic`   | Plans and checkout/restore demos           | cards, compact        |
+| `home.list`       | Collections with selected-item events      | list, grid            |
+| `content.detail`  | Routed content and a connected action      | article, product      |
+| `stats.overview`  | Metrics and summary cards                  | row, grid             |
+| `profile.card`    | Identity, biography, and profile stats     | card, compact         |
+| `settings.list`   | Local toggles and integration placeholders | list, grouped         |
 
-## Semantic routing
+All registered types use version `@1.0.0`. Native templates and the responsive web runtime share configuration and event contracts.
 
-Blocks declare typed ports:
+## Project structure
 
 ```json
-"ports": {
-  "emits": [
+{
+  "schemaVersion": "0",
+  "app": { "name": "My app", "slug": "my-app", "version": "1.0.0" },
+  "screens": [
     {
-      "event": "home.itemSelected",
-      "payload": {
-        "type": "object",
-        "properties": { "item": { "type": "object", "properties": { "id": { "type": "string" } } } },
-        "required": ["item"]
-      }
-    }
+      "id": "home",
+      "title": "Home",
+      "block": "hero",
+      "blocks": ["hero", "text"],
+      "layout": "stack"
+    },
+    { "id": "next", "title": "Next", "block": "next" }
   ],
-  "consumes": ["app.launched"]
+  "blocks": [
+    { "id": "hero", "type": "content.hero@1.0.0" },
+    { "id": "text", "type": "content.text@1.0.0" },
+    { "id": "next", "type": "content.text@1.0.0" }
+  ]
 }
 ```
 
-Routing precedence: **explicit wire** → **unique semantic consumer** (payload
-schemas must be compatible) → **next-screen convention** → terminal note.
-Ambiguous consumers and payload mismatches fail loudly at compile time.
-Routed payloads become typed navigation params (`route.params.input`) on the
-receiving screen.
+The `blocks` array on a page defines its composition order; the required `block` field preserves compatibility with older single-block graphs. Optional page and block `position` fields store canvas coordinates. Explicit `wires` override the default routing. Without one, an event finds a unique matching consumer, preferring its own page, then falls back to the next page. Ambiguous consumers require an explicit choice.
 
-## Flow Lanes
+The studio wraps this graph in `{version: 1, profile, touched, graph}`. Hand-edited fields, including nested children, are protected from subsequent profile or AI replacement unless a reviewed AI request explicitly allows updating them.
 
-Screens may declare a `lane`. The `main` lane follows event wires; other
-lanes (e.g. `tabs`) are reachable outside the event flow (tab bar, drawer,
-deep link) and are excluded from reachability warnings:
+## Compile from the command line
 
-```json
-{ "id": "s6", "block": "b6", "title": "Progress", "lane": "tabs" }
+```sh
+# Standalone React/Vite application
+node packages/compiler/dist/cli.js compile examples/studio/graph.json --target web --out out/web
+
+# Expo application for iOS and Android
+node packages/compiler/dist/cli.js compile examples/studio/graph.json --target mobile --out out/mobile
+
+# Audited, repeatable source ZIP
+node packages/compiler/dist/cli.js export examples/studio/graph.json --target web --out out/app-web.zip
+
+# Validate contracts and print resolved event connections
+node packages/compiler/dist/cli.js validate examples/studio/graph.json
 ```
 
-## What M2 deliberately does not include
+In a web export: `npm install`, `npm run dev`, then `npm run build` for deployable static output. In a mobile export: `npm install`, `npm run typecheck`, then `npx expo start`.
 
-- **No LLM integration.** There is intentionally no model code path; that is
-  the experiment. The Agent Gateway arrives in M3.
-- **No real backend calls.** Supabase is now a real generated client + real
-  migration SQL, but the anon key is yours to provide; auth and billing
-  remain **labeled mocks**, flagged in the wiring report on every build.
-- **No canvas UI, no preview server.** Those are Milestones 2–3.
+The optional mobile backend scaffold is generated with `--spine examples/full-app/spine.json`. It emits SQL, database types, and a Supabase bootstrap; it does not automatically connect blocks to a production database.
 
-## Benchmark baseline (for later)
+## Extend the framework
 
-`bf-bench run --agent mock` runs the 32 tasks mechanically and records
-`tokens: 0`. Replaying the same tasks against a baseline coding agent is how
-token-reduction claims get proven instead of asserted — it needs an LLM API
-key, which is documented here rather than faked:
+```sh
+node packages/compiler/dist/cli.js sdk scaffold custom.widget --category utility
+node packages/compiler/dist/cli.js sdk test custom.widget
+node packages/compiler/dist/cli.js sdk validate
+```
 
-1. For each task in `bf-bench list`, prompt the baseline agent with the task
-   description against a compiled example project.
-2. Record wall time, input/output tokens, and whether the result still
-   typechecks and behaves the same.
-3. Compare against `results.json` from the mock run.
+Native block sources live in `packages/blocks/src/blocks/`; register new manifests and pure renderers in `registry.ts`. The generated web runtime is in `packages/compiler/src/web-runtime.ts`; add browser renderers there or extend `src/runtime.tsx` after export. Block configuration schemas generate the editor forms. Event payload contracts drive wiring and native input types.
 
-## Repo conventions
+The compiler remains deterministic. Optional AI edits are an independent gateway, configured with `BLOCKFW_LLM_PROVIDER`, `BLOCKFW_LLM_BASE_URL`, `BLOCKFW_LLM_API_KEY`, and `BLOCKFW_LLM_MODEL`. The studio labels live versus recorded responses and requires review before applying a plan.
 
-- TypeScript strict, `NodeNext` modules, project references (`tsc -b`).
-- Tests run against **source** (vitest alias); typechecks validate the
-  **built** public API.
-- Generated code must be deterministic: sorted keys, no timestamps.
-- `npm run format` (prettier) before committing.
-- Scratch dirs (`.ci-work/`, `.audit-work/`, `__render_out__/`) are gitignored;
-  big installs go there, never `/tmp` (512M tmpfs).
+## Packages
 
-### Why `@blockfw/manifest` pins `fast-uri` and `require-from-string`
+| Package     | Role                                                      |
+| ----------- | --------------------------------------------------------- |
+| `manifest`  | Schemas, types, validation                                |
+| `blocks`    | Eleven native templates, registry, authoring SDK          |
+| `wiring`    | Event routing, payload compatibility, reachability        |
+| `compiler`  | Web and Expo compilation, CLI, source ZIPs                |
+| `spine`     | PostgreSQL migrations and database types                  |
+| `agent`     | Scoped provider-independent edit planning/apply/undo      |
+| `builder`   | Local server, React Flow editor, preview, profile cascade |
+| `benchmark` | Compiler, agent, and export regression tasks              |
 
-These are ajv's transitive dependencies, not ours — but npm's arborist
-(verified on npm 10.9.4 and 11.21.0) silently drops them from the install
-tree when ajv@8 is nested under a workspace while eslint pulls ajv@6 at the
-root. The result is a `Cannot find module 'fast-uri'` crash at runtime, with
-a clean-looking `npm install` exit code. Pinning them as direct dependencies
-forces them into the tree and makes fresh installs hermetic. If ajv is ever
-upgraded or replaced, re-verify with a clean install + `scripts/ci.sh`.
+See [the detailed project map](docs/project-map.md) for architecture, contracts, data flow, HTTP APIs, current limits, and the next product layers.
+
+## Verify
+
+```sh
+npm run build:studio
+npm run lint
+npm run typecheck
+npm test
+node packages/compiler/dist/cli.js sdk validate
+```
+
+Browser checks:
+
+```sh
+npx playwright install firefox
+npx playwright test --config packages/builder/playwright.config.ts --project firefox
+```
+
+These checks exercise the real editor and generated web behavior. Browser evidence is written to `.builder-cache/proof/`. The suite includes composition, configuration, undo/redo, node/port dragging, the demo app flow, same-page payload delivery, responsive preview, toggles, web/mobile downloads, invalid project edits, and small-screen navigation.
+
+Production authentication, billing, persistent app data, cloud collaboration, visual API/business-logic nodes, and managed deployment are future integration layers. The current export path gives developers ownership of the full source so they can add those capabilities now.

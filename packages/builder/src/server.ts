@@ -1,11 +1,17 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, mkdirSync, unlinkSync } from 'node:fs';
 import { join, dirname, resolve, extname } from 'node:path';
 import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { compileProject } from '@blockfw/compiler';
-import { loadDefaultRegistry } from '@blockfw/blocks';
+import { compileProject, compileWebProject } from '@blockfw/compiler';
+import {
+  loadDefaultRegistry,
+  loadSampleConfig,
+  unwrapSampleConfig,
+  canonicalJson,
+} from '@blockfw/blocks';
 import { validateProjectGraph } from '@blockfw/manifest';
 import {
   applyCascade,
@@ -17,6 +23,8 @@ import {
   type BuilderProject,
 } from './index.js';
 import { AgentGateway, RecordedProvider, providerFromEnv, type AgentPlan } from '@blockfw/agent';
+
+import { AppLibrary } from './apps.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -80,19 +88,30 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
   if (opts.projectPath && existsSync(opts.projectPath)) {
     project = loadProjectFile(opts.projectPath);
   } else {
-    // Default: the full 8-block example as a project.
-    const example = resolve(here, '../../../examples/full-app/graph.json');
+    // Default: the composed web/mobile studio example.
+    const example = resolve(here, '../../../examples/studio/graph.json');
     const graph = JSON.parse(readFileSync(example, 'utf8'));
     project = emptyProject(graph);
   }
   validateProjectGraph(project.graph);
 
+  const apps = new AppLibrary(
+    project,
+    opts.projectPath ? resolve(opts.projectPath) + '.apps.json' : undefined,
+  );
+  project = structuredClone(apps.project);
+  validateProjectGraph(project.graph);
   const saveProject = () => {
+    apps.update(project);
     if (opts.projectPath) {
       mkdirSync(dirname(resolve(opts.projectPath)), { recursive: true });
       writeFileSync(resolve(opts.projectPath), JSON.stringify(project, null, 2) + '\n');
     }
   };
+
+  saveProject();
+  const fingerprint = () => createHash('sha256').update(canonicalJson(project)).digest('hex');
+  let lastAgentFingerprint: string | null = null;
 
   // --- Agent Gateway -----------------------------------------------------
   // Provider: recorded demo responses unless a real LLM is configured via
@@ -106,10 +125,18 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
     demoRecorded = new RecordedProvider([]);
   }
   const provider = providerFromEnv(process.env, demoRecorded);
-  const gateway = new AgentGateway<BuilderProject>(provider);
+  let gateway = new AgentGateway<BuilderProject>(provider);
   const usingLiveModel = provider.name !== 'recorded';
   // Pending plans awaiting human review: planId -> { plan, projectHash }.
-  const pendingPlans = new Map<string, { plan: AgentPlan; projectHash: string }>();
+  const pendingPlans = new Map<
+    string,
+    {
+      plan: AgentPlan;
+      projectHash: string;
+      appId: string;
+      scope: { focusInstanceIds?: string[]; allowTouched?: boolean };
+    }
+  >();
   let planSeq = 0;
 
   const server = createServer(async (req, res) => {
@@ -117,6 +144,54 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
       const url = new URL(req.url ?? '/', 'http://localhost');
       const path = url.pathname;
 
+      // --- App library --------------------------------------------------------
+      const appMatch = path.match(/^\/api\/apps\/([a-zA-Z0-9-]+)(?:\/(activate|restore))?$/);
+      if (path === '/api/apps' && req.method === 'GET') {
+        json(res, 200, apps.list());
+        return;
+      }
+      const activateProject = () => {
+        project = structuredClone(apps.project);
+        gateway = new AgentGateway<BuilderProject>(provider);
+        pendingPlans.clear();
+        lastAgentFingerprint = null;
+        saveProject();
+      };
+      if (path === '/api/apps' && req.method === 'POST') {
+        try {
+          const body = JSON.parse(await readBody(req)) as { project: BuilderProject };
+          if (body.project?.version !== 1 || !Array.isArray(body.project.touched))
+            throw new Error('Invalid app project.');
+          validateProjectGraph(body.project.graph);
+          compileWebProject(body.project.graph, registry);
+          compileProject(body.project.graph, registry);
+          apps.create(body.project);
+          activateProject();
+          json(res, 201, { ...apps.list(), project });
+        } catch (e) {
+          json(res, 400, { error: e instanceof Error ? e.message : String(e) });
+        }
+        return;
+      }
+      if (appMatch && (req.method === 'POST' || req.method === 'DELETE')) {
+        try {
+          const old = apps.activeId;
+          if (req.method === 'DELETE') apps.remove(appMatch[1]!);
+          else if (appMatch[2] === 'activate') apps.activate(appMatch[1]!);
+          else if (appMatch[2] === 'restore') apps.restore(appMatch[1]!);
+          else throw new Error('Unknown app action.');
+          if (old !== apps.activeId) activateProject();
+          json(res, 200, { ...apps.list(), project });
+        } catch (e) {
+          json(res, 400, { error: e instanceof Error ? e.message : String(e) });
+        }
+        return;
+      }
+      const requestedApp = req.headers['x-block-app-id'];
+      if (path.startsWith('/api/') && requestedApp && requestedApp !== apps.activeId) {
+        json(res, 409, { error: 'The active app changed. Reload the workspace before saving.' });
+        return;
+      }
       // --- API ---------------------------------------------------------------
       if (path === '/api/project' && req.method === 'GET') {
         json(res, 200, project);
@@ -124,7 +199,16 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
       }
       if (path === '/api/project' && req.method === 'PUT') {
         const body = JSON.parse(await readBody(req)) as BuilderProject;
-        validateProjectGraph(body.graph);
+        try {
+          if (body.version !== 1 || !Array.isArray(body.touched))
+            throw new Error('Invalid builder project contract.');
+          validateProjectGraph(body.graph);
+          compileWebProject(body.graph, registry);
+          compileProject(body.graph, registry);
+        } catch (e) {
+          json(res, 400, { ok: false, error: e instanceof Error ? e.message : String(e) });
+          return;
+        }
         project = {
           version: 1,
           profile: body.profile ?? null,
@@ -165,7 +249,10 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
         return;
       }
       if (path === '/api/compile' && req.method === 'POST') {
-        const result = compileProject(project.graph, registry);
+        const result =
+          url.searchParams.get('target') === 'web'
+            ? compileWebProject(project.graph, registry)
+            : compileProject(project.graph, registry);
         json(res, 200, {
           ok: true,
           projectHash: result.projectHash,
@@ -178,12 +265,17 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
         // M4: One-click ZIP export. Compiles the current project, audits, zips.
         const { exportZip } = await import('@blockfw/compiler');
         const tmpZip = join(tmpdir(), `bf-export-${Date.now()}.zip`);
-        const result = await exportZip(project.graph, tmpZip);
+        const result = await exportZip(
+          project.graph,
+          tmpZip,
+          url.searchParams.get('target') === 'web' ? 'web' : 'mobile',
+        );
         if (!result.audit.ok) {
           json(res, 500, { ok: false, violations: result.audit.violations });
           return;
         }
         const zipData = readFileSync(tmpZip);
+        unlinkSync(tmpZip);
         res.writeHead(200, {
           'Content-Type': 'application/zip',
           'Content-Disposition': `attachment; filename="${project.graph.app.slug || 'app'}.zip"`,
@@ -206,34 +298,56 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
             variants: e.manifest.variants,
             defaultVariant: e.manifest.defaultVariant,
             configSchema: e.manifest.config,
+            defaultConfig: {
+              ...e.manifest.defaultConfig,
+              ...unwrapSampleConfig(loadSampleConfig(e.manifest.id)),
+            },
+            ports: e.manifest.ports,
           })),
         );
         return;
       }
       // --- Agent Gateway API -------------------------------------------
       if (path === '/api/agent/edit' && req.method === 'POST') {
-        const body = JSON.parse(await readBody(req)) as { instruction?: string };
+        const body = JSON.parse(await readBody(req)) as {
+          instruction?: string;
+          focusInstanceIds?: string[];
+          allowTouched?: boolean;
+        };
         const instruction = (body.instruction ?? '').toString().slice(0, 500);
         if (!instruction.trim()) {
           json(res, 400, { ok: false, errors: ['instruction is required'] });
           return;
         }
+        const scope = {
+          focusInstanceIds: body.focusInstanceIds?.filter((id) =>
+            project.graph.blocks.some((b) => b.id === id),
+          ),
+          allowTouched: body.allowTouched === true,
+        };
+        const planAppId = apps.activeId;
+        const planHash = fingerprint();
+        const planProject = structuredClone(project);
         let result;
         let activeProvider = provider;
         let activeLiveModel = usingLiveModel;
         try {
-          result = await gateway.plan(project, instruction);
+          result = await gateway.plan(planProject, instruction, scope);
         } catch (e) {
           // Live provider failed (network down, etc.) — fall back to recorded.
           // The UI will show the recorded badge, no visible error.
           if (usingLiveModel) {
             const fallbackGateway = new AgentGateway(demoRecorded, { maxAttempts: 2 });
-            result = await fallbackGateway.plan(project, instruction);
+            result = await fallbackGateway.plan(planProject, instruction, scope);
             activeProvider = demoRecorded;
             activeLiveModel = false;
           } else {
             throw e;
           }
+        }
+        if (apps.activeId !== planAppId || fingerprint() !== planHash) {
+          json(res, 409, { error: 'App changed while planning. Plan again.' });
+          return;
         }
         if (!result.ok || !result.plan) {
           json(res, 200, {
@@ -247,8 +361,8 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
           return;
         }
         const planId = `plan-${++planSeq}`;
-        const { projectHash } = compileProject(project.graph, registry);
-        pendingPlans.set(planId, { plan: result.plan, projectHash });
+        const projectHash = fingerprint();
+        pendingPlans.set(planId, { plan: result.plan, projectHash, appId: apps.activeId, scope });
         json(res, 200, {
           ok: true,
           planId,
@@ -271,8 +385,8 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
         }
         pendingPlans.delete(body.planId as string);
         // Reject stale plans: the project changed since planning.
-        const { projectHash } = compileProject(project.graph, registry);
-        if (projectHash !== pending.projectHash) {
+        const projectHash = fingerprint();
+        if (projectHash !== pending.projectHash || pending.appId !== apps.activeId) {
           json(res, 409, {
             ok: false,
             errors: ['project changed since the plan was made; re-plan the edit'],
@@ -280,8 +394,9 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
           return;
         }
         try {
-          const { project: next, applied } = gateway.apply(project, pending.plan);
+          const { project: next, applied } = gateway.apply(project, pending.plan, pending.scope);
           project = next;
+          lastAgentFingerprint = fingerprint();
           saveProject();
           json(res, 200, { ok: true, applied, usage: gateway.usageLog.slice(-1) });
         } catch (e) {
@@ -290,12 +405,20 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
         return;
       }
       if (path === '/api/agent/undo' && req.method === 'POST') {
+        if (gateway.undoDepth > 0 && lastAgentFingerprint !== fingerprint()) {
+          json(res, 409, {
+            ok: false,
+            errors: ['Project changed after the AI edit. Undo the newer workspace changes first.'],
+          });
+          return;
+        }
         const undone = gateway.undo();
         if (!undone) {
           json(res, 400, { ok: false, errors: ['nothing to undo'] });
           return;
         }
         project = undone as BuilderProject;
+        lastAgentFingerprint = fingerprint();
         saveProject();
         json(res, 200, { ok: true });
         return;
@@ -303,10 +426,28 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
       if (path === '/api/agent/usage' && req.method === 'GET') {
         json(res, 200, {
           log: gateway.usageLog,
+          undoDepth: gateway.undoDepth,
           total: gateway.totalUsage,
           provider: provider.name,
           liveModel: usingLiveModel,
         });
+        return;
+      }
+      if (path === '/api/run' || path === '/api/run.js') {
+        const compiled = compileWebProject(project.graph, registry);
+        const bundle = await webPreviewBundle(compiled);
+        if (path === '/api/run.js') send(res, 200, bundle, 'text/javascript');
+        else {
+          const css = compiled.files.find((f) => f.path === 'src/styles.css')!.content;
+          send(
+            res,
+            200,
+            '<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Live app preview</title><style>' +
+              css +
+              '</style></head><body><div id="root"></div><script src="/api/run.js"></script></body></html>',
+            'text/html',
+          );
+        }
         return;
       }
       const previewMatch = path.match(/^\/api\/preview\/([A-Za-z0-9_-]+)$/);
@@ -329,7 +470,10 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
       if (!existsSync(file)) file = join(dir, 'index.html'); // SPA fallback
       send(res, 200, readFileSync(file, 'utf8'), MIME[extname(file)] ?? 'application/octet-stream');
     } catch (err) {
-      json(res, 500, { ok: false, error: err instanceof Error ? err.message : String(err) });
+      json(res, err instanceof SyntaxError ? 400 : 500, {
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   });
 
@@ -343,6 +487,40 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
 // --- static block previews ---------------------------------------------------
 
 const previewCache = new Map<string, string>();
+const webCache = new Map<string, string>();
+
+async function webPreviewBundle(compiled: ReturnType<typeof compileWebProject>): Promise<string> {
+  const cached = webCache.get(compiled.projectHash);
+  if (cached) return cached;
+  const { buildSync } = await import('esbuild');
+  const cacheDir = resolve(here, '../../../.builder-cache/web');
+  mkdirSync(cacheDir, { recursive: true });
+  const runtime = compiled.files.find((f) => f.path === 'src/runtime.tsx')!.content;
+  writeFileSync(join(cacheDir, 'runtime.tsx'), runtime);
+  const graph = compiled.files.find((f) => f.path === 'src/project.json')!.content;
+  const wires = compiled.files.find((f) => f.path === 'src/wires.json')!.content;
+  const contents =
+    "import React from 'react'; import { createRoot } from 'react-dom/client'; import { Application } from './runtime'; const q = new URLSearchParams(location.search); createRoot(document.getElementById('root')!).render(<Application graph={" +
+    graph +
+    '} wires={' +
+    wires +
+    "} initialPage={q.get('page') || undefined} previewBlock={q.get('block') || undefined} embedded={q.get('embedded') === '1'} />);";
+  const result = buildSync({
+    stdin: { contents, resolveDir: cacheDir, loader: 'tsx' },
+    bundle: true,
+    write: false,
+    format: 'iife',
+    platform: 'browser',
+    jsx: 'automatic',
+    minify: true,
+    define: { 'process.env.NODE_ENV': '"production"' },
+    logLevel: 'silent',
+  });
+  const bundle = result.outputFiles[0]!.text;
+  webCache.set(compiled.projectHash, bundle);
+  if (webCache.size > 8) webCache.delete(webCache.keys().next().value!);
+  return bundle;
+}
 
 /**
  * Render a block instance to static HTML (no browser, no device).

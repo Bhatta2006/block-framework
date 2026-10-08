@@ -1,8 +1,17 @@
+import type { BlockDesign } from '@blockfw/manifest';
+export interface AppCatalog {
+  activeId: string;
+  apps: Array<{ id: string; name: string; deleted: boolean }>;
+}
+let activeAppId = '';
 export interface BlockSummary {
   id: string;
   category: string;
   variants: string[];
   defaultVariant: string;
+  configSchema: Record<string, unknown>;
+  defaultConfig: Record<string, unknown>;
+  ports: { emits: Array<string | { event: string }>; consumes: Array<string | { port: string }> };
 }
 
 export interface BlockCard {
@@ -49,29 +58,72 @@ export interface BuilderProject {
       theme?: { primaryColor?: string; backgroundColor?: string; textColor?: string };
     };
     blocks: Array<{
+      design?: BlockDesign;
       id: string;
       type: string;
       variant?: string;
       config: Record<string, unknown>;
+      position?: { x: number; y: number };
     }>;
-    screens: Array<{ id: string; block: string; title: string; lane?: string }>;
-    wires?: Array<{ from: { instance: string; event: string }; to: { screen: string } }>;
+    screens: Array<{
+      id: string;
+      block: string;
+      blocks?: string[];
+      layout?: 'stack' | 'grid' | 'split';
+      disconnectedLayout?: string[];
+      position?: { x: number; y: number };
+      title: string;
+      lane?: string;
+    }>;
+    wires?: Array<{ from: { instance: string; event: string }; to: WireTarget }>;
   };
 }
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(activeAppId ? { 'X-Block-App-Id': activeAppId } : {}),
+      ...(init?.headers ?? {}),
+    },
   });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`API ${res.status}: ${body.slice(0, 200)}`);
+    let message = body;
+    try {
+      const data = JSON.parse(body);
+      message = data.error ?? data.errors?.join('; ') ?? body;
+    } catch {
+      /* plain text */
+    }
+    throw new Error(message.slice(0, 1000));
   }
   return (await res.json()) as T;
 }
 
 export const api = {
+  getApps: async () => {
+    const catalog = await req<AppCatalog>('/api/apps');
+    activeAppId = catalog.activeId;
+    return catalog;
+  },
+  appAction: async (id: string, action: 'activate' | 'delete' | 'restore') => {
+    const result = await req<AppCatalog & { project: BuilderProject }>(
+      '/api/apps/' + id + (action === 'delete' ? '' : '/' + action),
+      { method: action === 'delete' ? 'DELETE' : 'POST' },
+    );
+    activeAppId = result.activeId;
+    return result;
+  },
+  createApp: async (project: BuilderProject) => {
+    const result = await req<AppCatalog & { project: BuilderProject }>('/api/apps', {
+      method: 'POST',
+      body: JSON.stringify({ project }),
+    });
+    activeAppId = result.activeId;
+    return result;
+  },
   getProject: () => req<BuilderProject>('/api/project'),
   saveProject: (project: BuilderProject) =>
     req<{ ok: boolean }>('/api/project', { method: 'PUT', body: JSON.stringify(project) }),
@@ -90,16 +142,16 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ path }),
     }),
-  compile: () =>
+  compile: (target: 'web' | 'mobile' = 'mobile') =>
     req<{ ok: boolean; projectHash: string; files: string[]; wiring: WiringReport }>(
-      '/api/compile',
+      `/api/compile?target=${target}`,
       { method: 'POST' },
     ),
   getCards: () => req<BlockCard[]>('/api/cards'),
   getBlocks: () => req<BlockSummary[]>('/api/blocks'),
   previewUrl: (instanceId: string, bust?: string) =>
     `/api/preview/${instanceId}${bust ? `?t=${bust}` : ''}`,
-  agentEdit: (instruction: string) =>
+  agentEdit: (instruction: string, focusInstanceIds?: string[], allowTouched = false) =>
     req<{
       ok: boolean;
       planId?: string;
@@ -111,7 +163,10 @@ export const api = {
       errors?: string[];
       provider: string;
       liveModel: boolean;
-    }>('/api/agent/edit', { method: 'POST', body: JSON.stringify({ instruction }) }),
+    }>('/api/agent/edit', {
+      method: 'POST',
+      body: JSON.stringify({ instruction, focusInstanceIds, allowTouched }),
+    }),
   agentApply: (planId: string) =>
     req<{ ok: boolean; applied?: Array<{ path: string; value: unknown }>; errors?: string[] }>(
       '/api/agent/apply',
@@ -120,13 +175,17 @@ export const api = {
   agentUndo: () => req<{ ok: boolean; errors?: string[] }>('/api/agent/undo', { method: 'POST' }),
   agentUsage: () =>
     req<{
+      undoDepth: number;
       log: Array<{ provider: string; model: string; inputTokens: number; outputTokens: number }>;
       total: { inputTokens: number; outputTokens: number; calls: number };
       provider: string;
       liveModel: boolean;
     }>('/api/agent/usage'),
-  exportZip: async (): Promise<Blob> => {
-    const res = await fetch('/api/export/zip', { method: 'POST' });
+  exportZip: async (target: 'web' | 'mobile' = 'mobile'): Promise<Blob> => {
+    const res = await fetch(`/api/export/zip?target=${target}`, {
+      method: 'POST',
+      headers: { 'X-Block-App-Id': activeAppId },
+    });
     if (!res.ok) throw new Error(`Export failed: ${res.status}`);
     return res.blob();
   },
