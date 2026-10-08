@@ -218,15 +218,31 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
           json(res, 400, { ok: false, errors: ['instruction is required'] });
           return;
         }
-        const result = await gateway.plan(project, instruction);
+        let result;
+        let activeProvider = provider;
+        let activeLiveModel = usingLiveModel;
+        try {
+          result = await gateway.plan(project, instruction);
+        } catch (e) {
+          // Live provider failed (network down, etc.) — fall back to recorded.
+          // The UI will show the recorded badge, no visible error.
+          if (usingLiveModel) {
+            const fallbackGateway = new AgentGateway(demoRecorded, { maxAttempts: 2 });
+            result = await fallbackGateway.plan(project, instruction);
+            activeProvider = demoRecorded;
+            activeLiveModel = false;
+          } else {
+            throw e;
+          }
+        }
         if (!result.ok || !result.plan) {
           json(res, 200, {
             ok: false,
             errors: result.errors,
             attempts: result.attempts,
             usage: result.usage,
-            provider: provider.name,
-            liveModel: usingLiveModel,
+            provider: activeProvider.name,
+            liveModel: activeLiveModel,
           });
           return;
         }
@@ -241,8 +257,8 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
           warnings: result.warnings,
           attempts: result.attempts,
           usage: result.usage,
-          provider: provider.name,
-          liveModel: usingLiveModel,
+          provider: activeProvider.name,
+          liveModel: activeLiveModel,
         });
         return;
       }

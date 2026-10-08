@@ -31,6 +31,14 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 test.beforeAll(async () => {
+  // Kill any stale server on our port from a previous run.
+  try {
+    const { execSync } = await import('node:child_process');
+    execSync(`fuser -k ${PORT}/tcp 2>/dev/null || true`, { stdio: 'ignore' });
+    await new Promise((r) => setTimeout(r, 1000));
+  } catch {
+    // Ignore cleanup errors.
+  }
   // Point --project at a path that does not exist yet: the server
   // initializes it from the 8-block example.
   const projectFile = join(tmpdir(), `bf-e2e-${process.pid}.blockfw.json`);
@@ -65,6 +73,15 @@ test.beforeEach(async () => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(initialProject),
   });
+  // Verify the reset took effect before proceeding.
+  await expect
+    .poll(
+      async () =>
+        (await api<{ graph: { screens: Array<{ id: string }> } }>('/api/project')).graph.screens
+          .length,
+      { timeout: 10_000 },
+    )
+    .toBe(8);
 });
 
 async function shot(page: Page, name: string) {
@@ -106,8 +123,13 @@ test('canvas: arrow-button reorder persists', async ({ page }) => {
   const before = await api<{ graph: { screens: Array<{ id: string }> } }>('/api/project');
   const firstId = before.graph.screens[0]!.id;
 
-  // Move the first card later.
+  // Move the first card later. Wait for the save API call to complete.
+  const saveResponse = page.waitForResponse(
+    (resp) => resp.url().includes('/api/project') && resp.request().method() === 'PUT',
+    { timeout: 15_000 },
+  );
   await page.locator('.screen-card').first().locator('button[title="Move later"]').click();
+  await saveResponse;
   await expect
     .poll(
       async () =>
@@ -118,7 +140,12 @@ test('canvas: arrow-button reorder persists', async ({ page }) => {
     .toBe(firstId);
 
   // Move it back.
+  const saveResponse2 = page.waitForResponse(
+    (resp) => resp.url().includes('/api/project') && resp.request().method() === 'PUT',
+    { timeout: 15_000 },
+  );
   await page.locator('.screen-card').nth(1).locator('button[title="Move earlier"]').click();
+  await saveResponse2;
   await expect
     .poll(
       async () =>

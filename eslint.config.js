@@ -10,6 +10,7 @@ export default tseslint.config(
       '**/dist-ui/**',
       '**/node_modules/**',
       '**/*.js',
+      '**/*.mjs',
       '.builder-cache/**',
       '.ci-work/**',
       '.audit-work/**',
