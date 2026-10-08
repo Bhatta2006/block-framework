@@ -38,9 +38,9 @@
     "type": "object"
   },
   "defaultVariant": "list",
-  "editSurface": ["src/blocks/<instance>.tsx"],
+  "editSurface": ["config.title", "config.subtitle"],
   "id": "home.list",
-  "locked": ["src/services/*", "src/navigation.tsx", "src/theme.ts"],
+  "locked": ["ports", "variants"],
   "ports": {
     "consumes": ["app.launched"],
     "emits": [

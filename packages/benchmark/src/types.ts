@@ -56,7 +56,7 @@ export type TaskCheck =
   | { kind: 'cards-stable' };
 
 export type TaskCategory =
-  'config-edit' | 'variant-swap' | 'graph-op' | 'wiring' | 'determinism' | 'invalid';
+  'config-edit' | 'variant-swap' | 'graph-op' | 'wiring' | 'determinism' | 'invalid' | 'agent';
 
 export interface BenchmarkTask {
   id: string;

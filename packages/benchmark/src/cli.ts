@@ -15,6 +15,7 @@ import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { canonicalJson } from '@blockfw/blocks';
 import { runBenchmark, TASKS } from './runner.js';
+import { runAgentBenchmark, runLiveModelCheck } from './agent-tasks.js';
 
 function cmdList(): void {
   console.log('id   category      expects       title');
@@ -25,7 +26,7 @@ function cmdList(): void {
   console.log(`\n${TASKS.length} tasks`);
 }
 
-function cmdRun(agent: string, out: string | undefined): void {
+async function cmdRun(agent: string, out: string | undefined): Promise<void> {
   if (agent !== 'mock') {
     console.error(
       `error: unknown agent "${agent}". Only "mock" is supported in M0.\n` +
@@ -40,14 +41,40 @@ function cmdRun(agent: string, out: string | undefined): void {
     console.log(`${mark} ${t.id} ${t.title} (${t.wallMs}ms, ${t.tokensIn + t.tokensOut} tokens)`);
     for (const n of t.notes) console.log(`       ${n}`);
   }
+  // M3: agent benchmark (recorded provider, deterministic, zero real tokens).
+  console.log('\n--- agent tasks (M3) ---');
+  const agentReports = await runAgentBenchmark();
+  let agentFailed = 0;
+  for (const t of agentReports) {
+    const mark = t.pass ? 'PASS' : 'FAIL';
+    if (!t.pass) agentFailed++;
+    console.log(`${mark} ${t.id} ${t.title} (${t.wallMs}ms, ${t.tokensIn + t.tokensOut} tokens)`);
+    for (const n of t.notes) console.log(`       ${n}`);
+  }
+  // M3: live-model spot check, only when BLOCKFW_LLM_* is configured.
+  const live = await runLiveModelCheck();
+  if (live) {
+    const mark = live.pass ? 'PASS' : 'FAIL';
+    if (!live.pass) agentFailed++;
+    console.log(
+      `${mark} ${live.id} ${live.title} (${live.wallMs}ms, ${live.tokensIn + live.tokensOut} tokens)`,
+    );
+    for (const n of live.notes) console.log(`       ${n}`);
+    agentReports.push(live);
+  } else {
+    console.log('SKIP T43 live model spot check (no BLOCKFW_LLM_* configured)');
+  }
   const s = report.summary;
-  console.log(`\n${s.passed}/${s.total} passed, ${s.failed} failed, ${s.totalWallMs}ms total`);
+  const totalFailed = s.failed + agentFailed;
+  console.log(
+    `\n${s.passed}/${s.total} mechanical passed, ${s.failed} failed; agent: ${agentReports.length - agentFailed}/${agentReports.length} passed`,
+  );
   if (out) {
     const path = resolve(out);
-    writeFileSync(path, `${canonicalJson(report)}\n`);
+    writeFileSync(path, `${canonicalJson({ ...report, agentTasks: agentReports })}\n`);
     console.log(`report written to ${path}`);
   }
-  process.exit(s.failed > 0 ? 1 : 0);
+  process.exit(totalFailed > 0 ? 1 : 0);
 }
 
 function main(): void {

@@ -90,6 +90,21 @@ describe('canvas server API', () => {
     expect(html.length).toBeGreaterThan(500);
   });
 
+  it('renders every block preview without errors', async () => {
+    // Regression: previews for hook-using blocks (auth, quiz, paywall,
+    // settings) failed with "Cannot read properties of null (reading
+    // 'useState')" because the renderer and the bundle resolved different
+    // React copies. Every instance must render real HTML, not an error.
+    for (const id of ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8']) {
+      const res = await fetch(`${base}/api/preview/${id}`);
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      expect(html, `preview ${id}`).toContain('<!DOCTYPE html>');
+      expect(html, `preview ${id}`).not.toContain('"ok":false');
+      expect(html.length, `preview ${id}`).toBeGreaterThan(500);
+    }
+  });
+
   it('returns 404-ish for unknown preview instances', async () => {
     const res = await fetch(`${base}/api/preview/nope`);
     expect(res.status).toBe(500);

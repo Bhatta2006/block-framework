@@ -97,5 +97,31 @@ export const api = {
     ),
   getCards: () => req<BlockCard[]>('/api/cards'),
   getBlocks: () => req<BlockSummary[]>('/api/blocks'),
-  previewUrl: (instanceId: string) => `/api/preview/${instanceId}`,
+  previewUrl: (instanceId: string, bust?: string) =>
+    `/api/preview/${instanceId}${bust ? `?t=${bust}` : ''}`,
+  agentEdit: (instruction: string) =>
+    req<{
+      ok: boolean;
+      planId?: string;
+      plan?: { ops: Array<{ path: string; value: unknown }>; rationale: string };
+      diff?: Array<{ path: string; before: unknown; after: unknown }>;
+      attempts?: number;
+      usage?: Array<{ inputTokens: number; outputTokens: number }>;
+      errors?: string[];
+      provider: string;
+      liveModel: boolean;
+    }>('/api/agent/edit', { method: 'POST', body: JSON.stringify({ instruction }) }),
+  agentApply: (planId: string) =>
+    req<{ ok: boolean; applied?: Array<{ path: string; value: unknown }>; errors?: string[] }>(
+      '/api/agent/apply',
+      { method: 'POST', body: JSON.stringify({ planId }) },
+    ),
+  agentUndo: () => req<{ ok: boolean; errors?: string[] }>('/api/agent/undo', { method: 'POST' }),
+  agentUsage: () =>
+    req<{
+      log: Array<{ provider: string; model: string; inputTokens: number; outputTokens: number }>;
+      total: { inputTokens: number; outputTokens: number; calls: number };
+      provider: string;
+      liveModel: boolean;
+    }>('/api/agent/usage'),
 };

@@ -1,0 +1,23 @@
+{
+  "model": "recorded-demo-v1",
+  "pairs": [
+    {
+      "inputTokens": 420,
+      "matchUserIncludes": "make it playful",
+      "outputTokens": 110,
+      "response": "{\"ops\":[{\"path\":\"block:b1.config.headline\",\"value\":\"Let's make habits fun! 🎉\"},{\"path\":\"block:b1.config.subheadline\",\"value\":\"Tiny wins, every day. You've got this!\"},{\"path\":\"block:b1.config.ctaText\",\"value\":\"Let's go!\"},{\"path\":\"block:b3.config.headline\",\"value\":\"Unlock the fun side of habits\"},{\"path\":\"block:b3.config.ctaText\",\"value\":\"Start my free trial\"}],\"rationale\":\"Playful tone: exclamation, emoji, and energetic verbs on the auth and paywall headlines and CTAs.\"}"
+    },
+    {
+      "inputTokens": 420,
+      "matchUserIncludes": "more professional",
+      "outputTokens": 95,
+      "response": "{\"ops\":[{\"path\":\"block:b1.config.headline\",\"value\":\"Build better habits\"},{\"path\":\"block:b1.config.subheadline\",\"value\":\"Evidence-based habit tracking for professionals.\"},{\"path\":\"block:b1.config.ctaText\",\"value\":\"Get started\"}],\"rationale\":\"Professional tone: direct, no emoji, outcome-focused copy.\"}"
+    },
+    {
+      "inputTokens": 380,
+      "matchUserIncludes": "friendlier cta",
+      "outputTokens": 40,
+      "response": "{\"ops\":[{\"path\":\"block:b1.config.ctaText\",\"value\":\"Come on in!\"}],\"rationale\":\"Single friendly CTA change.\"}"
+    }
+  ]
+}

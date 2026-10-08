@@ -3,16 +3,33 @@
   "config": {
     "additionalProperties": false,
     "properties": {
-      "ctaText": { "type": "string" },
-      "headline": { "minLength": 1, "type": "string" },
+      "ctaText": {
+        "type": "string"
+      },
+      "headline": {
+        "minLength": 1,
+        "type": "string"
+      },
       "products": {
         "items": {
           "additionalProperties": false,
           "properties": {
-            "id": { "minLength": 1, "type": "string" },
-            "period": { "minLength": 1, "type": "string" },
-            "price": { "minLength": 1, "type": "string" },
-            "title": { "minLength": 1, "type": "string" }
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "period": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "price": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": {
+              "minLength": 1,
+              "type": "string"
+            }
           },
           "required": ["id", "title", "price", "period"],
           "type": "object"
@@ -21,21 +38,35 @@
         "minItems": 1,
         "type": "array"
       },
-      "subheadline": { "type": "string" }
+      "subheadline": {
+        "type": "string"
+      }
     },
     "required": ["headline", "products"],
     "type": "object"
   },
-  "defaultConfig": { "ctaText": "Subscribe" },
+  "defaultConfig": {
+    "ctaText": "Subscribe"
+  },
   "defaultVariant": "cards",
-  "editSurface": ["src/blocks/<instance>.tsx"],
+  "editSurface": ["config.headline", "config.subheadline", "config.ctaText"],
   "id": "paywall.basic",
-  "locked": ["src/services/*", "src/navigation.tsx", "src/theme.ts"],
+  "locked": ["ports", "variants"],
   "ports": {
     "consumes": ["paywall.show"],
     "emits": ["paywall.completed", "paywall.restored"],
-    "provides": [{ "entity": "UserProfile.isPremium", "type": "boolean" }],
-    "requires": [{ "entity": "BillingService", "optional": true }]
+    "provides": [
+      {
+        "entity": "UserProfile.isPremium",
+        "type": "boolean"
+      }
+    ],
+    "requires": [
+      {
+        "entity": "BillingService",
+        "optional": true
+      }
+    ]
   },
   "variants": ["cards", "compact"],
   "version": "1.0.0"

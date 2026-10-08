@@ -9,3 +9,5 @@ __render_out__/
 .audit-work/
 .builder-cache/
 packages/*/dist-ui/
+test-results/
+packages/builder/e2e/screenshots/

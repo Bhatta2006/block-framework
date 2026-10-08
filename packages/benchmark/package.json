@@ -3,6 +3,7 @@
     "bf-bench": "dist/cli.js"
   },
   "dependencies": {
+    "@blockfw/agent": "0.1.0",
     "@blockfw/blocks": "0.1.0",
     "@blockfw/builder": "0.1.0",
     "@blockfw/compiler": "0.1.0",

@@ -22,6 +22,9 @@
     },
     {
       "path": "packages/builder"
+    },
+    {
+      "path": "packages/agent"
     }
   ]
 }

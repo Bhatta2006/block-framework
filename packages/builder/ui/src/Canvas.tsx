@@ -6,6 +6,7 @@ interface Props {
   selectedScreen: string | null;
   onSelect: (screenId: string | null) => void;
   onChanged: () => void;
+  previewBust: string;
 }
 
 function blockTypeOf(project: BuilderProject, screenId: string): string {
@@ -19,7 +20,7 @@ function blockTypeOf(project: BuilderProject, screenId: string): string {
  * operation (drag, or arrow buttons as a fallback). Each card shows a live
  * static preview of the generated block.
  */
-export function Canvas({ project, selectedScreen, onSelect, onChanged }: Props) {
+export function Canvas({ project, selectedScreen, onSelect, onChanged, previewBust }: Props) {
   const [dragId, setDragId] = useState<string | null>(null);
   const lanes = [
     'main',
@@ -99,7 +100,7 @@ export function Canvas({ project, selectedScreen, onSelect, onChanged }: Props) 
                 </div>
                 <iframe
                   title={`preview ${screen.id}`}
-                  src={api.previewUrl(screen.block)}
+                  src={api.previewUrl(screen.block, previewBust)}
                   className="screen-preview"
                   loading="lazy"
                 />

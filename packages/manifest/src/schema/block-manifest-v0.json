@@ -44,11 +44,10 @@
       "type": "string"
     },
     "editSurface": {
-      "description": "File globs the Block Editor agent may touch. Everything else is locked.",
+      "description": "Config paths (e.g. config.headline) the scoped agent may edit. Empty means nothing is agent-editable.",
       "items": {
         "type": "string"
       },
-      "minItems": 1,
       "type": "array"
     },
     "id": {

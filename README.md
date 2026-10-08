@@ -1,4 +1,4 @@
-# Block Framework — M2
+# Block Framework — M3
 
 The deterministic core of Block Framework: a **project graph** (JSON) compiles
 into a complete, runnable **Expo app** with **zero AI involved**.
@@ -10,24 +10,30 @@ examples/full-app/graph.json  (+ optional spine.json)
 out/  →  npm install → npx expo start  →  runs on a phone via Expo Go
 ```
 
-M2 extends M0's two load-bearing claims (JSON → working app with no LLM;
-byte-identical rebuilds) and M1's library with:
+M3 adds the **Agent Gateway**: plain-language instructions become scoped,
+reviewable, reversible edits — the agent only touches fields inside each
+block's `editSurface`, never locked fields or hand-edited paths.
 
-1. **Block SDK** — `blockc sdk scaffold|test|validate` for authoring blocks.
-2. **8-block library** — auth, quiz, paywall, home, detail, stats, profile,
-   settings, each with 2 variants.
-3. **Semantic event routing** — blocks declare typed event ports; the wiring
-   engine routes events to the unique consumer by payload type, no manual
-   wires needed.
-4. **Entity Spine** — one typed data model generates the Supabase migration
-   SQL, the TypeScript `Database` type, and the client bootstrap.
-5. **Flow Lanes** — screens declare lanes (`main`, `tabs`, …); reachability
-   analysis respects them.
-6. **32-task benchmark** — all tasks run with zero tokens.
-7. **Visual builder** — a browser canvas: lanes of screens with live static
-   previews, auto-generated config panels, variant switching, wiring view.
-8. **Profile Cascade** — six questions configure the whole app; hand-edits
-   always win over derived values.
+M3 extends M2 (visual builder, Profile Cascade, 8-block library) with:
+
+1. **Agent Gateway** (`@blockfw/agent`) — provider abstraction (`LlmProvider`),
+   deterministic recorded provider for offline tests, OpenAI-compatible live
+   provider via `BLOCKFW_LLM_*` env vars (no keys in code).
+2. **Scoped edit engine** — the model sees only compact block cards (never
+   source code); every proposed op is validated against path shape, block
+   existence, `editSurface`, `locked`, touched paths, and JSON Schema.
+3. **Plan → review → apply** — the UI shows a field-level diff (before/after)
+   with rationale; nothing applies without human approval. Stale plans
+   (project changed since planning) are rejected.
+4. **Undo** — every apply pushes a snapshot; one click restores.
+5. **Token logging** — per-call and session totals, honestly labeled as
+   recorded-demo vs. live-model.
+6. **Live previews** — agent edits invalidate the hash-keyed preview cache;
+   iframes reload automatically (no full rebuild).
+7. **42-task benchmark** — 36 mechanical (zero tokens) + 6 agent safety tasks
+   (recorded, deterministic); T43 live-model spot check runs only with a key.
+8. **Adversarial tests** — locked-field edits, schema violations, screen
+   deletion, scope escape, prompt-injection-shaped outputs: all rejected.
 9. **Block Cards** — deterministic ≤300-token summaries of every block.
 
 ## Packages

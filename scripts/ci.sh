@@ -45,6 +45,23 @@ step "4. unit + render tests"
 npm test 2>&1 | grep -E "Test Files|Tests "
 pass "tests green"
 
+step "4b. builder UI build + browser E2E (firefox)"
+# The M2 UI was never clicked in a real browser. These Playwright tests drive
+# the actual UI (profile, reorder, config edit, variant, wiring, compile).
+# Firefox is used: the sandbox's Chromium 152 blocks all loopback access via
+# Local Network Access enforcement that flags cannot disable (evidence in
+# the M3 report); the Playwright-managed Chromium binary also never lands.
+npm run build --workspace=@blockfw/builder > /dev/null 2>&1
+pass "builder UI (tsc + vite) built"
+(
+  cd packages/builder
+  npx playwright install firefox > /dev/null 2>&1 || true
+  npx playwright test --project=firefox 2>&1 | tail -3
+  # Playwright exits nonzero on failure; fail CI if any E2E test fails.
+  test "${PIPESTATUS[0]}" -eq 0
+)
+pass "browser E2E green"
+
 step "5. lint, typecheck, format"
 npm run lint
 pass "eslint clean"

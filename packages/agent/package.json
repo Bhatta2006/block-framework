@@ -1,0 +1,29 @@
+{
+  "name": "@blockfw/agent",
+  "version": "0.1.0",
+  "description": "Scoped AI edit agent for Block Framework: plans small, reviewable, reversible edits inside each block's editSurface. Never touches locked fields or user hand-edits.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "default": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@blockfw/blocks": "0.1.0",
+    "@blockfw/manifest": "0.1.0",
+    "ajv": "8.20.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "5.0.3"
+  }
+}

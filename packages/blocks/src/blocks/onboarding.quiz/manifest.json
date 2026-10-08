@@ -7,14 +7,22 @@
         "items": {
           "additionalProperties": false,
           "properties": {
-            "multi": { "type": "boolean" },
+            "multi": {
+              "type": "boolean"
+            },
             "options": {
-              "items": { "minLength": 1, "type": "string" },
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
               "maxItems": 6,
               "minItems": 2,
               "type": "array"
             },
-            "prompt": { "minLength": 1, "type": "string" }
+            "prompt": {
+              "minLength": 1,
+              "type": "string"
+            }
           },
           "required": ["prompt", "options"],
           "type": "object"
@@ -23,20 +31,29 @@
         "minItems": 1,
         "type": "array"
       },
-      "skippable": { "type": "boolean" }
+      "skippable": {
+        "type": "boolean"
+      }
     },
     "required": ["questions"],
     "type": "object"
   },
-  "defaultConfig": { "skippable": false },
+  "defaultConfig": {
+    "skippable": false
+  },
   "defaultVariant": "quiz-cards",
-  "editSurface": ["src/blocks/<instance>.tsx"],
+  "editSurface": [],
   "id": "onboarding.quiz",
-  "locked": ["src/services/*", "src/navigation.tsx", "src/theme.ts"],
+  "locked": ["ports", "variants"],
   "ports": {
     "consumes": ["app.launched"],
     "emits": ["onboarding.completed"],
-    "provides": [{ "entity": "UserProfile.answers", "type": "Record<string, string[]>" }]
+    "provides": [
+      {
+        "entity": "UserProfile.answers",
+        "type": "Record<string, string[]>"
+      }
+    ]
   },
   "variants": ["quiz-cards", "quiz-list"],
   "version": "1.0.0"

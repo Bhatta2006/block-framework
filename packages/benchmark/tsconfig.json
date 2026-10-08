@@ -21,6 +21,9 @@
     },
     {
       "path": "../builder"
+    },
+    {
+      "path": "../agent"
     }
   ]
 }
