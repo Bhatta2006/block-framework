@@ -62,7 +62,10 @@ describe('spineToSql', () => {
     expect(a).toContain('CREATE TABLE IF NOT EXISTS "profiles"');
     expect(a).toContain('"id" UUID PRIMARY KEY DEFAULT gen_random_uuid()');
     expect(a).toContain('"email" TEXT NOT NULL UNIQUE');
-    expect(a).toContain('REFERENCES profiles.id ON DELETE CASCADE');
+    expect(a).toContain('REFERENCES "profiles" ("id") ON DELETE CASCADE');
+    // Regression: dot notation (REFERENCES profiles.id) is parsed by
+    // Postgres as schema "profiles", table "id" -> 3F000. Never emit it.
+    expect(a).not.toMatch(/REFERENCES [a-z_]+\.[a-z_]+ ON DELETE/);
   });
 
   it('regenerates cleanly when a field is added', () => {

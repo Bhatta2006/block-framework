@@ -20,7 +20,11 @@ function fieldSql(field: SpineField): string {
   if (field.default) parts.push(`DEFAULT ${field.default}`);
   if (field.references) {
     const onDelete = field.onDelete ?? 'CASCADE';
-    parts.push(`REFERENCES ${field.references} ON DELETE ${onDelete}`);
+    // Quote table and column separately: `REFERENCES profiles.id` would be
+    // parsed as schema "profiles", table "id" (Postgres 3F000). The
+    // parenthesized form is unambiguous.
+    const [refTable, refColumn] = (field.references as string).split('.');
+    parts.push(`REFERENCES "${refTable}" ("${refColumn}") ON DELETE ${onDelete}`);
   }
   return '  ' + parts.join(' ');
 }
