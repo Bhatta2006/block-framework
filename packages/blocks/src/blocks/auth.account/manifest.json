@@ -1,0 +1,22 @@
+{
+  "id": "auth.account",
+  "version": "1.0.0",
+  "category": "auth",
+  "variants": ["default"],
+  "defaultVariant": "default",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "title": { "type": "string", "minLength": 1 },
+      "subtitle": { "type": "string" }
+    }
+  },
+  "defaultConfig": {
+    "title": "Welcome to Paper",
+    "subtitle": "Your thoughts, saved securely to your account."
+  },
+  "ports": { "emits": ["auth.completed"], "consumes": ["app.launched"], "provides": [] },
+  "editSurface": ["config.title", "config.subtitle"],
+  "locked": ["ports", "variants"]
+}

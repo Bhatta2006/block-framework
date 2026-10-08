@@ -1,0 +1,20 @@
+{
+  "id": "account.settings",
+  "version": "1.0.0",
+  "category": "settings",
+  "variants": ["default"],
+  "defaultVariant": "default",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": { "title": { "type": "string", "minLength": 1 } }
+  },
+  "defaultConfig": { "title": "Your account" },
+  "ports": {
+    "emits": ["account.plans", "account.profile", "account.reviewPayments", "auth.signedOut"],
+    "consumes": [],
+    "provides": []
+  },
+  "editSurface": ["config.title"],
+  "locked": ["ports", "variants"]
+}

@@ -26,9 +26,11 @@ function ctxFor(
 }
 
 describe('default registry', () => {
-  it('loads the fourteen library blocks', () => {
+  it('loads the library including five reusable cloud blocks', () => {
     const registry = loadDefaultRegistry();
-    expect(registry.size()).toBe(14);
+    expect(registry.size()).toBe(19);
+    expect(registry.has('auth.account@1.0.0')).toBe(true);
+    expect(registry.has('billing.review@1.0.0')).toBe(true);
     expect(registry.has('onboarding.quiz@1.0.0')).toBe(true);
     expect(registry.has('paywall.basic@1.0.0')).toBe(true);
     expect(registry.has('home.list@1.0.0')).toBe(true);

@@ -26,6 +26,12 @@ import collectionManifest from './blocks/data.collection/manifest.json' with { t
 import editorManifest from './blocks/data.editor/manifest.json' with { type: 'json' };
 import summaryManifest from './blocks/data.summary/manifest.json' with { type: 'json' };
 import { renderCollection, renderEditor, renderSummary } from './data.js';
+import { renderCloud } from './cloud.js';
+import accountAuthManifest from './blocks/auth.account/manifest.json' with { type: 'json' };
+import profileOnboardingManifest from './blocks/onboarding.profile/manifest.json' with { type: 'json' };
+import billingPlansManifest from './blocks/billing.plans/manifest.json' with { type: 'json' };
+import accountSettingsManifest from './blocks/account.settings/manifest.json' with { type: 'json' };
+import billingReviewManifest from './blocks/billing.review/manifest.json' with { type: 'json' };
 export interface RegisteredBlock {
   manifest: BlockManifest;
   render: BlockTemplate;
@@ -72,7 +78,7 @@ export class BlockRegistry {
   }
 }
 
-/** The built-in library: fourteen block contracts and native renderers. */
+/** Built-in block contracts, with web-only cloud capabilities checked by the compiler. */
 export function loadDefaultRegistry(): BlockRegistry {
   const registry = new BlockRegistry();
   registry.register(quizManifestJson, renderQuiz);
@@ -89,5 +95,10 @@ export function loadDefaultRegistry(): BlockRegistry {
   registry.register(collectionManifest, renderCollection);
   registry.register(editorManifest, renderEditor);
   registry.register(summaryManifest, renderSummary);
+  registry.register(accountAuthManifest, renderCloud);
+  registry.register(profileOnboardingManifest, renderCloud);
+  registry.register(billingPlansManifest, renderCloud);
+  registry.register(accountSettingsManifest, renderCloud);
+  registry.register(billingReviewManifest, renderCloud);
   return registry;
 }

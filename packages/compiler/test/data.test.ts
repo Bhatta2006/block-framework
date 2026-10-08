@@ -40,10 +40,14 @@ interface Store {
   flush(): Promise<void>;
 }
 const { RecordStore, makeNote, selectNotes, parseDatabase } = runtime.exports as {
-  RecordStore: new (adapter: {
-    read(): Promise<string | null>;
-    write(value: string): Promise<void>;
-  }) => Store;
+  RecordStore: new (
+    adapter: {
+      read(): Promise<string | null>;
+      write(value: string): Promise<void>;
+    },
+    label?: string,
+    saveDelay?: number,
+  ) => Store;
   makeNote(values?: Partial<Note>): Note;
   selectNotes(
     data: Database,
@@ -65,6 +69,62 @@ function fixture(initial: string | null = null) {
   return { store: new RecordStore(adapter), adapter, disk: () => disk };
 }
 describe('portable persistent record collections', () => {
+  it('coalesces cloud typing into the latest snapshot and flush waits for persistence', async () => {
+    const writes: string[] = [];
+    const store = new RecordStore(
+      {
+        read: async () => null,
+        write: async (value) => {
+          writes.push(value);
+        },
+      },
+      'Cloud',
+      5,
+    );
+    await store.load();
+    const note = makeNote();
+    await Promise.all(['a', 'ab', 'abc'].map((title) => store.save({ ...note, title })));
+    await store.flush();
+    expect(writes).toHaveLength(1);
+    expect(JSON.parse(writes[0]!).records[0].title).toBe('abc');
+    expect(store.pending).toBe(0);
+  });
+  it('preserves edits when a delayed cloud refresh returns an older snapshot', async () => {
+    let complete: (value: string) => void = () => {};
+    let refresh = false;
+    const store = new RecordStore({
+      read: async () =>
+        refresh
+          ? new Promise<string>((resolve) => {
+              complete = resolve;
+            })
+          : null,
+      write: async () => {},
+    });
+    await store.load();
+    refresh = true;
+    const loading = store.load();
+    await store.save(makeNote({ title: 'New draft' }));
+    complete(JSON.stringify({ version: 1, records: [], folders: ['Inbox'] }));
+    await loading;
+    expect(store.data.records[0]!.title).toBe('New draft');
+  });
+  it('stops queued writes after a conflict and keeps the latest draft exportable', async () => {
+    let writes = 0;
+    const store = new RecordStore({
+      read: async () => null,
+      write: async () => {
+        writes++;
+        throw new Error('Cloud revision changed');
+      },
+    });
+    await store.load();
+    const note = makeNote();
+    await Promise.allSettled(['a', 'ab', 'abc'].map((title) => store.save({ ...note, title })));
+    await expect(store.flush()).rejects.toThrow('Cloud revision changed');
+    expect(writes).toBe(1);
+    expect(JSON.parse(store.exportBackup()).records[0].title).toBe('abc');
+  });
   it('rejects duplicate seed ids before writing the first database', async () => {
     const f = fixture();
     await f.store.load([{ id: 'duplicate' }, { id: 'duplicate' }]);

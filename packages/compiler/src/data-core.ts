@@ -83,9 +83,11 @@ export class RecordStore {
   ready = false;
   error = '';
   pending = 0;
+  editing = 0;
+  private changes = 0;
   private listeners = new Set<() => void>();
   private queue: Promise<void> = Promise.resolve();
-  constructor(private adapter: Adapter) {}
+  constructor(private adapter: Adapter, public storageLabel = 'Saved on this device', private saveDelay = 0) {}
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
     return () => {
@@ -96,8 +98,10 @@ export class RecordStore {
     this.listeners.forEach((f) => f());
   }
   async load(seeds: Partial<Note>[] = []) {
+    const atStart = this.changes;
     try {
       const raw = await this.adapter.read();
+      if (atStart !== this.changes || this.pending) return;
       this.data =
         raw === null
           ? {
@@ -124,10 +128,20 @@ export class RecordStore {
     if (!this.ready || this.error)
       return Promise.reject(new Error(this.error || 'Records are still loading.'));
     this.data = change(this.data);
+    this.changes++;
+    const changeId = this.changes;
     const snapshot = JSON.stringify(this.data);
     this.pending++;
     this.notify();
-    const write = this.queue.then(() => this.adapter.write(snapshot));
+    const write = this.queue.then(async () => {
+      if (this.error) throw new Error(this.error);
+      if (this.saveDelay) {
+        if (changeId !== this.changes) return;
+        await new Promise(resolve => setTimeout(resolve, this.saveDelay));
+        if (changeId !== this.changes) return;
+      }
+      return this.adapter.write(snapshot);
+    });
     this.queue = write
       .catch((e) => {
         this.error = e instanceof Error ? e.message : 'Local storage is unavailable.';

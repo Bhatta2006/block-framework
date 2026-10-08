@@ -6,24 +6,37 @@ export function DataProvider({
   namespace,
   seeds,
   transient,
+  cloud,
   children,
 }: {
   namespace: string;
   seeds: Record<string, Partial<Note>[]>;
   transient?: boolean;
+  cloud?: { read(key: string): Promise<string | null>; write(key: string, value: string): Promise<void> };
   children: React.ReactNode;
 }) {
   const stores = useRef(new Map<string, RecordStore>());
   useEffect(() => {
     const sync = (event: StorageEvent) => {
+      if (cloud) return;
       stores.current.forEach((store, key) => {
         if (event.key === 'blockfw.records.' + namespace + '.' + key && !store.pending)
           void store.load();
       });
     };
     window.addEventListener('storage', sync);
-    return () => window.removeEventListener('storage', sync);
-  }, [namespace]);
+    const focus = () => {
+      if (cloud) stores.current.forEach((store) => { if (!store.pending && !store.error && !store.editing) void store.load(); });
+    };
+    window.addEventListener('focus', focus);
+    const leaving = (event: BeforeUnloadEvent) => {
+      if ([...stores.current.values()].some(store => store.pending || store.error)) {
+        event.preventDefault(); event.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', leaving);
+    return () => { window.removeEventListener('storage', sync); window.removeEventListener('focus', focus); window.removeEventListener('beforeunload', leaving); };
+  }, [namespace, cloud]);
   return (
     <Context.Provider
       value={{
@@ -33,12 +46,13 @@ export function DataProvider({
             const storageKey = 'blockfw.records.' + namespace + '.' + key;
             let memory: string | null = null;
             store = new RecordStore({
-              read: async () => (transient ? memory : localStorage.getItem(storageKey)),
+              read: async () => cloud ? cloud.read(key) : (transient ? memory : localStorage.getItem(storageKey)),
               write: async (value) => {
-                if (transient) memory = value;
+                if (cloud) await cloud.write(key, value);
+                else if (transient) memory = value;
                 else localStorage.setItem(storageKey, value);
               },
-            });
+            }, cloud ? 'Saved to your cloud account' : 'Saved on this device', cloud ? 250 : 0);
             stores.current.set(key, store);
             void store.load(seeds[key] ?? []);
           }
@@ -75,7 +89,7 @@ function status(store: RecordStore) {
       ? 'Loading records…'
       : store.pending
         ? 'Saving…'
-        : 'Saved on this device';
+        : store.storageLabel;
 }
 export function DataSummary({ config, decorate }: Props) {
   const store = useRecords(config);
@@ -308,7 +322,7 @@ export function DataCollection({ config, emit, decorate }: Props) {
       )}
       {config.enableBackup !== false && (
         <div className="notes-backup">
-          <span>Private. Local. Yours.</span>
+          <span>{store.storageLabel === 'Saved to your cloud account' ? 'Private. Synced. Yours.' : 'Private. Local. Yours.'}</span>
           <button
             onClick={() => {
               const url = URL.createObjectURL(
@@ -389,6 +403,7 @@ function Markdown({ body, update }: { body: string; update: (body: string) => vo
 }
 export function DataEditor({ config, input, emit, decorate }: Props) {
   const store = useRecords(config);
+  useEffect(() => { store.editing++; return () => { store.editing--; }; }, [store]);
   const selection = input as { recordId?: string; collection?: string } | undefined;
   const id = selection?.recordId ?? '';
   const [draft, setDraft] = useState<Note | null>(null);
@@ -465,6 +480,10 @@ export function DataEditor({ config, input, emit, decorate }: Props) {
       <div className="notes-editor-top">
         <button onClick={done}>← Back to notes</button>
         <span role="status">{error || status(store)}</span>
+        {(error || store.error) && <button onClick={() => {
+          const link = document.createElement('a'); const url = URL.createObjectURL(new Blob([store.exportBackup()], { type: 'application/json' }));
+          link.href = url; link.download = 'paper-unsaved-notes.json'; link.click(); URL.revokeObjectURL(url);
+        }}>Export unsaved notes</button>}
       </div>
       {draft.trashed && <p>This note is in Trash. Restore it to edit.</p>}
       <fieldset disabled={draft.trashed || !!store.error}>

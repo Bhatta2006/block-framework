@@ -439,8 +439,24 @@ export function resolveWiring(graph: ProjectGraph, registry: BlockRegistry): Wir
   }
   const entry = screenOrder[0] as string;
   const reachable: string[] = [];
-  const seen = new Set<string>([entry]);
-  const queue = [entry];
+  // Navigation lanes and cloud account gates are independent entry points.
+  const roots = [
+    entry,
+    ...graph.screens
+      .filter(
+        (s) =>
+          (s.lane ?? 'main') !== 'main' ||
+          (graph.app.cloud &&
+            graph.blocks.some(
+              (b) =>
+                (s.block === b.id || s.blocks?.includes(b.id)) &&
+                /^(auth.account|onboarding.profile)@/.test(b.type),
+            )),
+      )
+      .map((s) => s.id),
+  ];
+  const seen = new Set<string>(roots);
+  const queue = [...seen];
   while (queue.length > 0) {
     const cur = queue.shift() as string;
     reachable.push(cur);

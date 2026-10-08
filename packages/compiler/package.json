@@ -8,6 +8,7 @@
     "@blockfw/spine": "0.1.0",
     "@blockfw/wiring": "0.1.0",
     "archiver": "8.0.0",
+    "qrcode": "^1.5.4",
     "typescript": "5.9.3"
   },
   "exports": {

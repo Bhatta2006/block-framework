@@ -1,0 +1,43 @@
+{
+  "at": "2026-10-08T18:23:32.975Z",
+  "project": "lgggewxaavslvnxswzdo",
+  "testAccounts": "Two separate server-provisioned test fixtures, not verified email-signup evidence",
+  "checks": [
+    {
+      "name": "Real authenticated collection save",
+      "passed": true
+    },
+    {
+      "name": "Cross-account read denied by RLS",
+      "passed": true
+    },
+    {
+      "name": "Cross-account profile write denied",
+      "passed": true
+    },
+    {
+      "name": "Direct table writes denied",
+      "passed": true
+    },
+    {
+      "name": "Authenticated users cannot read server sessions",
+      "passed": true
+    },
+    {
+      "name": "Stale revision rejected without transaction retry",
+      "passed": true
+    },
+    {
+      "name": "Free plan quota enforced inside PostgreSQL",
+      "passed": true
+    },
+    {
+      "name": "Direct RPC malformed tags rejected",
+      "passed": true
+    },
+    {
+      "name": "User cannot invoke privileged payment grant",
+      "passed": true
+    }
+  ]
+}

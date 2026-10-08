@@ -12,6 +12,8 @@ npm run studio
 
 To try a complete app, open **Switch apps → Create app → Notes app**. The included **Paper** template has persistent notes, autosave, search, folders, tags, favorites, pinning, archive, trash/restore, Markdown checklists, and import/export backups. Three reusable data blocks share collections across connected pages, and a page can be hidden from the app navigation. See [the notes app reality check](docs/notes-reality-check.md) for the gaps this build uncovered, instructions, verification, and remaining limits.
 
+For real services, select **Cloud notes** instead. Five reusable blocks add verified email/Google accounts, saved onboarding, INR 0/500/1000 plans, UPI checkout, account management, and owner payment review. Existing collection/editor/summary blocks use private Supabase storage through the generated server. Configure the backend URL under **Developer tools → Cloud services**; a web ZIP includes the server, SQL migration, blank environment template, and hosting instructions. See [Paper Cloud setup and live verification](docs/paper-cloud-setup.md). Canvas thumbnails remain temporary previews; the connected app uses real accounts and cloud data. Cloud exports currently support responsive web.
+
 Open **http://127.0.0.1:5174**. The CLI persists the active project to `.builder-cache/project.blockfw.json` and the app library to the adjacent `.apps.json` file. Use `node packages/builder/dist/bin.js --project path/to/project.blockfw.json --port 5174` to choose a different file. Keep both files when backing up the complete workspace.
 
 Click the app name in the sidebar to switch apps, create an app, delete an app, or restore a recently deleted app. **New starter app** creates a separate app with two connected pages and four editable blocks; it preserves existing apps.
@@ -38,7 +40,7 @@ Select a button and choose **When this button is pressed**: no action, go to a s
 
 Styles are saved under `block.design.elements`. The shared web runtime applies styles to rendered elements; native export translates corresponding template styles into typed React Native JSX. Main parts such as `container`, `title`, `subtitle`, `button`, and `input` have shared identities. Web-specific decorative elements and individually repeated rows do not necessarily have identical counterparts in native templates; check the exported native app for those details. Layout customization preserves event handlers unless you explicitly choose a different button action. Added elements/actions also compile into the mobile source.
 
-**Ask AI to edit this block** selects that block in the AI assistant. Choose **All blocks** for app-wide changes. The assistant can edit declared content fields (including quiz questions), variants, and element designs. To revise previously customized fields, explicitly select the overwrite checkbox for that request, then review the diff. Free-form AI requests need `BLOCKFW_LLM_PROVIDER=openai-compatible`, `BLOCKFW_LLM_BASE_URL`, `BLOCKFW_LLM_MODEL`, and `BLOCKFW_LLM_API_KEY` configured before starting the server. Recorded demo responses do not provide arbitrary AI design generation.
+**Ask AI to edit this block** selects that block in the AI assistant. Choose **All blocks** for app-wide changes. The assistant can edit declared content fields (including quiz questions), variants, and element designs. To revise previously customized fields, explicitly select the overwrite checkbox for that request, then review the diff. In **AI assistant → Continue with ChatGPT**, eligible users can connect their ChatGPT account, authorize plan usage, and choose a model without configuring an API key. Studio remembers the connection using protected local storage. See [ChatGPT connection setup](docs/chatgpt-connection.md). Alternatively, configure `BLOCKFW_LLM_PROVIDER=openai-compatible`, `BLOCKFW_LLM_BASE_URL`, `BLOCKFW_LLM_MODEL`, and `BLOCKFW_LLM_API_KEY` before starting the server. Recorded demo responses do not provide arbitrary AI design generation.
 
 ## The block library
 
@@ -116,14 +118,14 @@ node packages/compiler/dist/cli.js sdk validate
 
 Native block sources live in `packages/blocks/src/blocks/`; register new manifests and pure renderers in `registry.ts`. The generated web runtime is in `packages/compiler/src/web-runtime.ts`; add browser renderers there or extend `src/runtime.tsx` after export. Block configuration schemas generate the editor forms. Event payload contracts drive wiring and native input types.
 
-The compiler remains deterministic. Optional AI edits are an independent gateway, configured with `BLOCKFW_LLM_PROVIDER`, `BLOCKFW_LLM_BASE_URL`, `BLOCKFW_LLM_API_KEY`, and `BLOCKFW_LLM_MODEL`. The studio labels live versus recorded responses and requires review before applying a plan.
+The compiler remains deterministic. Optional AI edits use an independent gateway with a saved ChatGPT connection or `BLOCKFW_LLM_*` configuration. Studio labels ChatGPT plan, other live providers, and recorded responses, and requires review before applying a plan. ChatGPT requests use the documented OAuth and public Responses API flow, subject to account eligibility and usage limits.
 
 ## Packages
 
 | Package     | Role                                                      |
 | ----------- | --------------------------------------------------------- |
 | `manifest`  | Schemas, types, validation                                |
-| `blocks`    | Eleven native templates, registry, authoring SDK          |
+| `blocks`    | Nineteen blocks, registry, authoring SDK                  |
 | `wiring`    | Event routing, payload compatibility, reachability        |
 | `compiler`  | Web and Expo compilation, CLI, source ZIPs                |
 | `spine`     | PostgreSQL migrations and database types                  |
@@ -152,4 +154,4 @@ npx playwright test --config packages/builder/playwright.config.ts --project fir
 
 These checks exercise the real editor and generated web behavior. Browser evidence is written to `.builder-cache/proof/`. The suite includes composition, configuration, undo/redo, node/port dragging, the demo app flow, same-page payload delivery, responsive preview, toggles, web/mobile downloads, invalid project edits, and small-screen navigation.
 
-Production authentication, billing, cloud data/sync, cloud collaboration, visual API/business-logic nodes, and managed deployment are future integration layers. Local persistent text-record collections are implemented for web and native exports. The current export path gives developers ownership of the full source so they can add further capabilities.
+Real authentication, onboarding, private text-note cloud storage, server-enforced limits, and manual UPI payment review are implemented for cloud web apps. Public SMTP, HTTPS deployment, merchant billing automation, cloud collaboration, arbitrary data schemas, and visual API/business-logic nodes remain further integration work. Local persistent text-record collections also work in web and native exports. The export path gives developers ownership of the full source.

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api, type BuilderProject } from './api';
+import { ChatGPTSettings } from './ChatGPTSettings';
 
 interface Props {
   onChanged: () => void;
@@ -33,22 +34,28 @@ export function AgentView({ onChanged, project, blockId }: Props) {
   const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [undoDepth, setUndoDepth] = useState(0);
+  const [connectionVersion, setConnectionVersion] = useState(0);
   const [totalUsage, setTotalUsage] = useState({ inputTokens: 0, outputTokens: 0, calls: 0 });
 
-  const refreshUsage = async () => {
+  const refreshUsage = useCallback(async () => {
     try {
       const u = await api.agentUsage();
       setTotalUsage(u.total);
       setLive(u.liveModel);
       setUndoDepth(u.undoDepth);
+      setConnectionVersion((version) => version + 1);
     } catch {
       /* ignore */
     }
-  };
+  }, []);
+  const connectionChanged = useCallback(() => {
+    setPending(null);
+    void refreshUsage();
+  }, [refreshUsage]);
 
   useEffect(() => {
     void refreshUsage();
-  }, []);
+  }, [refreshUsage]);
 
   const plan = async () => {
     setBusy(true);
@@ -128,6 +135,11 @@ export function AgentView({ onChanged, project, blockId }: Props) {
         Edit content, variants, or element styles in one block or across your app. Review the
         proposed changes before applying.
       </p>
+      <ChatGPTSettings
+        onChanged={connectionChanged}
+        disabled={busy}
+        refreshKey={connectionVersion}
+      />
       {!live && (
         <p className="dialog-feedback">
           Recorded demo mode. Free-form AI customization requires a configured live model. Manual
@@ -212,7 +224,11 @@ export function AgentView({ onChanged, project, blockId }: Props) {
                   : 'Deterministic recorded demo response (no model call)'
               }
             >
-              {pending.liveModel ? '● live model' : '◌ recorded demo'}
+              {pending.provider === 'chatgpt'
+                ? '● ChatGPT plan'
+                : pending.liveModel
+                  ? '● live model'
+                  : '◌ recorded demo'}
             </span>
             <span className="token-note">
               {pending.usage.reduce((a, u) => a + u.inputTokens + u.outputTokens, 0)} tokens this

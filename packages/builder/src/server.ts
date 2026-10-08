@@ -25,6 +25,7 @@ import {
 import { AgentGateway, RecordedProvider, providerFromEnv, type AgentPlan } from '@blockfw/agent';
 
 import { AppLibrary } from './apps.js';
+import { ChatGPTConnection } from './chatgpt.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -73,6 +74,7 @@ export interface CanvasOptions {
   port: number;
   projectPath?: string;
   host?: string;
+  chatgpt?: ChatGPTConnection;
 }
 
 function loadProjectFile(path: string): BuilderProject {
@@ -125,9 +127,12 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
   } catch {
     demoRecorded = new RecordedProvider([]);
   }
-  const provider = providerFromEnv(process.env, demoRecorded);
+  const environmentProvider = providerFromEnv(process.env, demoRecorded);
+  const localHost = ['127.0.0.1', 'localhost', '::1'].includes(opts.host ?? '127.0.0.1');
+  let provider = environmentProvider;
   let gateway = new AgentGateway<BuilderProject>(provider);
-  const usingLiveModel = provider.name !== 'recorded';
+  let usingLiveModel = provider.name !== 'recorded';
+  let connectionRevision = 0;
   // Pending plans awaiting human review: planId -> { plan, projectHash }.
   const pendingPlans = new Map<
     string,
@@ -140,10 +145,86 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
   >();
   let planSeq = 0;
 
+  const connection = opts.chatgpt ?? new ChatGPTConnection();
+  const syncConnection = () => {
+    connectionRevision++;
+    try {
+      provider = localHost ? connection.provider(environmentProvider) : environmentProvider;
+    } catch {
+      provider = environmentProvider;
+    }
+    usingLiveModel = provider.name !== 'recorded';
+    gateway.setProvider(provider);
+    pendingPlans.clear();
+  };
+  connection.setOnChange(syncConnection);
+  syncConnection();
+
   const server = createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? '/', 'http://localhost');
       const path = url.pathname;
+
+      if (path.startsWith('/api/agent/chatgpt/') && !localHost) {
+        json(res, 403, { error: 'ChatGPT connections are available only from this local Studio.' });
+        return;
+      }
+      if (path.startsWith('/api/agent/') && localHost) {
+        res.setHeader('Cache-Control', 'no-store');
+        const expectedHost = server.address();
+        const port =
+          typeof expectedHost === 'object' && expectedHost ? expectedHost.port : opts.port;
+        const hosts = [`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`];
+        const origin = req.headers.origin;
+        if (
+          !hosts.includes(req.headers.host ?? '') ||
+          (origin && !hosts.some((host) => origin === `http://${host}`)) ||
+          req.headers['sec-fetch-site'] === 'cross-site'
+        ) {
+          json(res, 403, {
+            error: 'ChatGPT connections are available only from this local Studio.',
+          });
+          return;
+        }
+        if (req.method !== 'GET' && !req.headers['content-type']?.startsWith('application/json')) {
+          json(res, 415, { error: 'Use a JSON request for AI actions.' });
+          return;
+        }
+      }
+      if (path.startsWith('/api/agent/chatgpt/')) {
+        if (req.method === 'GET' && path.endsWith('/status')) {
+          json(res, 200, connection.status());
+          return;
+        }
+        if (req.method === 'GET' && path.endsWith('/models')) {
+          json(res, 200, await connection.models());
+          return;
+        }
+        if (req.method !== 'POST' || !req.headers['content-type']?.startsWith('application/json')) {
+          json(res, 405, { error: 'Use a JSON POST for connection changes.' });
+          return;
+        }
+        const body = JSON.parse((await readBody(req)) || '{}') as { id?: string; model?: string };
+        if (path.endsWith('/login')) {
+          json(res, 200, await connection.start(body.id));
+          return;
+        }
+        if (path.endsWith('/cancel')) connection.cancel();
+        else if (path.endsWith('/select') && typeof body.id === 'string')
+          await connection.select(body.id);
+        else if (path.endsWith('/model') && typeof body.model === 'string')
+          await connection.selectModel(body.model);
+        else if (path.endsWith('/signout') && typeof body.id === 'string')
+          await connection.signOut(body.id);
+        else if (path.endsWith('/welcome')) await connection.acknowledgeWelcome();
+        else {
+          json(res, 400, { error: 'Unknown ChatGPT connection action.' });
+          return;
+        }
+        syncConnection();
+        json(res, 200, connection.status());
+        return;
+      }
 
       // --- App library --------------------------------------------------------
       const appMatch = path.match(/^\/api\/apps\/([a-zA-Z0-9-]+)(?:\/(activate|restore))?$/);
@@ -165,7 +246,7 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
             throw new Error('Invalid app project.');
           validateProjectGraph(body.project.graph);
           compileWebProject(body.project.graph, registry);
-          compileProject(body.project.graph, registry);
+          if (!body.project.graph.app.cloud) compileProject(body.project.graph, registry);
           apps.create(body.project);
           activateProject();
           json(res, 201, { ...apps.list(), project });
@@ -205,7 +286,7 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
             throw new Error('Invalid builder project contract.');
           validateProjectGraph(body.graph);
           compileWebProject(body.graph, registry);
-          compileProject(body.graph, registry);
+          if (!body.graph.app.cloud) compileProject(body.graph, registry);
         } catch (e) {
           json(res, 400, { ok: false, error: e instanceof Error ? e.message : String(e) });
           return;
@@ -329,25 +410,16 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
         const planAppId = apps.activeId;
         const planHash = fingerprint();
         const planProject = structuredClone(project);
-        let result;
-        let activeProvider = provider;
-        let activeLiveModel = usingLiveModel;
-        try {
-          result = await gateway.plan(planProject, instruction, scope);
-        } catch (e) {
-          // Live provider failed (network down, etc.) — fall back to recorded.
-          // The UI will show the recorded badge, no visible error.
-          if (usingLiveModel) {
-            const fallbackGateway = new AgentGateway(demoRecorded, { maxAttempts: 2 });
-            result = await fallbackGateway.plan(planProject, instruction, scope);
-            activeProvider = demoRecorded;
-            activeLiveModel = false;
-          } else {
-            throw e;
-          }
-        }
-        if (apps.activeId !== planAppId || fingerprint() !== planHash) {
-          json(res, 409, { error: 'App changed while planning. Plan again.' });
+        const revision = connectionRevision;
+        const activeProvider = provider;
+        const activeLiveModel = usingLiveModel;
+        const result = await gateway.plan(planProject, instruction, scope);
+        if (
+          apps.activeId !== planAppId ||
+          fingerprint() !== planHash ||
+          revision !== connectionRevision
+        ) {
+          json(res, 409, { error: 'App or AI connection changed while planning. Plan again.' });
           return;
         }
         if (!result.ok || !result.plan) {
@@ -477,6 +549,8 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
       });
     }
   });
+  server.on('close', () => connection.close());
+  process.once('exit', () => connection.close());
 
   const host = opts.host ?? '127.0.0.1';
   await new Promise<void>((resolveListen) => server.listen(opts.port, host, resolveListen));
@@ -498,7 +572,7 @@ async function webPreviewBundle(compiled: ReturnType<typeof compileWebProject>):
   mkdirSync(cacheDir, { recursive: true });
   const runtime = compiled.files.find((f) => f.path === 'src/runtime.tsx')!.content;
   writeFileSync(join(cacheDir, 'runtime.tsx'), runtime);
-  for (const file of compiled.files.filter((f) => f.path.startsWith('src/data-')))
+  for (const file of compiled.files.filter((f) => f.path.startsWith('src/data-') || f.path === 'src/cloud-runtime.tsx'))
     writeFileSync(join(cacheDir, file.path.slice(4)), file.content);
   const graph = compiled.files.find((f) => f.path === 'src/project.json')!.content;
   const wires = compiled.files.find((f) => f.path === 'src/wires.json')!.content;

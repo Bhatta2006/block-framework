@@ -86,6 +86,8 @@ export interface AppTheme {
 }
 
 export interface AppMeta {
+  /** Public service connection only; credentials belong to the exported backend environment. */
+  cloud?: { provider: 'supabase'; backendUrl?: string };
   dataId?: string;
   layout?: 'standard' | 'notes';
   name: string;

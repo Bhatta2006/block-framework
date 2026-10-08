@@ -1,0 +1,277 @@
+{
+  "schemaVersion": "0",
+  "app": {
+    "name": "Paper Cloud",
+    "slug": "paper-cloud",
+    "version": "1.0.0",
+    "layout": "notes",
+    "theme": {
+      "primaryColor": "#111111",
+      "backgroundColor": "#FFFFFF",
+      "textColor": "#141414"
+    },
+    "cloud": {
+      "provider": "supabase",
+      "backendUrl": "http://127.0.0.1:8787"
+    }
+  },
+  "screens": [
+    {
+      "id": "notes",
+      "title": "All notes",
+      "block": "collection",
+      "blocks": ["summary", "collection"],
+      "lane": "tabs"
+    },
+    {
+      "id": "favorites",
+      "title": "Favorites",
+      "block": "favorites",
+      "lane": "tabs"
+    },
+    {
+      "id": "archive",
+      "title": "Archive",
+      "block": "archive",
+      "lane": "tabs"
+    },
+    {
+      "id": "trash",
+      "title": "Trash",
+      "block": "trash",
+      "lane": "tabs"
+    },
+    {
+      "id": "editor",
+      "title": "Edit note",
+      "block": "editor",
+      "navigation": false
+    },
+    {
+      "id": "auth",
+      "title": "Sign in",
+      "block": "auth",
+      "navigation": false
+    },
+    {
+      "id": "onboarding",
+      "title": "Your profile",
+      "block": "onboarding",
+      "navigation": false
+    },
+    {
+      "id": "plans",
+      "title": "Plans",
+      "block": "plans",
+      "navigation": true,
+      "lane": "tabs"
+    },
+    {
+      "id": "account",
+      "title": "Account",
+      "block": "account",
+      "navigation": true,
+      "lane": "tabs"
+    },
+    {
+      "id": "owner",
+      "title": "Payment review",
+      "block": "owner",
+      "navigation": false
+    }
+  ],
+  "blocks": [
+    {
+      "id": "summary",
+      "type": "data.summary@1.0.0",
+      "config": {
+        "collectionKey": "notes"
+      }
+    },
+    {
+      "id": "collection",
+      "type": "data.collection@1.0.0",
+      "config": {
+        "collectionKey": "notes",
+        "title": "All notes"
+      }
+    },
+    {
+      "id": "favorites",
+      "type": "data.collection@1.0.0",
+      "config": {
+        "collectionKey": "notes",
+        "title": "Favorites",
+        "view": "favorites"
+      }
+    },
+    {
+      "id": "archive",
+      "type": "data.collection@1.0.0",
+      "config": {
+        "collectionKey": "notes",
+        "title": "Archive",
+        "view": "archive"
+      }
+    },
+    {
+      "id": "trash",
+      "type": "data.collection@1.0.0",
+      "config": {
+        "collectionKey": "notes",
+        "title": "Trash",
+        "view": "trash"
+      }
+    },
+    {
+      "id": "editor",
+      "type": "data.editor@1.0.0",
+      "config": {
+        "collectionKey": "notes"
+      }
+    },
+    {
+      "id": "auth",
+      "type": "auth.account@1.0.0",
+      "config": {}
+    },
+    {
+      "id": "onboarding",
+      "type": "onboarding.profile@1.0.0",
+      "config": {}
+    },
+    {
+      "id": "plans",
+      "type": "billing.plans@1.0.0",
+      "config": {}
+    },
+    {
+      "id": "account",
+      "type": "account.settings@1.0.0",
+      "config": {}
+    },
+    {
+      "id": "owner",
+      "type": "billing.review@1.0.0",
+      "config": {}
+    }
+  ],
+  "wires": [
+    {
+      "from": {
+        "instance": "collection",
+        "event": "data.recordSelected"
+      },
+      "to": {
+        "screen": "editor",
+        "instance": "editor",
+        "port": "data.recordSelected"
+      }
+    },
+    {
+      "from": {
+        "instance": "favorites",
+        "event": "data.recordSelected"
+      },
+      "to": {
+        "screen": "editor",
+        "instance": "editor",
+        "port": "data.recordSelected"
+      }
+    },
+    {
+      "from": {
+        "instance": "archive",
+        "event": "data.recordSelected"
+      },
+      "to": {
+        "screen": "editor",
+        "instance": "editor",
+        "port": "data.recordSelected"
+      }
+    },
+    {
+      "from": {
+        "instance": "trash",
+        "event": "data.recordSelected"
+      },
+      "to": {
+        "screen": "editor",
+        "instance": "editor",
+        "port": "data.recordSelected"
+      }
+    },
+    {
+      "from": {
+        "instance": "editor",
+        "event": "data.closed"
+      },
+      "to": {
+        "screen": "notes"
+      }
+    },
+    {
+      "from": {
+        "instance": "auth",
+        "event": "auth.completed"
+      },
+      "to": {
+        "screen": "notes"
+      }
+    },
+    {
+      "from": {
+        "instance": "onboarding",
+        "event": "onboarding.completed"
+      },
+      "to": {
+        "screen": "notes"
+      }
+    },
+    {
+      "from": {
+        "instance": "plans",
+        "event": "billing.continued"
+      },
+      "to": {
+        "screen": "notes"
+      }
+    },
+    {
+      "from": {
+        "instance": "account",
+        "event": "account.plans"
+      },
+      "to": {
+        "screen": "plans"
+      }
+    },
+    {
+      "from": {
+        "instance": "account",
+        "event": "account.profile"
+      },
+      "to": {
+        "screen": "onboarding"
+      }
+    },
+    {
+      "from": {
+        "instance": "account",
+        "event": "account.reviewPayments"
+      },
+      "to": {
+        "screen": "owner"
+      }
+    },
+    {
+      "from": {
+        "instance": "account",
+        "event": "auth.signedOut"
+      },
+      "to": {
+        "screen": "notes"
+      }
+    }
+  ]
+}

@@ -82,8 +82,14 @@ export class AgentGateway<P extends AgentProject = AgentProject> {
     this.maxTokens = opts.maxTokens ?? 800;
   }
 
+  /** Change connection without losing reviewed-edit undo history or usage. */
+  setProvider(provider: LlmProvider) {
+    this.provider = provider;
+  }
+
   /** Plan an edit without applying it. Returns the plan + reviewable diff. */
   async plan(project: P, instruction: string, scope: EditScope = {}): Promise<AgentResult> {
+    const provider = this.provider;
     const { system, user } = planPrompt(
       project,
       instruction,
@@ -100,8 +106,9 @@ export class AgentGateway<P extends AgentProject = AgentProject> {
           : `${user}\n\nYour previous output was REJECTED:\n${lastErrors.map((e) => `- ${e}`).join('\n')}\nFix it and output valid JSON only.`;
       let res;
       try {
-        res = await this.provider.complete({ system, user: promptUser, maxTokens: this.maxTokens });
+        res = await provider.complete({ system, user: promptUser, maxTokens: this.maxTokens });
       } catch (e) {
+        this.usageLog.push(...usage);
         return {
           ok: false,
           errors: [`LLM call failed: ${e instanceof Error ? e.message : String(e)}`],
@@ -110,8 +117,8 @@ export class AgentGateway<P extends AgentProject = AgentProject> {
         };
       }
       usage.push({
-        provider: this.provider.name,
-        model: this.provider.model,
+        provider: provider.name,
+        model: provider.model,
         inputTokens: res.usage.inputTokens,
         outputTokens: res.usage.outputTokens,
         at: Date.now(),

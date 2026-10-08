@@ -1,4 +1,5 @@
 import notesGraph from '../../../../examples/notes/graph.json';
+import cloudNotesGraph from '../../../../examples/paper-cloud/graph.json';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowLeft,
@@ -67,6 +68,11 @@ const descriptions: Record<string, string> = {
   'data.collection': 'Persistent notes, search, folders, and backups',
   'data.editor': 'Autosave, tags, Markdown, and checklists',
   'data.summary': 'Live counts from a shared collection',
+  'auth.account': 'Real Google and verified email accounts',
+  'onboarding.profile': 'Account onboarding saved in the cloud',
+  'billing.plans': 'UPI checkout with verified paid access',
+  'account.settings': 'Cloud identity, plans, and sign out',
+  'billing.review': 'Owner review of actual payment receipts',
 };
 function download(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
@@ -198,6 +204,7 @@ export function Workspace() {
   const [newAppTemplate, setNewAppTemplate] = useState('starter');
   const [newAppName, setNewAppName] = useState('My first app');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [cloudUrl, setCloudUrl] = useState('');
   const [libOpen, setLibOpen] = useState(true);
   const manageApp = async (
     action: 'create' | 'activate' | 'delete' | 'restore',
@@ -303,12 +310,11 @@ export function Workspace() {
     setExporting(true);
     setNotice(null);
     try {
-      const blob = await api.exportZip(platform);
-      download(blob, project.graph.app.slug + '-' + platform + '.zip');
+      const target = project.graph.app.cloud ? 'web' : platform;
+      const blob = await api.exportZip(target);
+      download(blob, project.graph.app.slug + '-' + target + '.zip');
       setDialog(null);
-      setNotice(
-        'Your ' + (platform === 'web' ? 'web app' : 'Expo mobile app') + ' source is ready.',
-      );
+      setNotice('Your ' + (target === 'web' ? 'web app' : 'Expo mobile app') + ' source is ready.');
     } catch (e) {
       setNotice(e instanceof Error ? e.message : String(e));
     } finally {
@@ -317,6 +323,7 @@ export function Workspace() {
   };
   const showDeveloper = () => {
     setJsonDraft(JSON.stringify(project, null, 2));
+    setCloudUrl(project.graph.app.cloud?.backendUrl ?? 'http://127.0.0.1:8787');
     setDialog('developer');
   };
   return (
@@ -786,9 +793,11 @@ export function Workspace() {
                   starts here.
                 </h2>
                 <p>
-                  {newAppTemplate === 'notes'
-                    ? 'A complete notes app with five connected pages, autosave, folders, search, favorites, archive, trash, and backups. Your notes stay on this device.'
-                    : 'Start with two connected pages and four editable blocks. Build for web and mobile from the same canvas.'}
+                  {newAppTemplate === 'cloud-notes'
+                    ? 'Paper with real accounts, onboarding, private cloud notes, three plans, UPI checkout, and owner payment verification. Export includes the server and database migration. Provider setup is required. Web target.'
+                    : newAppTemplate === 'notes'
+                      ? 'A complete notes app with five connected pages, autosave, folders, search, favorites, archive, trash, and backups. Your notes stay on this device.'
+                      : 'Start with two connected pages and four editable blocks. Build for web and mobile from the same canvas.'}
                 </p>
                 <label className="field">
                   <span>Template</span>
@@ -799,6 +808,7 @@ export function Workspace() {
                   >
                     <option value="starter">Starter app</option>
                     <option value="notes">Notes app · persistent records</option>
+                    <option value="cloud-notes">Cloud notes · accounts, database, and UPI</option>
                   </select>
                 </label>
                 <label className="field">
@@ -892,8 +902,10 @@ export function Workspace() {
                         },
                       ],
                     };
-                    if (newAppTemplate === 'notes') {
-                      p.graph = structuredClone(notesGraph) as BuilderProject['graph'];
+                    if (newAppTemplate === 'notes' || newAppTemplate === 'cloud-notes') {
+                      p.graph = structuredClone(
+                        newAppTemplate === 'cloud-notes' ? cloudNotesGraph : notesGraph,
+                      ) as BuilderProject['graph'];
                       p.graph.app.name = name;
                       p.graph.app.slug =
                         name
@@ -905,13 +917,18 @@ export function Workspace() {
                     void manageApp('create', p)
                       .then(() => {
                         setDialog(null);
-                        openPage(newAppTemplate === 'notes' ? 'notes' : 'welcome');
+                        if (newAppTemplate === 'cloud-notes') setPlatform('web');
+                        openPage(newAppTemplate === 'starter' ? 'welcome' : 'notes');
                       })
                       .catch(() => {});
                   }}
                 >
                   <Plus size={15} />{' '}
-                  {newAppTemplate === 'notes' ? 'Create notes app' : 'Create starter app'}
+                  {newAppTemplate === 'cloud-notes'
+                    ? 'Create cloud notes app'
+                    : newAppTemplate === 'notes'
+                      ? 'Create notes app'
+                      : 'Create starter app'}
                 </button>
                 <p className="export-note">Your existing apps stay in your app library.</p>
               </div>
@@ -958,7 +975,9 @@ export function Workspace() {
                 </div>
                 <p className="preview-note">
                   {platform === 'mobile'
-                    ? 'Responsive phone preview · native mobile source is available in Export.'
+                    ? project.graph.app.cloud
+                      ? 'Responsive phone preview · cloud apps currently export for web.'
+                      : 'Responsive phone preview · native mobile source is available in Export.'
                     : 'Interactive web preview · your connections run here.'}
                 </p>
                 <div className={'preview-device ' + platform}>
@@ -997,12 +1016,17 @@ export function Workspace() {
                 </button>
                 <button
                   className={'export-option ' + (platform === 'mobile' ? 'chosen' : '')}
+                  disabled={!!project.graph.app.cloud}
                   onClick={() => setPlatform('mobile')}
                 >
                   <Smartphone size={24} />
                   <div>
                     <strong>Mobile application</strong>
-                    <small>Expo + React Native · iOS and Android</small>
+                    <small>
+                      {project.graph.app.cloud
+                        ? 'Cloud account integration currently supports web export'
+                        : 'Expo + React Native · iOS and Android'}
+                    </small>
                   </div>
                   {platform === 'mobile' && <Check size={16} />}
                 </button>
@@ -1014,11 +1038,14 @@ export function Workspace() {
                   {exporting ? <Loader2 size={16} className="spin" /> : <Download size={16} />}
                   {exporting
                     ? 'Preparing your code…'
-                    : 'Download ' + (platform === 'web' ? 'web' : 'mobile') + ' app'}
+                    : 'Download ' +
+                      (project.graph.app.cloud || platform === 'web' ? 'web' : 'mobile') +
+                      ' app'}
                 </button>
                 <p className="export-note">
-                  Auth and billing use demo services. Connect your providers in the exported code
-                  before launch.
+                  {project.graph.app.cloud
+                    ? 'Includes the real backend, database migration, environment template, and hosting instructions. Personal UPI payments require owner receipt verification.'
+                    : 'Auth and billing use demo services. Connect your providers in the exported code before launch.'}
                 </p>
               </div>
             )}
@@ -1031,6 +1058,65 @@ export function Workspace() {
             {dialog === 'cards' && <CardsView />}
             {dialog === 'developer' && (
               <div className="developer-panel">
+                <section className="developer-intro">
+                  <Globe2 size={25} />
+                  <div>
+                    <h2>Cloud services</h2>
+                    <p>
+                      Connect a Supabase app backend. Keep provider keys in the exported server
+                      environment; this graph stores only its public URL. Real accounts and payments
+                      run through that server.
+                    </p>
+                    <label className="field">
+                      <span>Backend URL</span>
+                      <input
+                        aria-label="Cloud backend URL"
+                        value={cloudUrl}
+                        onChange={(e) => setCloudUrl(e.target.value)}
+                        placeholder="https://your-app.example.com"
+                      />
+                    </label>
+                    <button
+                      disabled={saving}
+                      onClick={() => {
+                        let url: URL;
+                        try {
+                          url = new URL(cloudUrl.trim());
+                          if (
+                            url.origin !== cloudUrl.trim() ||
+                            (url.protocol !== 'https:' &&
+                              !(
+                                url.protocol === 'http:' &&
+                                ['127.0.0.1', 'localhost'].includes(url.hostname)
+                              ))
+                          )
+                            throw new Error();
+                        } catch {
+                          setNotice(
+                            'Use an HTTPS origin or a loopback development origin, without a path.',
+                          );
+                          return;
+                        }
+                        void edit((p) => {
+                          p.graph.app.cloud = { provider: 'supabase', backendUrl: url.origin };
+                        })
+                          .then(() =>
+                            setNotice(
+                              'Cloud backend saved. Export the web app to configure its server and database.',
+                            ),
+                          )
+                          .catch(() => {});
+                      }}
+                    >
+                      {project.graph.app.cloud ? 'Save cloud connection' : 'Enable cloud services'}
+                    </button>
+                    <p>
+                      {project.graph.app.cloud
+                        ? 'Cloud enabled · web target · confirmed email/Google accounts · server-enforced plans. Canvas thumbnails use temporary data; the connected app uses your cloud account.'
+                        : 'Enable cloud services before adding real account, onboarding, or payment blocks.'}
+                    </p>
+                  </div>
+                </section>
                 <div className="developer-intro">
                   <Code2 size={25} />
                   <div>

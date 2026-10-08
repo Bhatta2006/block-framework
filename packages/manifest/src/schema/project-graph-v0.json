@@ -7,6 +7,15 @@
     "app": {
       "additionalProperties": false,
       "properties": {
+        "cloud": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["provider"],
+          "properties": {
+            "provider": { "const": "supabase" },
+            "backendUrl": { "type": "string", "maxLength": 2048, "pattern": "^(https://[^/?#@]+|http://(127\\.0\\.0\\.1|localhost)(:[0-9]+)?)/?$" }
+          }
+        },
         "name": {
           "minLength": 1,
           "type": "string"

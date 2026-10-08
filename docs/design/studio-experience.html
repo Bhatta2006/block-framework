@@ -1,0 +1,1262 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Block Studio · Experience storyboard</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --canvas: #08090b;
+        --panel: #15181d;
+        --line: #303640;
+        --text: #f4f5f7;
+        --muted: #adb5c0;
+        --accent: #8bbeff;
+        font:
+          14px/1.5 -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--canvas);
+        color: var(--text);
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+      button,
+      .link-button {
+        cursor: pointer;
+        border: 1px solid var(--line);
+        background: #171b21;
+        border-radius: 8px;
+        color: var(--text);
+        padding: 8px 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        text-decoration: none;
+        min-height: 36px;
+      }
+      button:hover,
+      .link-button:hover {
+        background: #242a33;
+      }
+      button:focus-visible,
+      a:focus-visible,
+      input:focus-visible,
+      select:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
+      }
+      button.selected {
+        background: #252d37;
+        border-color: #687b96;
+      }
+      button.primary {
+        background: #f4f5f7;
+        color: #111317;
+        border-color: #f4f5f7;
+        font-weight: 600;
+      }
+      button.primary:hover {
+        background: #dce7f4;
+      }
+      button.quiet {
+        background: transparent;
+        border-color: transparent;
+      }
+      button.icon {
+        width: 38px;
+        padding: 8px;
+      }
+      svg.icon-svg {
+        width: 18px;
+        height: 18px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.6;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex-shrink: 0;
+      }
+      .topbar {
+        height: 58px;
+        padding: 0 20px;
+        background: #0e1013;
+        border-bottom: 1px solid #272b32;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+      .brand {
+        font-size: 17px;
+        font-weight: 650;
+        letter-spacing: -0.5px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        white-space: nowrap;
+      }
+      .brand-mark {
+        width: 25px;
+        height: 25px;
+        border: 1px solid #b1bbc9;
+        border-radius: 7px;
+        transform: rotate(-12deg);
+        display: grid;
+        place-items: center;
+        font-size: 15px;
+      }
+      .project {
+        font-weight: 500;
+      }
+      .mode-switch {
+        display: flex;
+        border: 1px solid #292f38;
+        border-radius: 10px;
+        padding: 3px;
+        margin: 0 auto;
+      }
+      .mode-switch button {
+        border: none;
+        background: transparent;
+        min-height: 30px;
+        padding: 5px 13px;
+        color: var(--muted);
+      }
+      .mode-switch button.selected {
+        color: white;
+        background: #252a32;
+      }
+      .top-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .save {
+        font-size: 12px;
+        color: var(--muted);
+        display: flex;
+        gap: 7px;
+        align-items: center;
+        white-space: nowrap;
+      }
+      .saved-dot {
+        width: 5px;
+        height: 5px;
+        background: #b1c2b8;
+        border-radius: 100%;
+      }
+      .workspace {
+        height: calc(100vh - 146px);
+        min-height: 610px;
+        position: relative;
+        overflow: hidden;
+      }
+      .breadcrumb {
+        position: absolute;
+        left: 88px;
+        top: 18px;
+        z-index: 5;
+        display: flex;
+        gap: 10px;
+        color: #abb5c5;
+        font-size: 12px;
+      }
+      .breadcrumb b {
+        color: var(--text);
+        font-weight: 500;
+      }
+      .rail {
+        position: absolute;
+        left: 14px;
+        top: 60px;
+        z-index: 5;
+        padding: 5px;
+        border: 1px solid #2b3038;
+        background: #101216;
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .rail button {
+        background: transparent;
+        border: none;
+      }
+      .rail button.selected {
+        background: #28313d;
+        color: var(--accent);
+      }
+      .separator {
+        height: 1px;
+        background: #292e37;
+        margin: 5px 6px;
+      }
+      .stage {
+        height: 100%;
+        width: 100%;
+        background-image: radial-gradient(#333b46 0.7px, transparent 0.7px);
+        background-size: 24px 24px;
+        position: relative;
+        overflow: hidden;
+      }
+      .scene {
+        width: 1400px;
+        height: 720px;
+        position: absolute;
+        transform-origin: center;
+        left: 50%;
+        top: 50%;
+      }
+      .wires {
+        width: 1400px;
+        height: 720px;
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .wires path {
+        stroke: #8797ad;
+        stroke-width: 1.7;
+        fill: none;
+      }
+      .wires path.active {
+        stroke: var(--accent);
+        stroke-width: 2;
+      }
+      .wires path.auto {
+        stroke-dasharray: 5 6;
+      }
+      .edge-label {
+        position: absolute;
+        background: #101318;
+        color: #ccd4e0;
+        border: 1px solid #394251;
+        font-size: 11px;
+        padding: 3px 9px;
+        border-radius: 6px;
+      }
+      .node {
+        position: absolute;
+        background: #14171c;
+        border: 1px solid #39414d;
+        border-radius: 13px;
+        box-shadow: 0 12px 28px #0004;
+        overflow: visible;
+      }
+      .node.chosen {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px #8bbeff70;
+      }
+      .node-header {
+        height: 46px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 0 13px;
+        font-size: 13px;
+        font-weight: 600;
+        border-bottom: 1px solid #272d36;
+      }
+      .node-header .dots {
+        margin-left: auto;
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .node-type {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 10px;
+        letter-spacing: 0.6px;
+        color: var(--muted);
+        padding: 9px 13px 0;
+      }
+      .node-type .start {
+        color: #c4d0c8;
+        border: 1px solid #47554c;
+        padding: 0 5px;
+        border-radius: 3px;
+        font-size: 9px;
+      }
+      .node-body {
+        margin: 9px;
+        padding: 15px;
+        border: 1px solid #2a3039;
+        border-radius: 8px;
+        background: #0e1115;
+      }
+      .node h3 {
+        font-size: 16px;
+        margin: 0 0 5px;
+        font-weight: 600;
+        letter-spacing: -0.4px;
+      }
+      .node p {
+        font-size: 11px;
+        color: var(--muted);
+        margin: 0 0 17px;
+      }
+      .fake-field {
+        background: #1b2027;
+        border: 1px solid #3a424e;
+        color: #aeb7c5;
+        font-size: 11px;
+        padding: 10px;
+        border-radius: 6px;
+        margin: 8px 0;
+      }
+      .fake-button {
+        background: #f0f2f5;
+        color: #14171c;
+        font-size: 11px;
+        padding: 10px;
+        text-align: center;
+        border-radius: 6px;
+        margin-top: 14px;
+        font-weight: 600;
+      }
+      .tiny-tabs {
+        display: flex;
+        gap: 6px;
+        margin: 15px 0 8px;
+        font-size: 10px;
+        color: #b1bac8;
+      }
+      .tiny-tabs span {
+        background: #1d232c;
+        padding: 4px 8px;
+        border-radius: 20px;
+      }
+      .tiny-tabs span:first-child {
+        background: #353e4b;
+        color: #f1f5fc;
+      }
+      .note-row {
+        padding: 13px 0;
+        border-bottom: 1px solid #262c36;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .note-row:last-child {
+        border-bottom: none;
+      }
+      .note-tile {
+        width: 33px;
+        height: 39px;
+        background: #262d36;
+        border: 1px solid #475363;
+        border-radius: 5px;
+        display: grid;
+        place-items: center;
+        color: #c7ced8;
+      }
+      .note-row b {
+        display: block;
+        font-size: 11px;
+        font-weight: 550;
+      }
+      .note-row small {
+        display: block;
+        font-size: 10px;
+        color: var(--muted);
+        padding-top: 4px;
+      }
+      .port {
+        width: 12px;
+        height: 12px;
+        border-radius: 100%;
+        border: 2px solid #d3e3f6;
+        background: #82ade0;
+        position: absolute;
+        right: -7px;
+      }
+      .port.inlet {
+        left: -7px;
+        right: auto;
+      }
+      .port-name {
+        position: absolute;
+        left: calc(100% + 14px);
+        white-space: nowrap;
+        font-size: 10px;
+        color: #d1d9e5;
+        top: -5px;
+        background: #101318;
+        border: 1px solid #384151;
+        padding: 3px 7px;
+        border-radius: 5px;
+      }
+      .node-edit {
+        position: absolute;
+        right: 0;
+        top: -44px;
+      }
+      .node-edit button {
+        border-color: #6c8cae;
+        background: #111a25;
+        font-size: 11px;
+      }
+      .format-bar {
+        display: flex;
+        gap: 16px;
+        padding: 9px;
+        border: 1px solid #343c49;
+        background: #1c222a;
+        border-radius: 5px;
+        font-size: 12px;
+        margin: 13px 0;
+      }
+      .editor-copy {
+        font-size: 11px;
+        line-height: 1.8;
+        color: #c7ced8;
+        min-height: 93px;
+      }
+      .database-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 9px 0;
+        border-bottom: 1px solid #29323d;
+        font-size: 11px;
+      }
+      .database-row span {
+        color: var(--muted);
+      }
+      .floating-tools {
+        position: absolute;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 5px;
+        padding: 5px;
+        background: #101318;
+        border: 1px solid #333b46;
+        border-radius: 11px;
+        z-index: 4;
+      }
+      .floating-tools span {
+        padding: 8px 10px;
+        font-size: 12px;
+        color: #c1cad8;
+      }
+      .minimap {
+        position: absolute;
+        bottom: 24px;
+        right: 24px;
+        width: 140px;
+        height: 84px;
+        background: #0d1015;
+        border: 1px solid #303b4a;
+        border-radius: 10px;
+        padding: 10px;
+        opacity: 0.8;
+      }
+      .minimap svg {
+        width: 100%;
+        height: 100%;
+      }
+      .study-footer {
+        padding: 12px 20px;
+        height: 88px;
+        border-top: 1px solid #303742;
+        background: #101318;
+        display: flex;
+        align-items: center;
+        gap: 24px;
+      }
+      .study-note {
+        flex: 0 0 205px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .study-note b {
+        display: block;
+        letter-spacing: 0.8px;
+        font-size: 10px;
+        color: #cbd7e7;
+        margin-bottom: 3px;
+      }
+      .study-nav {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .study-nav button {
+        font-size: 12px;
+      }
+      .screen-help {
+        position: absolute;
+        left: 88px;
+        bottom: 24px;
+        font-size: 11px;
+        color: var(--muted);
+        max-width: 270px;
+      }
+      .inspector {
+        width: 318px;
+        position: absolute;
+        right: 0;
+        top: 0;
+        height: 100%;
+        z-index: 3;
+        background: #111419;
+        border-left: 1px solid #323944;
+        padding: 22px;
+        overflow-y: auto;
+      }
+      .inspector h2 {
+        font-size: 16px;
+        margin: 0 0 5px;
+        font-weight: 600;
+      }
+      .inspector p,
+      .subtext {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .inspector h3 {
+        margin: 24px 0 10px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .inspector label {
+        display: block;
+        font-size: 12px;
+        color: #c5cedb;
+        margin: 15px 0;
+      }
+      .inspector input,
+      .inspector select {
+        display: block;
+        width: 100%;
+        margin-top: 7px;
+        background: #1a2028;
+        color: #e7eef8;
+        border: 1px solid #4a5566;
+        padding: 8px 10px;
+        border-radius: 6px;
+      }
+      .inspector .tabs {
+        display: flex;
+        gap: 4px;
+        border-bottom: 1px solid #303944;
+        padding-bottom: 9px;
+        margin-top: 17px;
+      }
+      .inspector .tabs span {
+        font-size: 11px;
+        padding: 4px 7px;
+      }
+      .inspector .tabs span.active {
+        color: var(--accent);
+      }
+      .inspector .full {
+        width: 100%;
+        margin-top: 12px;
+      }
+      .pill {
+        display: inline-block;
+        padding: 3px 8px;
+        border: 1px solid #49556a;
+        color: #c7d6eb;
+        border-radius: 20px;
+        font-size: 10px;
+      }
+      .step-list {
+        display: grid;
+        gap: 7px;
+        margin: 22px 0;
+      }
+      .step-list div {
+        padding: 12px;
+        border: 1px solid #364153;
+        background: #19202a;
+        border-radius: 7px;
+        font-size: 12px;
+      }
+      .work-area {
+        height: 100%;
+        margin-left: 76px;
+        padding: 74px 40px 35px;
+        overflow: auto;
+      }
+      .work-area.with-inspector {
+        margin-right: 318px;
+      }
+      .eyebrow {
+        font-size: 10px;
+        letter-spacing: 1px;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      .work-area h1 {
+        font-size: 25px;
+        margin: 8px 0;
+        letter-spacing: -0.8px;
+        font-weight: 600;
+      }
+      .work-area > p {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .layers {
+        position: absolute;
+        left: 82px;
+        top: 85px;
+        width: 176px;
+        background: #12161d;
+        border: 1px solid #344051;
+        padding: 15px;
+        border-radius: 9px;
+        z-index: 2;
+      }
+      .layers h3 {
+        font-size: 12px;
+        margin: 0 0 14px;
+      }
+      .layer {
+        display: block;
+        font-size: 12px;
+        padding: 8px;
+        color: #bec8d7;
+      }
+      .layer.child {
+        padding-left: 18px;
+      }
+      .layer.active {
+        color: #cfe3ff;
+        background: #243247;
+        border-radius: 5px;
+      }
+      .design-artboard {
+        width: min(660px, calc(100% - 225px));
+        margin: 0 auto 0 190px;
+        background: #f7f7f5;
+        color: #17191d;
+        border-radius: 8px;
+        padding: 32px;
+        box-shadow: 0 20px 60px #0005;
+      }
+      .design-artboard header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid #d3d5d5;
+        padding-bottom: 19px;
+        font-size: 16px;
+        font-weight: 650;
+      }
+      .design-artboard h2 {
+        font-size: 26px;
+        margin: 30px 0 9px;
+        letter-spacing: -0.8px;
+      }
+      .design-artboard p {
+        font-size: 13px;
+        color: #51555c;
+      }
+      .design-artboard .app-notes {
+        margin: 28px 0;
+        border-top: 1px solid #d3d5d5;
+      }
+      .app-note {
+        border-bottom: 1px solid #d3d5d5;
+        padding: 18px 0;
+      }
+      .app-note b {
+        font-size: 13px;
+      }
+      .app-note p {
+        margin: 6px 0;
+      }
+      .button-parent {
+        display: flex;
+        justify-content: center;
+        padding: 18px 0;
+        border: 1px dashed #809abb;
+      }
+      .button-parent button {
+        background: #17191d;
+        border: 2px solid #5285bf;
+        color: #fff;
+        width: 180px;
+        box-shadow: 0 0 0 3px #90b6e655;
+      }
+      .alignment {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .alignment button {
+        flex: 1;
+        font-size: 12px;
+        padding: 8px;
+      }
+      .annotation {
+        font-size: 12px;
+        color: #bdc9d9;
+        border-left: 2px solid #597ca4;
+        padding-left: 12px;
+        margin: 24px 0;
+        line-height: 1.7;
+      }
+      .two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+        margin-top: 28px;
+      }
+      .review-example {
+        border: 1px solid #354052;
+        background: #151b24;
+        border-radius: 10px;
+        padding: 24px;
+      }
+      .review-example.after {
+        border-color: #6d94c0;
+      }
+      .review-example h2 {
+        margin: 10px 0;
+        font-size: 20px;
+      }
+      .review-example p {
+        font-size: 12px;
+        color: #b7c2d2;
+      }
+      .review-example .sample-button {
+        background: #2d394b;
+        padding: 8px 10px;
+        font-size: 11px;
+        width: 94px;
+        border-radius: 6px;
+        margin-top: 20px;
+      }
+      .review-example.after .sample-button {
+        background: #eff4fb;
+        color: #151a21;
+        width: 170px;
+        padding: 11px;
+        text-align: center;
+        margin: 25px auto 0;
+      }
+      .change-row {
+        margin-top: 10px;
+        padding: 13px 0;
+        border-bottom: 1px solid #333d4b;
+        font-size: 12px;
+      }
+      .change-row small {
+        display: block;
+        color: var(--muted);
+        padding-top: 5px;
+      }
+      .library-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 30px;
+      }
+      .app-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+      }
+      .app-tile {
+        background: #12161c;
+        border: 1px solid #384152;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .app-thumb {
+        height: 165px;
+        background: #1a202a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .app-thumb .mini-page {
+        background: #f4f3ef;
+        color: #141b25;
+        width: 62%;
+        padding: 14px;
+        border-radius: 6px;
+        box-shadow: 8px 10px 20px #0005;
+      }
+      .mini-page b {
+        font-size: 13px;
+      }
+      .mini-lines {
+        height: 5px;
+        background: #b7bbc1;
+        width: 85%;
+        margin-top: 10px;
+        border-radius: 3px;
+      }
+      .mini-lines.short {
+        width: 55%;
+      }
+      .app-detail {
+        padding: 20px;
+      }
+      .app-detail h2 {
+        margin: 0 0 5px;
+        font-size: 16px;
+      }
+      .app-detail p {
+        font-size: 12px;
+        color: var(--muted);
+        margin: 8px 0 17px;
+      }
+      .platform-card {
+        border: 1px solid #414d5f;
+        background: #151c26;
+        padding: 22px;
+        border-radius: 10px;
+        text-align: left;
+        display: block;
+        width: 100%;
+      }
+      .platform-card b {
+        display: block;
+        font-size: 16px;
+      }
+      .platform-card small {
+        color: var(--muted);
+        display: block;
+        margin-top: 7px;
+      }
+      .platform-card.selected {
+        border-color: var(--accent);
+      }
+      .readiness {
+        border-top: 1px solid #343e4c;
+        margin-top: 28px;
+      }
+      .readiness div {
+        padding: 14px 0;
+        border-bottom: 1px solid #343e4c;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        font-size: 12px;
+      }
+      .badge {
+        font-size: 10px;
+        border: 1px solid #5d6d7a;
+        border-radius: 4px;
+        padding: 2px 6px;
+        color: #c4d3d0;
+      }
+      .badge.warning {
+        border-color: #756653;
+        color: #e4cc9e;
+      }
+      .notice {
+        position: absolute;
+        top: 63px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+        padding: 10px 16px;
+        border: 1px solid #637e9f;
+        background: #182434;
+        border-radius: 8px;
+        font-size: 12px;
+        max-width: 80%;
+      }
+      .notice:empty {
+        display: none;
+      }
+      .preview-artboard {
+        max-width: 760px;
+        margin: 0 auto;
+        background: #f7f7f5;
+        color: #1a1c22;
+        padding: 40px;
+        border-radius: 10px;
+      }
+      .preview-artboard.phone {
+        max-width: 375px;
+        padding: 28px;
+      }
+      .preview-artboard h2 {
+        font-size: 28px;
+        margin: 0;
+        letter-spacing: -0.9px;
+      }
+      .preview-artboard > p {
+        color: #545a63;
+        font-size: 13px;
+      }
+      .preview-artboard button {
+        background: #1b1e24;
+        color: white;
+      }
+      .preview-buttons {
+        display: flex;
+        gap: 8px;
+        margin: 22px 0;
+        flex-wrap: wrap;
+      }
+      .preview-artboard .app-note {
+        border-color: #d0d3d6;
+      }
+      .graph-list {
+        display: none;
+      }
+      @media (max-width: 1180px) {
+        .save {
+          display: none;
+        }
+        .topbar {
+          gap: 10px;
+          padding: 0 12px;
+        }
+        .brand {
+          font-size: 15px;
+        }
+        .project {
+          font-size: 12px;
+        }
+        .app-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .design-artboard {
+          margin-left: 0;
+          width: 100%;
+        }
+        .layers {
+          display: none;
+        }
+        .work-area {
+          padding-left: 24px;
+          padding-right: 24px;
+        }
+      }
+      @media (max-width: 850px) {
+        .brand span:last-child {
+          display: none;
+        }
+        .mode-switch {
+          display: none;
+        }
+        .top-actions {
+          margin-left: auto;
+        }
+        .top-actions .icon {
+          display: none;
+        }
+        .workspace {
+          height: auto;
+          min-height: 740px;
+        }
+        .stage {
+          min-height: 740px;
+        }
+        .scene {
+          display: none;
+        }
+        .graph-list {
+          display: grid;
+          gap: 15px;
+          padding: 90px 26px 120px 88px;
+        }
+        .graph-list button {
+          justify-content: space-between;
+          padding: 20px;
+          text-align: left;
+        }
+        .minimap {
+          display: none;
+        }
+        .study-footer {
+          height: auto;
+          min-height: 100px;
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .study-note {
+          flex-basis: auto;
+        }
+        .inspector {
+          position: relative;
+          width: auto;
+          height: auto;
+          margin-left: 76px;
+          border-top: 1px solid #323944;
+        }
+        .work-area.with-inspector {
+          margin-right: 0;
+        }
+        .two-col {
+          grid-template-columns: 1fr;
+        }
+        .app-grid {
+          grid-template-columns: 1fr;
+        }
+        .work-area {
+          height: auto;
+        }
+        .screen-help {
+          display: none;
+        }
+        .floating-tools {
+          left: 55%;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          scroll-behavior: auto !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">◇</span><span>Block Studio</span>
+      </div>
+      <button class="project" data-view="library">
+        Paper / Notes app <span aria-hidden="true">⌄</span>
+      </button>
+      <nav class="mode-switch" aria-label="Canvas mode">
+        <button data-view="flow">App flow</button><button data-view="page">Page canvas</button>
+      </nav>
+      <div class="top-actions">
+        <span class="save"><span class="saved-dot"></span>Sample project · Design concept</span
+        ><button
+          class="icon"
+          aria-label="Undo concept"
+          data-demo="In the product, one Undo reverses the last committed editing operation."
+        >
+          ↶</button
+        ><button data-view="preview">▷ Preview</button
+        ><button class="primary" data-view="export">Export</button>
+      </div>
+    </header>
+    <main class="workspace">
+      <div class="breadcrumb" id="breadcrumb"></div>
+      <nav class="rail" aria-label="Editor tools">
+        <button class="icon selected" data-view="flow" title="App flow" aria-label="App flow">
+          ↖</button
+        ><button
+          class="icon"
+          data-demo="Space + drag pans the canvas. Graph lists provide a keyboard alternative."
+          title="Pan"
+          aria-label="Pan"
+        >
+          ✋
+        </button>
+        <div class="separator"></div>
+        <button class="icon" data-view="page" title="Add blocks" aria-label="Add blocks">+</button
+        ><button
+          class="icon"
+          data-view="customize"
+          title="Layers and customization"
+          aria-label="Layers and customization"
+        >
+          ▤</button
+        ><button class="icon" data-view="ai" title="AI assistant" aria-label="AI assistant">
+          ✧
+        </button>
+      </nav>
+      <section class="stage" id="stage" aria-label="Experience screen"></section>
+      <div class="notice" id="notice" role="status" aria-live="polite"></div>
+    </main>
+    <footer class="study-footer">
+      <div class="study-note">
+        <b>EXPERIENCE STORYBOARD</b>Sample data · Proposed screens<br />No live app changes or
+        inference
+      </div>
+      <nav class="study-nav" aria-label="Explore proposed screens">
+        <button data-view="flow">01 App flow</button><button data-view="page">02 Page canvas</button
+        ><button data-view="customize">03 Customize</button
+        ><button data-view="ai">04 AI review</button
+        ><button data-view="library">05 App library</button
+        ><button data-view="export">06 Export</button
+        ><button data-view="preview">07 Preview</button>
+      </nav>
+      <a
+        class="link-button"
+        href="../studio-experience-plan.md"
+        style="font-size: 12px; white-space: nowrap"
+        >Full specification ↗</a
+      >
+    </footer>
+    <script>
+      const stage = document.getElementById('stage');
+      const breadcrumb = document.getElementById('breadcrumb');
+      const notice = document.getElementById('notice');
+      let currentView = 'flow';
+      let timer;
+      const icon = (name) => {
+        const paths = {
+          page: '<path d="M5 3h9l5 5v13H5z"/><path d="M14 3v6h5"/>',
+          user: '<circle cx="12" cy="8" r="4"/><path d="M4 22v-3a8 8 0 0 1 16 0v3z"/>',
+          database:
+            '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 4 16 4 16 0V5M4 12c0 4 16 4 16 0"/>',
+          star: '<path d="m12 2 3 7 7 1-5 5 1 7-6-4-6 4 1-7-5-5 7-1z"/>',
+          block: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 10h16M10 10v10"/>',
+        };
+        return (
+          '<svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true">' +
+          (paths[name] || paths.page) +
+          '</svg>'
+        );
+      };
+      const head = (title, glyph = 'page') =>
+        '<div class="node-header">' +
+        icon(glyph) +
+        '<span>' +
+        title +
+        '</span><span class="dots" aria-hidden="true">···</span></div>';
+      const row = (title, body) =>
+        '<div class="note-row"><div class="note-tile">≡</div><div><b>' +
+        title +
+        '</b><small>' +
+        body +
+        '</small></div></div>';
+      const tools =
+        '<div class="floating-tools"><button class="icon" data-demo="Fit frames the current page or selection." aria-label="Fit canvas">⛶</button><span>75%</span><button class="icon" data-demo="Zoom preserves the visible context and scales node detail." aria-label="Zoom in">+</button></div><div class="minimap" aria-label="Concept minimap"><svg viewBox="0 0 140 70" aria-hidden="true"><path d="M20 32H57L95 15M57 32L68 53M95 15L115 55" fill="none" stroke="#8392a9"/><g fill="#67788e"><rect x="5" y="23" width="25" height="25" rx="3"/><rect x="50" y="15" width="25" height="25" rx="3"/><rect x="90" y="3" width="25" height="25" rx="3"/><rect x="56" y="47" width="25" height="20" rx="3"/><rect x="108" y="45" width="25" height="20" rx="3"/></g></svg></div>';
+      function flow() {
+        return `<div class="scene">
+          <svg class="wires" viewBox="0 0 1400 720" aria-hidden="true"><defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 10 5 0 10" style="fill:#8797ad;stroke:none"/></marker></defs><path d="M340 300C425 300 415 190 500 190" marker-end="url(#arrow)"/><path class="active" d="M760 190C850 190 855 193 950 193" marker-end="url(#arrow)"/><path d="M760 268C855 268 865 238 950 238" marker-end="url(#arrow)"/><path d="M760 342C828 342 821 460 800 460" marker-end="url(#arrow)"/><path class="active" d="M1220 357C1285 357 1290 488 1230 488" marker-end="url(#arrow)"/></svg>
+          <article class="node" style="left:110px;top:195px;width:230px">${head('Authentication', 'user')}<div class="node-type">PAGE <span class="start">START</span></div><div class="node-body"><h3>Welcome back</h3><p>Sign in to your account</p><div class="fake-field">Email address</div><div class="fake-field">Password</div><div class="fake-button">Continue</div><p style="margin:15px 0 0;text-align:center">Create an account</p></div><span class="port" style="top:99px"><span class="port-name">Continue</span></span></article>
+          <article class="node" style="left:500px;top:88px;width:260px">${head('All notes')}<div class="node-type">PAGE</div><div class="node-body"><h3>My notes <span style="float:right">＋</span></h3><div class="tiny-tabs"><span>All 12</span><span>Favorites 3</span></div>${row('Design thoughts', 'A few ideas about the next…')}${row('Project plan', 'Milestones and next steps…')}</div><span class="port inlet" style="top:96px"></span><span class="port" style="top:96px"><span class="port-name">New note</span></span><span class="port" style="top:174px"><span class="port-name">Open note</span></span><span class="port" style="top:248px"><span class="port-name">Favorites</span></span></article>
+          <article class="node" style="left:540px;top:430px;width:260px">${head('Favorites', 'star')}<div class="node-type">PAGE</div><div class="node-body"><h3>Favorite notes</h3>${row('Trip ideas', 'Mountains, coastlines, food…')}${row('Reading list', 'Books and articles…')}</div><span class="port" style="top:24px"></span></article>
+          <article class="node chosen" style="left:950px;top:88px;width:270px"><div class="node-edit"><button data-view="customize">Customize ↗</button></div>${head('Note editor')}<div class="node-type">PAGE</div><div class="node-body"><h3>New ideas</h3><div class="format-bar"><b>B</b><i>I</i><u>U</u><span>≡</span><span>☷</span></div><div class="editor-copy">A place for fresh ideas, unexpected connections, and things to explore.<br /><br />│</div><div class="fake-button">Save note</div></div><span class="port inlet" style="top:99px"></span><span class="port inlet" style="top:144px"></span><span class="port" style="top:263px"><span class="port-name">Save</span></span></article>
+          <article class="node" style="left:1000px;top:458px;width:230px">${head('Notes database', 'database')}<div class="node-type">LOCAL DATA</div><div class="node-body" style="padding-top:3px"><div class="database-row">Title <span>Text</span></div><div class="database-row">Content <span>Text</span></div><div class="database-row">Tags <span>List</span></div></div><span class="port" style="top:24px"></span></article>
+        </div><div class="graph-list"><button data-view="page">Authentication → All notes <span>↗</span></button><button data-view="page">All notes → Note editor <span>↗</span></button><button data-view="page">All notes → Favorites <span>↗</span></button><button data-view="customize">Note editor → Notes database <span>↗</span></button></div>${tools}<div class="screen-help">Select a page to inspect it.<br />Open its canvas to compose the contents.</div>`;
+      }
+      function page() {
+        return `<div class="work-area with-inspector"><span class="eyebrow">Page canvas</span><h1>All notes</h1><p>Functional blocks, composed in a clear order.</p><div style="display:flex;gap:8px;margin-top:20px"><button data-demo="The Blocks drawer searches functional units. Elements are added inside the selected block.">＋ Add block</button><button data-view="customize">Edit rendered page ↗</button></div><div style="display:grid;grid-template-columns:repeat(2,minmax(160px,1fr));gap:55px 60px;margin:55px 0 100px;max-width:780px"><article class="node" style="position:relative">${head('Notes summary', 'block')}<div class="node-type">BLOCK · POSITION 1</div><div class="node-body"><h3>12 notes</h3><p style="margin:0">3 favorites · 4 folders</p></div></article><article class="node chosen" style="position:relative">${head('Notes collection', 'block')}<div class="node-type">BLOCK · POSITION 2</div><div class="node-body"><h3>My notes</h3>${row('Design thoughts', 'Updated just now')}${row('Project plan', 'Updated yesterday')}</div></article><article class="node" style="position:relative">${head('Action button', 'block')}<div class="node-type">BLOCK · POSITION 3</div><div class="node-body"><div class="fake-button" style="margin:0">New note</div></div></article><div class="annotation" style="align-self:center">Canvas position organizes your workspace.<br />Page order controls the finished layout.<br /><button data-view="preview" style="margin-top:12px">See the page ▷</button></div></div></div><aside class="inspector"><span class="eyebrow">Selected block</span><h2 style="margin-top:10px">Notes collection</h2><p>Shared local collection: Notes</p><div class="tabs"><span class="active">Content</span><span>Layout</span><span>Actions</span></div><label>Title<input value="My notes" aria-label="Sample block title" data-sample-input /></label><label>Display style<select aria-label="Sample display style" data-sample-input><option>List</option><option>Cards</option></select></label><h3>Page order</h3><div class="step-list"><div>1 · Notes summary</div><div style="border-color:#7da2ce">2 · Notes collection</div><div>3 · Action button</div></div><h3>When a note is selected</h3><span class="pill">Go to Note editor · Explicit</span><button class="primary full" data-view="customize">Customize inside block</button><button class="full" data-view="ai">Ask AI to edit</button><p>Proposed inspector: valid property edits preview and save through one consistent flow.</p></aside>`;
+      }
+      function customize() {
+        return `<div class="layers"><h3>All notes / Layers</h3><span class="layer">Notes summary</span><span class="layer">Notes collection</span><span class="layer child">Title</span><span class="layer child">Note rows</span><span class="layer">Action button</span><span class="layer child active">New note button</span><button data-demo="Initially add Button, Text, or Divider. New element types arrive after both renderers support them." style="margin-top:20px;font-size:12px">＋ Add element</button></div><div class="work-area with-inspector"><div style="margin:0 0 24px 190px" class="subtext">Rendered page · Desktop width · Sample data</div><div class="design-artboard"><header>Paper <span style="font-size:12px;font-weight:400">Notes · Favorites</span></header><h2>My notes</h2><p>A little space for everything on your mind.</p><div class="app-notes"><div class="app-note"><b>Design thoughts</b><p>A few ideas for our next chapter.</p></div><div class="app-note"><b>Project plan</b><p>Milestones, decisions, and next steps.</p></div></div><div class="button-parent" id="buttonParent"><button id="sampleButton" data-demo="In Preview this button opens Note editor. In editing mode it selects the element.">New note</button></div><p style="font-size:11px;text-align:center;color:#4e6280;margin:12px 0 0">Selected: New note button</p></div></div><aside class="inspector"><span class="eyebrow">Element</span><h2 style="margin-top:10px">New note button</h2><span class="pill">This element only</span><div class="tabs"><span>Content</span><span class="active">Layout</span><span>Style</span><span>Actions</span></div><h3>Align item in parent</h3><div class="alignment"><button data-align="flex-start">Left</button><button data-align="center" class="selected">Center</button><button data-align="flex-end">Right</button></div><p>Moves the button within the dashed parent frame.</p><label>Button width · px<input type="number" id="sampleWidth" value="180" min="80" max="300" aria-label="Sample button width" /></label><label>Button text<input id="sampleLabel" value="New note" maxlength="40" aria-label="Sample button text" /></label><h3>When clicked</h3><span class="pill">Go to page → Note editor</span><div class="annotation">Try alignment, width, and text here. They update this sample only. Product saving, reloading, and exported behavior require the planned implementation.</div><button class="full" data-view="ai">Ask AI to customize</button></aside>`;
+      }
+      function ai() {
+        return `<div class="work-area with-inspector"><span class="eyebrow">Review proposal</span><h1>One change. Clear before and after.</h1><p>“Make the New note button easier to find and center it.”</p><div class="two-col"><article class="review-example"><span class="eyebrow">Before</span><h2>My notes</h2><p>Design thoughts</p><p>Project plan</p><div class="sample-button">New note</div></article><article class="review-example after"><span class="eyebrow">Proposed</span><h2>My notes</h2><p>Design thoughts</p><p>Project plan</p><div class="sample-button">New note</div></article></div><div class="change-row">New note button / Alignment<small>Start → Center</small></div><div class="change-row">New note button / Width<small>94 px → 170 px</small></div><div class="change-row">New note button / Style<small>Muted fill → High contrast primary style</small></div><div class="annotation">Each proposal names its scope and affected elements. Apply changes commits the validated proposal; Discard leaves saved work intact.</div></div><aside class="inspector"><span class="eyebrow">AI assistant</span><h2 style="margin-top:10px">Review your changes</h2><p>Illustrative proposal · No model request</p><span class="pill">Scope · Action button block</span><h3>Protected customizations</h3><p>Respect existing hand-edited fields. Ask explicitly before including them in a proposal.</p><h3>Provider</h3><p>Show the active connection and actual usage in the implemented product.</p><h3>3 proposed field changes</h3><p>No page routes change.</p><button class="primary full" data-demo="Storyboard only. In Studio, this applies the reviewed plan as an undoable, validated operation.">Apply changes</button><button class="full" data-view="customize">Discard and return</button><div class="annotation">Errors retain your request. Stale plans ask for a new proposal. A no-op explains that your request is already satisfied.</div></aside>`;
+      }
+      function library() {
+        return `<div class="work-area"><div class="library-heading"><div><span class="eyebrow">On this computer</span><h1>Your apps</h1><p class="subtext">Return to your work, or start something new.</p></div><button class="primary" data-demo="Creation offers Blank, Notes, and supported starters, then creates an independent app.">＋ Create app</button></div><div class="app-grid"><article class="app-tile"><div class="app-thumb"><div class="mini-page"><b>Paper / My notes</b><div class="mini-lines"></div><div class="mini-lines short"></div><div class="mini-lines"></div></div></div><div class="app-detail"><h2>Paper</h2><p>Notes app · 5 pages · Sample project</p><button data-view="flow">Open app ↗</button></div></article><article class="app-tile"><div class="app-thumb"><div class="mini-page"><b>Welcome back</b><div class="mini-lines"></div><div class="mini-lines"></div><div class="mini-lines short"></div></div></div><div class="app-detail"><h2>Starter app</h2><p>Web + mobile · Illustrative starter</p><button data-demo="Opening an app waits for saved edits, then restores that app's context.">Open app ↗</button></div></article><article class="app-tile"><div class="app-thumb" style="background:#0d121a;color:#b6c5d8;font-size:42px">＋</div><div class="app-detail"><h2>Start with a blank canvas</h2><p>Add a page and a useful block.</p><button data-demo="A blank project begins with a valid first page, meaningful empty-state guidance, and a working preview.">Create blank app</button></div></article></div><div class="annotation">App menu: Rename · Export project · Move to Recently deleted.<br />Deleted apps can be restored. Local storage stays clearly identified.</div><button data-demo="Import validates first. Offer a new independent app before replacing existing work.">Import project</button><button class="quiet" data-demo="Recently deleted lists recoverable apps with a clear Restore action.">Recently deleted</button></div>`;
+      }
+      function delivery() {
+        return `<div class="work-area with-inspector"><span class="eyebrow">Deliver your app</span><h1>Your project. Your source.</h1><p>Choose a platform, review readiness, and download editable code.</p><div class="two-col"><button class="platform-card selected" data-platform="web"><b>Web application</b><small>React + Vite · Responsive web source</small></button><button class="platform-card" data-platform="mobile"><b>Mobile application</b><small>Expo + React Native · iOS and Android source</small></button></div><h2 style="font-size:16px;margin-top:32px">Readiness review</h2><div class="readiness"><div><span class="badge">PASS</span> Pages and supported connections are valid</div><div><span class="badge">LOCAL</span> Notes are saved on the device</div><div><span class="badge warning">DEMO</span> Authentication and payment examples need real providers</div><div><span class="badge warning">CHECK</span> Review supported styles for your selected target</div></div><div class="annotation">Structural validation does not establish production provider readiness.<br />Publish becomes available when deployment and environment setup work.</div></div><aside class="inspector"><span class="eyebrow">Source export</span><h2 style="margin-top:10px" id="exportTitle">Web source</h2><p id="exportDetail">Editable React + Vite project with setup instructions.</p><h3>After download</h3><div class="step-list"><div>1 · Follow the generated README</div><div>2 · Configure real integrations</div><div>3 · Build and test the target</div><div>4 · Deploy with your provider</div></div><button class="primary full" data-demo="This concept does not compile or download. The implemented export returns an audited source archive.">Download source</button><p>Export remains the action until Studio actually supports deployment.</p></aside>`;
+      }
+      function preview() {
+        return `<div class="work-area with-inspector"><span class="eyebrow">App preview</span><div style="display:flex;gap:8px;margin:12px 0 25px"><button data-width="desktop" class="selected">Desktop</button><button data-width="phone">Phone</button><span class="pill" style="align-self:center">Sample data</span></div><div class="preview-artboard" id="previewArtboard"><h2>My notes</h2><p>A little space for everything on your mind.</p><div class="preview-buttons"><button data-demo="Action trace: New note → Note editor, with an empty record ID.">＋ New note</button><button data-demo="Action trace: Favorites → Favorites page.">Favorites</button></div><div class="app-note"><b>Design thoughts</b><p>A few ideas for our next chapter.</p><button data-demo="Action trace: Open note → Note editor, with the selected record ID.">Open note</button></div><div class="app-note"><b>Project plan</b><p>Milestones, decisions, and next steps.</p></div></div></div><aside class="inspector"><span class="eyebrow">Test your app</span><h2 style="margin-top:10px">Know what happens</h2><p>Proposed isolated preview session</p><h3>Action trace</h3><div class="step-list"><div>New note → Note editor</div><div>Open note → Selected record</div><div>Favorites → Favorites page</div></div><div class="annotation">Separate preview data from working app records. Resetting a test session must preserve the customer's notes.</div><h3>Platform accuracy</h3><p>Phone width previews responsive web. Native source requires its own device testing.</p><button class="full" data-demo="Reset only the disposable preview session, once runtime isolation is implemented.">Start over</button><button class="primary full" data-view="customize">Return to editing</button></aside>`;
+      }
+      const views = { flow, page, customize, ai, library, export: delivery, preview };
+      const titles = {
+        flow: 'App flow',
+        page: 'All notes / Page canvas',
+        customize: 'All notes / New note button',
+        ai: 'All notes / AI review',
+        library: 'App library',
+        export: 'Export',
+        preview: 'Preview',
+      };
+      function fit() {
+        const scene = stage.querySelector('.scene');
+        if (!scene) return;
+        const scale = Math.min(
+          (stage.clientWidth - 80) / 1400,
+          (stage.clientHeight - 45) / 720,
+          1.1,
+        );
+        scene.style.transform = `translate(-50%, -50%) scale(${scale})`;
+      }
+      function show(view) {
+        if (!views[view]) return;
+        currentView = view;
+        notice.textContent = '';
+        stage.innerHTML = views[view]();
+        breadcrumb.innerHTML =
+          '<span>Workspace</span><span>/</span><span>Paper</span><span>/</span><b>' +
+          titles[view] +
+          '</b>';
+        document.querySelectorAll('[data-view]').forEach((button) => {
+          const active = button.dataset.view === view;
+          button.classList.toggle('selected', active);
+          button.setAttribute('aria-pressed', String(active));
+        });
+        fit();
+      }
+      function notify(message) {
+        notice.textContent = message;
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          notice.textContent = '';
+        }, 7000);
+      }
+      document.addEventListener('click', (event) => {
+        const viewButton = event.target.closest('[data-view]');
+        if (viewButton) show(viewButton.dataset.view);
+        const demo = event.target.closest('[data-demo]');
+        if (demo) notify(demo.dataset.demo);
+        const align = event.target.closest('[data-align]');
+        if (align) {
+          document.getElementById('buttonParent').style.justifyContent = align.dataset.align;
+          document
+            .querySelectorAll('[data-align]')
+            .forEach((b) => b.classList.toggle('selected', b === align));
+        }
+        const platform = event.target.closest('[data-platform]');
+        if (platform) {
+          const mobile = platform.dataset.platform === 'mobile';
+          document
+            .querySelectorAll('[data-platform]')
+            .forEach((b) => b.classList.toggle('selected', b === platform));
+          document.getElementById('exportTitle').textContent = mobile
+            ? 'Mobile source'
+            : 'Web source';
+          document.getElementById('exportDetail').textContent = mobile
+            ? 'Editable Expo + React Native source. Signing and store submission remain separate.'
+            : 'Editable React + Vite project with setup instructions.';
+        }
+        const width = event.target.closest('[data-width]');
+        if (width) {
+          document
+            .getElementById('previewArtboard')
+            .classList.toggle('phone', width.dataset.width === 'phone');
+          document
+            .querySelectorAll('[data-width]')
+            .forEach((b) => b.classList.toggle('selected', b === width));
+        }
+      });
+      document.addEventListener('input', (event) => {
+        if (event.target.id === 'sampleWidth') {
+          const n = Number(event.target.value);
+          if (event.target.value && n >= 80 && n <= 300)
+            document.getElementById('sampleButton').style.width = n + 'px';
+        }
+        if (event.target.id === 'sampleLabel')
+          document.getElementById('sampleButton').textContent = event.target.value || 'Button';
+      });
+      document.addEventListener('change', (event) => {
+        if (event.target.matches('[data-sample-input]'))
+          notify(
+            'This property is sample data. The planned editor previews, validates, and saves supported changes.',
+          );
+      });
+      new ResizeObserver(fit).observe(stage);
+      show('flow');
+    </script>
+  </body>
+</html>

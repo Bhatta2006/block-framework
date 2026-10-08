@@ -409,6 +409,17 @@ export function compileProject(
   registry: BlockRegistry,
   spine?: SpineFile,
 ): CompileResult {
+  if (
+    graph.app.cloud ||
+    graph.blocks.some((b) =>
+      /^(auth.account|onboarding.profile|billing.plans|account.settings|billing.review)@/.test(
+        b.type,
+      ),
+    )
+  )
+    throw new CompileError(
+      'Cloud account and payment integrations currently support responsive web export. Native integration is not implemented; export the web app with its backend.',
+    );
   const wiring = resolveWiring(graph, registry);
   const screenNames = new Map<string, string>();
   for (const screen of graph.screens) {

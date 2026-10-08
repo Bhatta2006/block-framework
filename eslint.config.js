@@ -8,6 +8,7 @@ export default tseslint.config(
     ignores: [
       '**/dist/**',
       '**/dist-ui/**',
+      '**/__render_out__/**',
       '**/node_modules/**',
       '**/*.js',
       '**/*.mjs',

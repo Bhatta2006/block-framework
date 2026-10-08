@@ -57,4 +57,6 @@ Studio can now build and export a complete **local notes app** through its block
 
 This is a fixed text-record collection model, not an arbitrary database-schema designer. General API/condition/action nodes, cloud accounts and sync, collaboration/conflict resolution, attachments, reminders, encryption, and managed deployment remain separate product layers. The new web data blocks participate in the element designer; native data blocks support outer-block styling and added controls, while detailed styling of their internal native controls currently requires exported-source edits. Live AI functionality still requires a configured provider; the default assistant is a labelled recorded demo.
 
-Those limits are the next reality-check targets. They do not prevent creating, using, backing up, and exporting Paper today.
+The separate [Paper Cloud template](paper-cloud-setup.md) now implements real web accounts, private Supabase notes, onboarding, optimistic save conflicts, plan quotas, and manually verified UPI testing. The local template retains device storage. Arbitrary schemas, collaboration, attachments, reminders, native cloud integration, and managed deployment remain further work.
+
+Those limits do not prevent creating, using, backing up, and exporting Paper today.

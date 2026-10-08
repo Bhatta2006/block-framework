@@ -1,0 +1,22 @@
+{
+  "id": "billing.plans",
+  "version": "1.0.0",
+  "category": "paywall",
+  "variants": ["default"],
+  "defaultVariant": "default",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "title": { "type": "string", "minLength": 1 },
+      "subtitle": { "type": "string" }
+    }
+  },
+  "defaultConfig": {
+    "title": "Choose your space",
+    "subtitle": "Start free. Pay only when you need more room."
+  },
+  "ports": { "emits": ["billing.continued"], "consumes": [], "provides": [] },
+  "editSurface": ["config.title", "config.subtitle"],
+  "locked": ["ports", "variants"]
+}

@@ -11,7 +11,6 @@ export const EXCLUDE_PATTERNS = [
   'node_modules/**',
   // Version control
   '.git/**',
-  '.gitignore',
   // Secrets (belt and suspenders — the compiler never emits these, but audit anyway)
   '.env',
   '.env.*',
@@ -30,7 +29,7 @@ export const EXCLUDE_PATTERNS = [
 ];
 
 /** File extensions that are audited for secret-like content. */
-const AUDIT_EXTENSIONS = ['.ts', '.tsx', '.js', '.json', '.md'];
+const AUDIT_EXTENSIONS = ['.ts', '.tsx', '.js', '.mjs', '.json', '.md', '.sql', '.example'];
 
 /** Patterns that look like leaked secrets. */
 const SECRET_PATTERNS = [
@@ -40,6 +39,9 @@ const SECRET_PATTERNS = [
   /ghp_[a-zA-Z0-9]{20,}/, // GitHub PAT
   /github_pat_[a-zA-Z0-9_]{20,}/, // GitHub fine-grained PAT
   /AIza[a-zA-Z0-9_-]{20,}/, // Google API key
+  /GOCSPX-[a-zA-Z0-9_-]{15,}/, // Google OAuth client secret
+  /sb_secret_[a-zA-Z0-9_-]{15,}/, // Supabase privileged key
+  /eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}/, // Embedded JWT
 ];
 
 export interface AuditResult {
@@ -76,6 +78,8 @@ export function auditFileContent(path: string, content: string): string[] {
  * Check if a file path should be excluded from the export.
  */
 export function shouldExclude(relativePath: string): boolean {
+  // The compiler emits a blank credential template, audited just like source.
+  if (relativePath === '.env.example') return false;
   // Simple glob matching for our patterns
   for (const pattern of EXCLUDE_PATTERNS) {
     if (pattern.endsWith('/**')) {

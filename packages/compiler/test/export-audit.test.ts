@@ -9,13 +9,21 @@ describe('export audit', () => {
 
   it('excludes .git', () => {
     expect(shouldExclude('.git/config')).toBe(true);
-    expect(shouldExclude('.gitignore')).toBe(true);
+    expect(shouldExclude('.gitignore')).toBe(false);
   });
 
   it('excludes secrets', () => {
     expect(shouldExclude('.env')).toBe(true);
     expect(shouldExclude('.env.local')).toBe(true);
     expect(shouldExclude('cert.pem')).toBe(true);
+  });
+
+  it('ships a blank server environment template but rejects credentials hidden in it', () => {
+    expect(shouldExclude('.env.example')).toBe(false);
+    expect(auditFileContent('.env.example', 'SUPABASE_SERVICE_ROLE_KEY=\n')).toEqual([]);
+    expect(
+      auditFileContent('.env.example', 'SUPABASE_SERVICE_ROLE_KEY=sb_secret_examplekey123456789'),
+    ).not.toEqual([]);
   });
 
   it('excludes build artifacts', () => {

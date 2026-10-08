@@ -2,6 +2,7 @@
 export const WEB_RUNTIME = String.raw`
 import { DataProvider, DataCollection, DataEditor, DataSummary } from './data-runtime';
 import type { DataConfig, Note } from './data-core';
+import { CloudProvider, CloudBoundary, CloudAuth, CloudOnboarding, CloudPlans, CloudAccount, CloudOwner } from './cloud-runtime';
 import React, { useEffect, useState, useRef } from 'react';
 type Item = {
   id: string;
@@ -94,6 +95,7 @@ export type Page = {
 };
 export type Graph = {
   app: {
+    cloud?: { provider: 'supabase'; backendUrl?: string };
     dataId?: string;
     slug?: string;
     layout?: string;
@@ -666,6 +668,16 @@ export function BlockView(props: Props) {
   const runAction = React.useContext(ActionContext);
   const c = props.block.config ?? {};
   switch (props.block.type.split('@')[0]) {
+    case 'auth.account':
+      return <CloudAuth config={c} emit={props.emit} decorate={tree => applyDesign(tree, props.block.design, runAction)} />;
+    case 'onboarding.profile':
+      return <CloudOnboarding config={c} emit={props.emit} decorate={tree => applyDesign(tree, props.block.design, runAction)} />;
+    case 'billing.plans':
+      return <CloudPlans config={c} emit={props.emit} decorate={tree => applyDesign(tree, props.block.design, runAction)} />;
+    case 'account.settings':
+      return <CloudAccount config={c} emit={props.emit} decorate={tree => applyDesign(tree, props.block.design, runAction)} />;
+    case 'billing.review':
+      return <CloudOwner config={c} decorate={tree => applyDesign(tree, props.block.design, runAction)} />;
     case 'data.collection':
       return (
         <DataCollection
@@ -1048,11 +1060,28 @@ function ApplicationView({
   );
 }
 export function Application(props: React.ComponentProps<typeof ApplicationView>) {
+  const gateAction = (_id: string, action: Action) => {
+    if (action.type === 'navigate' && props.graph.screens.some(screen => screen.id === action.screen)) location.hash = action.screen!;
+    if (action.type === 'back') history.back();
+    if (action.type === 'url' && /^https?:\/\//.test(action.url ?? '')) window.open(action.url, '_blank', 'noopener,noreferrer');
+    if (action.type === 'message') window.alert(action.message ?? '');
+  };
   const seeds: Record<string, Partial<Note>[]> = {};
   for (const block of props.graph.blocks) {
     const c = block.config;
     if (c?.seedRecords?.length) seeds[c.collectionKey ?? 'notes'] = c.seedRecords;
   }
+  if (props.graph.app.cloud) return (
+    <CloudProvider backendUrl={props.graph.app.cloud.backendUrl} disabled={props.embedded || !!props.previewBlock}>
+      <CloudBoundary blocks={props.graph.blocks}
+        decorateAuth={tree => applyDesign(tree, props.graph.blocks.find(b => b.type.startsWith('auth.account@'))?.design, gateAction)}
+        decorateOnboarding={tree => applyDesign(tree, props.graph.blocks.find(b => b.type.startsWith('onboarding.profile@'))?.design, gateAction)}>
+        {(identity, adapter) => <DataProvider key={identity} namespace={identity} seeds={seeds} cloud={adapter} transient={props.embedded || !!props.previewBlock}>
+          <ApplicationView {...props} />
+        </DataProvider>}
+      </CloudBoundary>
+    </CloudProvider>
+  );
   return (
     <DataProvider
       key={props.graph.app.dataId ?? props.graph.app.slug ?? props.graph.app.name}

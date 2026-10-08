@@ -74,9 +74,10 @@ describe('canvas server API', () => {
 
   it('lists blocks and cards', async () => {
     const blocks = await api<Array<{ id: string }>>('GET', '/api/blocks');
-    expect(blocks.json).toHaveLength(14);
+    expect(blocks.status).toBe(200);
+    expect(blocks.json).toHaveLength(19);
     const cards = await api<Array<{ block: string; estimatedTokens: number }>>('GET', '/api/cards');
-    expect(cards.json).toHaveLength(14);
+    expect(cards.json).toHaveLength(19);
     for (const c of cards.json) expect(c.estimatedTokens).toBeLessThanOrEqual(300);
   });
 

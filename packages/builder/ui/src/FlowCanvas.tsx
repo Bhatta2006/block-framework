@@ -19,6 +19,11 @@ import type { BuilderProject, BlockSummary, WiringReport, Wire } from './api';
 import '@xyflow/react/dist/style.css';
 
 export const blockNames: Record<string, string> = {
+  'auth.account': 'Cloud account sign-in',
+  'onboarding.profile': 'Cloud onboarding',
+  'billing.plans': 'UPI plans and checkout',
+  'account.settings': 'Cloud account settings',
+  'billing.review': 'Owner payment review',
   'auth.email': 'Sign in',
   'onboarding.quiz': 'Onboarding',
   'paywall.basic': 'Pricing',

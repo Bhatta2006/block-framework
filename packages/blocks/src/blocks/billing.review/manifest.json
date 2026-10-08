@@ -1,0 +1,16 @@
+{
+  "id": "billing.review",
+  "version": "1.0.0",
+  "category": "paywall",
+  "variants": ["default"],
+  "defaultVariant": "default",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": { "title": { "type": "string", "minLength": 1 } }
+  },
+  "defaultConfig": { "title": "Payment verification" },
+  "ports": { "emits": [], "consumes": [], "provides": [] },
+  "editSurface": ["config.title"],
+  "locked": ["ports", "variants"]
+}

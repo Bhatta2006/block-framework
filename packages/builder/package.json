@@ -18,8 +18,10 @@
     "@blockfw/compiler": "0.1.0",
     "@blockfw/manifest": "0.1.0",
     "@blockfw/wiring": "0.1.0",
+    "@napi-rs/keyring": "^2.1.0",
     "@xyflow/react": "^12.12.0",
-    "esbuild": "0.24.2",
+    "esbuild": "^0.28.2",
+    "jose": "^6.2.12",
     "lucide-react": "^1.53.0",
     "react": "19.2.3",
     "react-dom": "19.2.3"
@@ -29,8 +31,8 @@
     "@rjsf/core": "5.24.10",
     "@rjsf/validator-ajv8": "5.24.10",
     "@vitejs/plugin-react": "4.4.1",
-    "rollup": "4.34.9",
-    "vite": "6.3.5"
+    "rollup": "^4.64.2",
+    "vite": "^6.4.4"
   },
   "bin": {
     "block-canvas": "./dist/bin.js"

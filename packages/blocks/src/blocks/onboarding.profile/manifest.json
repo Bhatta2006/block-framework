@@ -1,0 +1,16 @@
+{
+  "id": "onboarding.profile",
+  "version": "1.0.0",
+  "category": "onboarding",
+  "variants": ["default"],
+  "defaultVariant": "default",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": { "title": { "type": "string", "minLength": 1 }, "ctaText": { "type": "string" } }
+  },
+  "defaultConfig": { "title": "Make this space yours", "ctaText": "Open my workspace" },
+  "ports": { "emits": ["onboarding.completed"], "consumes": ["auth.completed"], "provides": [] },
+  "editSurface": ["config.title", "config.ctaText"],
+  "locked": ["ports", "variants"]
+}

@@ -3,6 +3,25 @@ export interface AppCatalog {
   activeId: string;
   apps: Array<{ id: string; name: string; deleted: boolean }>;
 }
+export interface ChatGPTStatus {
+  activeId?: string;
+  accounts: Array<{
+    id: string;
+    label: string;
+    connected: boolean;
+    planEnabled: boolean;
+    model?: string;
+  }>;
+  pending: boolean;
+  error?: string;
+  notice?: string;
+  welcome: boolean;
+  usageUrl: string;
+}
+export interface ChatGPTModel {
+  slug: string;
+  display_name: string;
+}
 let activeAppId = '';
 export interface BlockSummary {
   id: string;
@@ -52,6 +71,7 @@ export interface BuilderProject {
   graph: {
     schemaVersion: string;
     app: {
+      cloud?: { provider: 'supabase'; backendUrl?: string };
       dataId?: string;
       layout?: 'standard' | 'notes';
       name: string;
@@ -106,6 +126,18 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  chatgptStatus: () => req<ChatGPTStatus>('/api/agent/chatgpt/status'),
+  chatgptModels: () => req<ChatGPTModel[]>('/api/agent/chatgpt/models'),
+  chatgptLogin: (id?: string) =>
+    req<{ url: string }>('/api/agent/chatgpt/login', {
+      method: 'POST',
+      body: JSON.stringify({ id }),
+    }),
+  chatgptAction: (action: 'cancel' | 'select' | 'model' | 'signout' | 'welcome', value?: string) =>
+    req<ChatGPTStatus>('/api/agent/chatgpt/' + action, {
+      method: 'POST',
+      body: JSON.stringify(action === 'model' ? { model: value } : { id: value }),
+    }),
   getApps: async () => {
     const catalog = await req<AppCatalog>('/api/apps');
     activeAppId = catalog.activeId;

@@ -2,6 +2,18 @@
 
 Verified on Windows with Node 24.21.0 and npm 11.19.0.
 
+## ChatGPT connection — 2026-10-08
+
+- Studio production build, strict source/UI/test typechecks, and lint pass.
+- All 187 unit tests pass in 18 files, including 13 connection and four encrypted-storage regressions.
+- All 30 Firefox browser workflows pass, including ChatGPT sign-in controls, model selection, usage confirmation, sign-out, cancellation and storage-error feedback.
+- A temporary Windows Credential Manager entry passed write/read/delete verification. Encryption tests cover persistence, ciphertext tampering, lost keys and competing runtimes.
+- OAuth and inference tests use generated signed identities and mocked OpenAI transport. No user credentials or paid model calls were used. Actual account authorization and inference remain a user-completed live check.
+- ChatGPT endpoints and local AI actions enforce host/origin checks, JSON requests and no-store responses. OAuth callbacks use state/nonce/PKCE validation and a restrictive CSP.
+- Dependency audit reports three pre-existing development-tool findings (esbuild, Rollup and Vite); the newly added jose/keyring dependencies are not listed as vulnerable. This is a local runtime integration, not a remote production deployment.
+
+See [ChatGPT connection setup and security](chatgpt-connection.md).
+
 ## Notes app reality check — 2026-10-08
 
 | Check                                                    | Result                                                                                         |
