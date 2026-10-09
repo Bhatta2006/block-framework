@@ -4,6 +4,8 @@ Block Framework now includes **Block Studio**, a visual node-based workspace for
 
 See the [Phase 0 implementation and handoff](docs/phase0-summary.md) for graph v1, typed editing operations, compiler architecture, v2 block packages, evaluation results and remaining limits.
 
+[Phase 1 progress](docs/phase1-progress.md) tracks professional exports. **Export → All project platforms** (or CLI `--target workspace`) packages declared web/native targets together with pnpm/Turbo build commands. Single-target projects retain their small standalone layout.
+
 ## Start the studio
 
 ```sh

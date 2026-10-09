@@ -18,6 +18,25 @@ describe('export audit', () => {
     expect(shouldExclude('cert.pem')).toBe(true);
   });
 
+  it('audits nested workspace paths and rejects traversal without excluding blank templates', () => {
+    for (const path of [
+      'apps/web/.env',
+      'apps/mobile/node_modules/react/index.js',
+      'apps/web/dist/index.js',
+      'apps/mobile/cert.key',
+      'apps\\mobile\\.env.local',
+      '../package.json',
+      '/absolute/file.ts',
+      'C:/project/file.ts',
+    ])
+      expect(shouldExclude(path), path).toBe(true);
+    expect(shouldExclude('apps/web/.env.example')).toBe(false);
+    expect(shouldExclude('apps/mobile/src/theme.ts')).toBe(false);
+    expect(
+      auditFileContent('apps/web/.env.example', 'KEY=ghp_012345678901234567890123'),
+    ).not.toEqual([]);
+  });
+
   it('ships a blank server environment template but rejects credentials hidden in it', () => {
     expect(shouldExclude('.env.example')).toBe(false);
     expect(auditFileContent('.env.example', 'SUPABASE_SERVICE_ROLE_KEY=\n')).toEqual([]);

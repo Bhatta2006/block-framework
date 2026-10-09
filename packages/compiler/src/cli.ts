@@ -36,7 +36,8 @@ import { resolveWiring, type WiringResult } from '@blockfw/wiring';
 import { validateSpine, spineToSql, spineToTypes, type SpineFile } from '@blockfw/spine';
 import { compileProject } from './compile.js';
 import { compileWebProject } from './compile-web.js';
-import { exportZipFromFile } from './export-zip.js';
+import { compileWorkspace } from './compile-workspace.js';
+import { exportZipFromFile, type ExportTarget } from './export-zip.js';
 
 function loadGraph(path: string): GraphInput {
   const raw = readFileSync(resolve(path), 'utf8');
@@ -141,19 +142,18 @@ function cmdCompile(
   graphPath: string,
   outDir: string,
   spinePath?: string,
-  target: 'web' | 'mobile' = 'mobile',
+  target: ExportTarget = 'mobile',
 ): void {
   try {
     const graph = loadGraph(graphPath);
     const spine = spinePath ? loadSpine(spinePath) : undefined;
-    if (target === 'web' && spine)
-      fail(
-        '--spine currently supports the mobile compiler; add backend code to the exported web source.',
-      );
+    if (target !== 'mobile' && spine) fail('--spine currently supports only --target mobile.');
     const result =
-      target === 'web'
-        ? compileWebProject(graph, loadDefaultRegistry())
-        : compileProject(graph, loadDefaultRegistry(), spine);
+      target === 'workspace'
+        ? compileWorkspace(graph, loadDefaultRegistry())
+        : target === 'web'
+          ? compileWebProject(graph, loadDefaultRegistry())
+          : compileProject(graph, loadDefaultRegistry(), spine);
     const out = resolve(outDir);
     for (const file of result.files) {
       const full = resolve(out, file.path);
@@ -171,7 +171,7 @@ function cmdCompile(
 async function cmdExport(
   graphPath: string,
   zipPath: string,
-  target: 'web' | 'mobile' = 'mobile',
+  target: ExportTarget = 'mobile',
 ): Promise<void> {
   try {
     const out = resolve(zipPath);
@@ -303,9 +303,9 @@ async function main(): Promise<void> {
     },
   });
   const [command, ...rest] = positionals;
-  if (values.target && !['web', 'mobile'].includes(values.target))
-    fail('--target must be web or mobile');
-  const target = (values.target ?? 'mobile') as 'web' | 'mobile';
+  if (values.target && !['web', 'mobile', 'workspace'].includes(values.target))
+    fail('--target must be web, mobile or workspace');
+  const target = (values.target ?? 'mobile') as ExportTarget;
   if (command === 'ops' && rest[0] === 'apply' && rest[1] && rest[2]) {
     if (!values.out) fail('ops apply requires --out <graph.json>');
     cmdOperations(rest[1], rest[2], values.out);
@@ -336,7 +336,8 @@ async function main(): Promise<void> {
         '  blockc ops apply <graph.json> <operations.json> --out <graph.json>\n' +
         '  blockc validate <graph.json>\n' +
         '  blockc wires <graph.json>\n' +
-        '  blockc compile <graph.json> --out <dir> [--target web|mobile] [--spine <spine.json>]\n' +
+        '  blockc compile <graph.json> --out <dir> [--target web|mobile|workspace] [--spine <spine.json>]\n' +
+        '  blockc export <graph.json> --out <zipfile> [--target web|mobile|workspace]\n' +
         '  blockc sdk scaffold <block-id> --category <category>\n' +
         '  blockc sdk validate [block-id]\n' +
         '  blockc sdk test [block-id]\n' +

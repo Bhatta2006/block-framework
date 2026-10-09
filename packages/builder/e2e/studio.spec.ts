@@ -352,6 +352,11 @@ test('preview has responsive devices, live settings, and downloadable web/mobile
     const file = await download;
     expect(file.suggestedFilename()).toMatch(/-(web|mobile)\.zip$/);
   }
+  await page.getByRole('button', { name: 'Export app', exact: true }).click();
+  await page.getByRole('button', { name: /All project platforms/ }).click();
+  const workspace = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download project workspace' }).click();
+  expect((await workspace).suggestedFilename()).toMatch(/-workspace\.zip$/);
 });
 
 test('invalid developer edits preserve the saved project', async ({ page, request }) => {

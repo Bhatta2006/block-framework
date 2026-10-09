@@ -197,6 +197,7 @@ export function Workspace() {
   const [blockId, setBlockId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [platform, setPlatform] = useState<'web' | 'mobile'>('web');
+  const [exportWorkspace, setExportWorkspace] = useState(false);
   const [query, setQuery] = useState('');
   const [exporting, setExporting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -310,11 +311,15 @@ export function Workspace() {
     setExporting(true);
     setNotice(null);
     try {
-      const target = project.graph.app.cloud ? 'web' : platform;
+      const target = exportWorkspace ? 'workspace' : project.graph.app.cloud ? 'web' : platform;
       const blob = await api.exportZip(target);
       download(blob, project.graph.app.slug + '-' + target + '.zip');
       setDialog(null);
-      setNotice('Your ' + (target === 'web' ? 'web app' : 'Expo mobile app') + ' source is ready.');
+      setNotice(
+        'Your ' +
+          (target === 'workspace' ? 'project' : target === 'web' ? 'web app' : 'Expo mobile app') +
+          ' source is ready.',
+      );
     } catch (e) {
       setNotice(e instanceof Error ? e.message : String(e));
     } finally {
@@ -1004,20 +1009,32 @@ export function Workspace() {
                   Download a complete, editable codebase. Pick the platform you’re building for.
                 </p>
                 <button
-                  className={'export-option ' + (platform === 'web' ? 'chosen' : '')}
-                  onClick={() => setPlatform('web')}
+                  className={
+                    'export-option ' + (!exportWorkspace && platform === 'web' ? 'chosen' : '')
+                  }
+                  aria-pressed={!exportWorkspace && platform === 'web'}
+                  onClick={() => {
+                    setExportWorkspace(false);
+                    setPlatform('web');
+                  }}
                 >
                   <Globe2 size={24} />
                   <div>
                     <strong>Web application</strong>
                     <small>React + Vite · responsive · deploy anywhere</small>
                   </div>
-                  {platform === 'web' && <Check size={16} />}
+                  {!exportWorkspace && platform === 'web' && <Check size={16} />}
                 </button>
                 <button
-                  className={'export-option ' + (platform === 'mobile' ? 'chosen' : '')}
+                  className={
+                    'export-option ' + (!exportWorkspace && platform === 'mobile' ? 'chosen' : '')
+                  }
+                  aria-pressed={!exportWorkspace && platform === 'mobile'}
                   disabled={!!project.graph.app.cloud}
-                  onClick={() => setPlatform('mobile')}
+                  onClick={() => {
+                    setExportWorkspace(false);
+                    setPlatform('mobile');
+                  }}
                 >
                   <Smartphone size={24} />
                   <div>
@@ -1028,7 +1045,19 @@ export function Workspace() {
                         : 'Expo + React Native · iOS and Android'}
                     </small>
                   </div>
-                  {platform === 'mobile' && <Check size={16} />}
+                  {!exportWorkspace && platform === 'mobile' && <Check size={16} />}
+                </button>
+                <button
+                  className={'export-option ' + (exportWorkspace ? 'chosen' : '')}
+                  aria-pressed={exportWorkspace}
+                  onClick={() => setExportWorkspace(true)}
+                >
+                  <Download size={24} />
+                  <div>
+                    <strong>All project platforms</strong>
+                    <small>One download · all platforms enabled in your project</small>
+                  </div>
+                  {exportWorkspace && <Check size={16} />}
                 </button>
                 <button
                   className="primary full"
@@ -1038,9 +1067,11 @@ export function Workspace() {
                   {exporting ? <Loader2 size={16} className="spin" /> : <Download size={16} />}
                   {exporting
                     ? 'Preparing your code…'
-                    : 'Download ' +
-                      (project.graph.app.cloud || platform === 'web' ? 'web' : 'mobile') +
-                      ' app'}
+                    : exportWorkspace
+                      ? 'Download project workspace'
+                      : 'Download ' +
+                        (project.graph.app.cloud || platform === 'web' ? 'web' : 'mobile') +
+                        ' app'}
                 </button>
                 <p className="export-note">
                   {project.graph.app.cloud

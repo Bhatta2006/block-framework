@@ -19,6 +19,8 @@ export const EXCLUDE_PATTERNS = [
   // Scratch / build artifacts
   '.builder-cache/**',
   '.ci-work/**',
+  '.turbo/**',
+  '.expo/**',
   'dist/**',
   'dist-ui/**',
   '__render_out__/**',
@@ -78,6 +80,13 @@ export function auditFileContent(path: string, content: string): string[] {
  * Check if a file path should be excluded from the export.
  */
 export function shouldExclude(relativePath: string): boolean {
+  const parts = relativePath.replace(/\\/g, '/').split('/');
+  if (parts.some((part) => part === '..' || part === '') || /^[a-z]:/i.test(relativePath))
+    return true;
+  return parts.some((_, index) => excludedAtRoot(parts.slice(index).join('/')));
+}
+
+function excludedAtRoot(relativePath: string): boolean {
   // The compiler emits a blank credential template, audited just like source.
   if (relativePath === '.env.example') return false;
   // Simple glob matching for our patterns

@@ -43,6 +43,21 @@ async function api<T>(
 }
 
 describe('canvas server API', () => {
+  it('compiles declared platforms as a workspace and rejects unknown export targets', async () => {
+    const result = await api<{ ok: boolean; files: string[] }>(
+      'POST',
+      '/api/compile?target=workspace',
+    );
+    expect(result.json.ok).toBe(true);
+    expect(result.json.files).toContain('apps/web/src/main.tsx');
+    expect(result.json.files).toContain('apps/mobile/App.tsx');
+    expect(result.json.files).toContain('pnpm-workspace.yaml');
+    for (const path of ['/api/compile', '/api/export/zip']) {
+      const denied = await api<{ error: string }>('POST', path + '?target=unknown');
+      expect(denied.status).toBe(400);
+      expect(denied.json.error).toContain('Export target must be');
+    }
+  });
   it('compiles the canonical target declarations rather than the editor compatibility view', async () => {
     const original = (await api<BuilderProject>('GET', '/api/project')).json;
     const originalId = (await api<{ activeId: string }>('GET', '/api/apps')).json.activeId;

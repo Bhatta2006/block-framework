@@ -1,5 +1,6 @@
 export * from './compile.js';
 export * from './compile-web.js';
+export * from './compile-workspace.js';
 export * from './frontend.js';
 export { emitNativeIR } from './backends/native.js';
 export { emitWebIR } from './backends/web.js';

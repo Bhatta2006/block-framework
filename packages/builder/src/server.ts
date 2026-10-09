@@ -5,7 +5,12 @@ import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { compileProject, compileWebProject } from '@blockfw/compiler';
+import {
+  compileProject,
+  compileWebProject,
+  compileWorkspace,
+  type ExportTarget,
+} from '@blockfw/compiler';
 import {
   loadDefaultRegistry,
   loadSampleConfig,
@@ -36,6 +41,13 @@ import { ChatGPTConnection } from './chatgpt.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 class ActiveAppChangedError extends Error {}
+
+function exportTarget(url: URL): ExportTarget {
+  const target = url.searchParams.get('target') ?? 'mobile';
+  if (target !== 'web' && target !== 'mobile' && target !== 'workspace')
+    throw new SyntaxError('Export target must be web, mobile or workspace');
+  return target;
+}
 
 /** Resolve the built SPA directory (vite outDir) with a dev fallback. */
 function uiDir(): string {
@@ -443,10 +455,13 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
         return;
       }
       if (path === '/api/compile' && req.method === 'POST') {
+        const target = exportTarget(url);
         const result =
-          url.searchParams.get('target') === 'web'
-            ? compileWebProject(apps.storedProject.graph, registry)
-            : compileProject(apps.storedProject.graph, registry);
+          target === 'workspace'
+            ? compileWorkspace(apps.storedProject.graph, registry)
+            : target === 'web'
+              ? compileWebProject(apps.storedProject.graph, registry)
+              : compileProject(apps.storedProject.graph, registry);
         json(res, 200, {
           ok: true,
           projectHash: result.projectHash,
@@ -459,11 +474,7 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
         // M4: One-click ZIP export. Compiles the current project, audits, zips.
         const { exportZip } = await import('@blockfw/compiler');
         const tmpZip = join(tmpdir(), `bf-export-${Date.now()}.zip`);
-        const result = await exportZip(
-          apps.storedProject.graph,
-          tmpZip,
-          url.searchParams.get('target') === 'web' ? 'web' : 'mobile',
-        );
+        const result = await exportZip(apps.storedProject.graph, tmpZip, exportTarget(url));
         if (!result.audit.ok) {
           json(res, 500, { ok: false, violations: result.audit.violations });
           return;

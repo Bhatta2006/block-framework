@@ -3,6 +3,7 @@ import type { BuilderProject, BuilderProfile } from '../../src/cascade';
 import type { BlockCard } from '../../src/cards';
 import type { ChatGPTStatus, ChatGPTModel } from '../../src/chatgpt';
 import type { Wire, WiringReport } from '@blockfw/wiring';
+import type { ExportTarget } from '@blockfw/compiler';
 
 export type { BuilderProject, BlockCard, ChatGPTStatus, ChatGPTModel, Wire, WiringReport };
 export interface AppCatalog {
@@ -111,7 +112,7 @@ export const api = {
       '/api/cascade',
       { method: 'POST' },
     ),
-  compile: (target: 'web' | 'mobile' = 'mobile') =>
+  compile: (target: ExportTarget = 'mobile') =>
     req<{ ok: boolean; projectHash: string; files: string[]; wiring: WiringReport }>(
       `/api/compile?target=${target}`,
       { method: 'POST' },
@@ -148,12 +149,17 @@ export const api = {
       provider: string;
       liveModel: boolean;
     }>('/api/agent/usage'),
-  exportZip: async (target: 'web' | 'mobile' = 'mobile'): Promise<Blob> => {
+  exportZip: async (target: ExportTarget = 'mobile'): Promise<Blob> => {
     const res = await fetch(`/api/export/zip?target=${target}`, {
       method: 'POST',
       headers: { 'X-Block-App-Id': activeAppId },
     });
-    if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new Error(
+        body?.error || body?.violations?.join('; ') || `Export failed: ${res.status}`,
+      );
+    }
     return res.blob();
   },
 };

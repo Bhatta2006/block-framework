@@ -10,6 +10,7 @@ import { ZipArchive } from 'archiver';
 import { shouldExclude, auditFileContent, type AuditResult } from './export-audit.js';
 import { compileProject } from './compile.js';
 import { compileWebProject } from './compile-web.js';
+import { compileWorkspace } from './compile-workspace.js';
 import { loadDefaultRegistry } from '@blockfw/blocks';
 import { migrateGraph, type GraphInput } from '@blockfw/manifest';
 
@@ -18,6 +19,7 @@ export interface ExportResult {
   fileCount: number;
   audit: AuditResult;
 }
+export type ExportTarget = 'web' | 'mobile' | 'workspace';
 
 /**
  * Compile a graph and create a ZIP export.
@@ -28,11 +30,15 @@ export interface ExportResult {
 export async function exportZip(
   graph: GraphInput,
   zipPath: string,
-  target: 'web' | 'mobile' = 'mobile',
+  target: ExportTarget = 'mobile',
 ): Promise<ExportResult> {
   const registry = loadDefaultRegistry();
   const result =
-    target === 'web' ? compileWebProject(graph, registry) : compileProject(graph, registry);
+    target === 'workspace'
+      ? compileWorkspace(graph, registry)
+      : target === 'web'
+        ? compileWebProject(graph, registry)
+        : compileProject(graph, registry);
 
   const violations: string[] = [];
   const files: Array<{ path: string; content: string }> = [];
@@ -86,7 +92,7 @@ export async function exportZip(
 export async function exportZipFromFile(
   graphPath: string,
   zipPath: string,
-  target: 'web' | 'mobile' = 'mobile',
+  target: ExportTarget = 'mobile',
 ): Promise<ExportResult> {
   const graph = migrateGraph(JSON.parse(readFileSync(resolve(graphPath), 'utf8')));
   return exportZip(graph, zipPath, target);
