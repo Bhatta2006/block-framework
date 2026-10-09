@@ -1,5 +1,5 @@
 import { canonicalJson, type BlockRegistry } from '@blockfw/blocks';
-import type { ProjectGraph } from '@blockfw/manifest';
+import { legacyGraph, type GraphInput } from '@blockfw/manifest';
 import { resolveWiring } from '@blockfw/wiring';
 import { hashFiles, type CompileResult } from './compile.js';
 import { DATA_CORE } from './data-core.js';
@@ -8,7 +8,10 @@ import { webRuntime, WEB_STYLES } from './web-runtime.js';
 import { CLOUD_RUNTIME, CLOUD_SERVER, CLOUD_SCHEMA, CLOUD_STYLES } from './cloud-assets.js';
 
 /** The standalone web export and the editor preview share this exact runtime. */
-export function compileWebProject(graph: ProjectGraph, registry: BlockRegistry): CompileResult {
+export function compileWebProject(input: GraphInput, registry: BlockRegistry): CompileResult {
+  if (input.schemaVersion === '1' && !input.app.targets.includes('web'))
+    throw new Error('Web target is not declared');
+  const graph = legacyGraph(input);
   if (
     !graph.app.cloud &&
     graph.blocks.some((b) =>

@@ -12,7 +12,7 @@ import {
   unwrapSampleConfig,
   canonicalJson,
 } from '@blockfw/blocks';
-import { validateProjectGraph } from '@blockfw/manifest';
+import { validateProjectGraph, legacyGraph, type GraphInput } from '@blockfw/manifest';
 import {
   applyCascade,
   emptyProject,
@@ -24,7 +24,7 @@ import {
 } from './index.js';
 import { AgentGateway, RecordedProvider, providerFromEnv, type AgentPlan } from '@blockfw/agent';
 
-import { AppLibrary } from './apps.js';
+import { AppLibrary, type StoredBuilderProject } from './apps.js';
 import { ChatGPTConnection } from './chatgpt.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -77,9 +77,10 @@ export interface CanvasOptions {
   chatgpt?: ChatGPTConnection;
 }
 
-function loadProjectFile(path: string): BuilderProject {
-  const raw = JSON.parse(readFileSync(path, 'utf8')) as BuilderProject;
+function loadProjectFile(path: string): StoredBuilderProject {
+  const raw = JSON.parse(readFileSync(path, 'utf8')) as StoredBuilderProject;
   if (raw.version !== 1 || !raw.graph) throw new Error(`Not a builder project file: ${path}`);
+  legacyGraph(raw.graph);
   return raw;
 }
 
@@ -87,28 +88,29 @@ function loadProjectFile(path: string): BuilderProject {
 export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
   const registry = loadDefaultRegistry();
   let project: BuilderProject;
+  let initial: StoredBuilderProject;
   if (opts.projectPath && existsSync(opts.projectPath)) {
-    project = loadProjectFile(opts.projectPath);
+    initial = loadProjectFile(opts.projectPath);
   } else {
     // Default: the composed web/mobile studio example.
     const example = resolve(here, '../../../examples/studio/graph.json');
     const graph = JSON.parse(readFileSync(example, 'utf8'));
-    project = emptyProject(graph);
+    initial = emptyProject(graph);
   }
-  validateProjectGraph(project.graph);
+  validateProjectGraph(legacyGraph(initial.graph));
 
   const apps = new AppLibrary(
-    project,
+    initial,
     opts.projectPath ? resolve(opts.projectPath) + '.apps.json' : undefined,
   );
   project = structuredClone(apps.project);
   validateProjectGraph(project.graph);
-  const saveProject = () => {
+  const saveProject = (inputGraph?: GraphInput) => {
     project.graph.app.dataId = apps.activeId;
-    apps.update(project);
+    apps.update(inputGraph ? { ...project, graph: inputGraph } : project);
     if (opts.projectPath) {
       mkdirSync(dirname(resolve(opts.projectPath)), { recursive: true });
-      writeFileSync(resolve(opts.projectPath), JSON.stringify(project, null, 2) + '\n');
+      writeFileSync(resolve(opts.projectPath), JSON.stringify(apps.storedProject, null, 2) + '\n');
     }
   };
 
@@ -241,13 +243,20 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
       };
       if (path === '/api/apps' && req.method === 'POST') {
         try {
-          const body = JSON.parse(await readBody(req)) as { project: BuilderProject };
+          const body = JSON.parse(await readBody(req)) as { project: StoredBuilderProject };
           if (body.project?.version !== 1 || !Array.isArray(body.project.touched))
             throw new Error('Invalid app project.');
+          const inputGraph = structuredClone(body.project.graph);
+          body.project.graph = legacyGraph(body.project.graph);
           validateProjectGraph(body.project.graph);
-          compileWebProject(body.project.graph, registry);
-          if (!body.project.graph.app.cloud) compileProject(body.project.graph, registry);
-          apps.create(body.project);
+          compileWebProject(inputGraph, registry);
+          if (
+            !body.project.graph.app.cloud &&
+            (inputGraph.schemaVersion === '0' ||
+              inputGraph.app.targets.some((target) => target !== 'web'))
+          )
+            compileProject(inputGraph, registry);
+          apps.create({ ...body.project, graph: inputGraph });
           activateProject();
           json(res, 201, { ...apps.list(), project });
         } catch (e) {
@@ -280,13 +289,20 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
         return;
       }
       if (path === '/api/project' && req.method === 'PUT') {
-        const body = JSON.parse(await readBody(req)) as BuilderProject;
+        const body = JSON.parse(await readBody(req)) as StoredBuilderProject;
+        const inputGraph = structuredClone(body.graph);
         try {
           if (body.version !== 1 || !Array.isArray(body.touched))
             throw new Error('Invalid builder project contract.');
+          body.graph = legacyGraph(body.graph);
           validateProjectGraph(body.graph);
-          compileWebProject(body.graph, registry);
-          if (!body.graph.app.cloud) compileProject(body.graph, registry);
+          compileWebProject(inputGraph, registry);
+          if (
+            !body.graph.app.cloud &&
+            (inputGraph.schemaVersion === '0' ||
+              inputGraph.app.targets.some((target) => target !== 'web'))
+          )
+            compileProject(inputGraph, registry);
         } catch (e) {
           json(res, 400, { ok: false, error: e instanceof Error ? e.message : String(e) });
           return;
@@ -297,7 +313,7 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
           touched: [...(body.touched ?? [])].sort(),
           graph: body.graph,
         };
-        saveProject();
+        saveProject(inputGraph);
         json(res, 200, { ok: true });
         return;
       }
@@ -572,7 +588,9 @@ async function webPreviewBundle(compiled: ReturnType<typeof compileWebProject>):
   mkdirSync(cacheDir, { recursive: true });
   const runtime = compiled.files.find((f) => f.path === 'src/runtime.tsx')!.content;
   writeFileSync(join(cacheDir, 'runtime.tsx'), runtime);
-  for (const file of compiled.files.filter((f) => f.path.startsWith('src/data-') || f.path === 'src/cloud-runtime.tsx'))
+  for (const file of compiled.files.filter(
+    (f) => f.path.startsWith('src/data-') || f.path === 'src/cloud-runtime.tsx',
+  ))
     writeFileSync(join(cacheDir, file.path.slice(4)), file.content);
   const graph = compiled.files.find((f) => f.path === 'src/project.json')!.content;
   const wires = compiled.files.find((f) => f.path === 'src/wires.json')!.content;

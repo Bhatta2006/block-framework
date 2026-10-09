@@ -1,4 +1,4 @@
-import type { ProjectGraph } from '@blockfw/manifest';
+import { legacyGraph, type GraphInput, type ProjectGraph } from '@blockfw/manifest';
 
 /**
  * Profile Cascade (M2).
@@ -62,12 +62,12 @@ export interface BuilderProject {
   graph: ProjectGraph;
 }
 
-export function emptyProject(graph: ProjectGraph): BuilderProject {
+export function emptyProject(graph: GraphInput): BuilderProject {
   return {
     version: 1,
     profile: null,
     touched: [],
-    graph: structuredClone(graph),
+    graph: legacyGraph(graph),
   };
 }
 

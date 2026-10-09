@@ -6,6 +6,8 @@ import {
   normalizeEmits,
   normalizeConsumes,
   elementEvent,
+  legacyGraph,
+  type GraphInput,
   type BlockManifest,
   type ConsumePort,
   type EventPort,
@@ -83,7 +85,8 @@ function checkPayload(emitter: EventPort, consumer: ConsumePort): string | null 
  * Multiple consumers (or multiple explicit targets) for one event is
  * ambiguous and fails loudly. Payload mismatches fail loudly.
  */
-export function resolveWiring(graph: ProjectGraph, registry: BlockRegistry): WiringResult {
+export function resolveWiring(input: GraphInput, registry: BlockRegistry): WiringResult {
+  const graph = legacyGraph(input);
   validateProjectGraph(graph);
 
   const report: WiringReport = {

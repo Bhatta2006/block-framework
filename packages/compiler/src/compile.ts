@@ -14,6 +14,8 @@ import {
   pageBlockIds,
   parseBlockType,
   normalizeConsumes,
+  legacyGraph,
+  type GraphInput,
   type ProjectGraph,
 } from '@blockfw/manifest';
 import { navigationTargets, resolveWiring, type WiringResult } from '@blockfw/wiring';
@@ -405,10 +407,11 @@ export function schemaToTs(schema: unknown): string {
  * Pure function: same graph + same registry (+ same spine) = byte-identical files.
  */
 export function compileProject(
-  graph: ProjectGraph,
+  input: GraphInput,
   registry: BlockRegistry,
   spine?: SpineFile,
 ): CompileResult {
+  const graph = legacyGraph(input);
   if (
     graph.app.cloud ||
     graph.blocks.some((b) =>
@@ -420,6 +423,11 @@ export function compileProject(
     throw new CompileError(
       'Cloud account and payment integrations currently support responsive web export. Native integration is not implemented; export the web app with its backend.',
     );
+  if (
+    input.schemaVersion === '1' &&
+    !input.app.targets.some((target) => target === 'ios' || target === 'android')
+  )
+    throw new CompileError('Native target is not declared');
   const wiring = resolveWiring(graph, registry);
   const screenNames = new Map<string, string>();
   for (const screen of graph.screens) {

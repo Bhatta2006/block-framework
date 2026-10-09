@@ -11,7 +11,7 @@ import { shouldExclude, auditFileContent, type AuditResult } from './export-audi
 import { compileProject } from './compile.js';
 import { compileWebProject } from './compile-web.js';
 import { loadDefaultRegistry } from '@blockfw/blocks';
-import type { ProjectGraph } from '@blockfw/manifest';
+import { migrateGraph, type GraphInput } from '@blockfw/manifest';
 
 export interface ExportResult {
   zipPath: string;
@@ -26,7 +26,7 @@ export interface ExportResult {
  * @returns Export result with audit findings.
  */
 export async function exportZip(
-  graph: ProjectGraph,
+  graph: GraphInput,
   zipPath: string,
   target: 'web' | 'mobile' = 'mobile',
 ): Promise<ExportResult> {
@@ -88,6 +88,6 @@ export async function exportZipFromFile(
   zipPath: string,
   target: 'web' | 'mobile' = 'mobile',
 ): Promise<ExportResult> {
-  const graph = JSON.parse(readFileSync(resolve(graphPath), 'utf8')) as ProjectGraph;
+  const graph = migrateGraph(JSON.parse(readFileSync(resolve(graphPath), 'utf8')));
   return exportZip(graph, zipPath, target);
 }

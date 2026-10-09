@@ -23,7 +23,7 @@ import {
   writeScaffoldedBlock,
   blockSourceDir,
 } from '@blockfw/blocks';
-import type { ProjectGraph } from '@blockfw/manifest';
+import { legacyGraph, type ProjectGraph } from '@blockfw/manifest';
 import { resolveWiring, type WiringResult } from '@blockfw/wiring';
 import { validateSpine, spineToSql, spineToTypes, type SpineFile } from '@blockfw/spine';
 import { compileProject } from './compile.js';
@@ -32,7 +32,7 @@ import { exportZipFromFile } from './export-zip.js';
 
 function loadGraph(path: string): ProjectGraph {
   const raw = readFileSync(resolve(path), 'utf8');
-  return JSON.parse(raw) as ProjectGraph;
+  return legacyGraph(JSON.parse(raw));
 }
 
 function printWiring(wiring: WiringResult): void {

@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AppLibrary, replaceCatalogFile } from '../src/apps.js';
 import { emptyProject } from '../src/cascade.js';
+import { migrateGraph } from '@blockfw/manifest';
 
 const project = (name: string) =>
   emptyProject({
@@ -13,6 +14,55 @@ const project = (name: string) =>
     blocks: [{ id: 'intro', type: 'content.text@1.0.0', config: { title: name, body: 'Hello' } }],
   });
 describe('app library', () => {
+  it('retains authored v1 targets while editing the compatibility view', () => {
+    const initial = project('Web');
+    const graph = migrateGraph(initial.graph);
+    graph.app.targets = ['web'];
+    const apps = new AppLibrary({ ...initial, graph });
+    const edited = apps.project;
+    edited.graph.app.name = 'Edited';
+    apps.update(edited);
+    expect(apps.storedProject.graph.app.targets).toEqual(['web']);
+    expect(apps.project.graph.app.name).toBe('Edited');
+  });
+  it('migrates active and deleted v0 catalog records to v1 on successful persistence', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'block-studio-migration-'));
+    try {
+      const path = join(dir, 'apps.json');
+      writeFileSync(
+        path,
+        JSON.stringify({
+          version: 1,
+          activeId: 'active',
+          apps: [
+            { id: 'active', project: project('Active') },
+            { id: 'deleted', deleted: true, project: project('Deleted') },
+          ],
+        }),
+      );
+      const apps = new AppLibrary(project('Unused'), path);
+      apps.update(apps.project);
+      const stored = JSON.parse(readFileSync(path, 'utf8'));
+      expect(
+        stored.apps.map(
+          (app: { project: { graph: { schemaVersion: string } } }) =>
+            app.project.graph.schemaVersion,
+        ),
+      ).toEqual(['1', '1']);
+      const loaded = new AppLibrary(project('Unused'), path);
+      loaded.restore('deleted');
+      loaded.activate('deleted');
+      expect(loaded.project.graph.app.name).toBe('Deleted');
+      expect(loaded.project.graph.app.dataId).toBe('deleted');
+      stored.apps[0].project.graph.schemaVersion = 'unknown';
+      writeFileSync(path, JSON.stringify(stored));
+      const before = readFileSync(path, 'utf8');
+      expect(() => new AppLibrary(project('Unused'), path)).toThrow('schema validation');
+      expect(readFileSync(path, 'utf8')).toBe(before);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
   it('retries temporary file locks while retaining atomic replacement and propagates permanent failures', () => {
     let attempts = 0;
     const waits: number[] = [];

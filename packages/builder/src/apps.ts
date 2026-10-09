@@ -2,10 +2,14 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { BuilderProject } from './cascade.js';
+import { legacyGraph, migrateGraph, type AppGraphV1, type GraphInput } from '@blockfw/manifest';
+
+export type StoredBuilderProject = Omit<BuilderProject, 'graph'> & { graph: GraphInput };
+type CanonicalProject = Omit<BuilderProject, 'graph'> & { graph: AppGraphV1 };
 
 interface AppRecord {
   id: string;
-  project: BuilderProject;
+  project: CanonicalProject;
   deleted?: boolean;
 }
 interface Catalog {
@@ -41,7 +45,7 @@ export function replaceCatalogFile(
 export class AppLibrary {
   private catalog: Catalog;
   constructor(
-    initial: BuilderProject,
+    initial: StoredBuilderProject,
     private path?: string,
   ) {
     this.catalog =
@@ -49,8 +53,13 @@ export class AppLibrary {
         ? (JSON.parse(readFileSync(path, 'utf8')) as Catalog)
         : { version: 1, activeId: randomUUID(), apps: [] };
     if (!this.catalog.apps.length)
-      this.catalog.apps.push({ id: this.catalog.activeId, project: initial });
+      this.catalog.apps.push({
+        id: this.catalog.activeId,
+        project: { ...structuredClone(initial), graph: migrateGraph(initial.graph) },
+      });
     this.catalog.apps.forEach((a) => {
+      a.project.graph = migrateGraph(a.project.graph);
+      legacyGraph(a.project.graph);
       a.project.graph.app.dataId = a.id;
     });
     if (!this.catalog.apps.some((a) => a.id === this.catalog.activeId && !a.deleted))
@@ -60,10 +69,16 @@ export class AppLibrary {
     return this.catalog.activeId;
   }
   get project() {
-    return this.catalog.apps.find((a) => a.id === this.activeId)!.project;
+    const stored = this.storedProject;
+    return { ...stored, graph: legacyGraph(stored.graph) };
   }
-  update(project: BuilderProject) {
-    const copy = structuredClone(project);
+  get storedProject(): CanonicalProject {
+    return structuredClone(this.catalog.apps.find((a) => a.id === this.activeId)!.project);
+  }
+  update(project: StoredBuilderProject) {
+    const copy = { ...structuredClone(project), graph: migrateGraph(project.graph) };
+    if (project.graph.schemaVersion === '0' && !project.graph.app.cloud)
+      copy.graph.app.targets = this.storedProject.graph.app.targets;
     copy.graph.app.dataId = this.activeId;
     this.change(() => {
       this.catalog.apps.find((a) => a.id === this.activeId)!.project = copy;
@@ -79,9 +94,9 @@ export class AppLibrary {
       })),
     };
   }
-  create(project: BuilderProject) {
+  create(project: StoredBuilderProject) {
     const id = randomUUID();
-    const copy = structuredClone(project);
+    const copy = { ...structuredClone(project), graph: migrateGraph(project.graph) };
     copy.graph.app.dataId = id;
     this.change(() => {
       this.catalog.apps.push({ id, project: copy });

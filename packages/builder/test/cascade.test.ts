@@ -11,7 +11,7 @@ import type { ProjectGraph } from '@blockfw/manifest';
 
 function testGraph(): ProjectGraph {
   return {
-    schemaVersion: 'v0',
+    schemaVersion: '0',
     app: { name: 'App', slug: 'app', version: '1.0.0', theme: { primaryColor: '#000000' } },
     blocks: [
       {
@@ -33,7 +33,7 @@ function testGraph(): ProjectGraph {
       },
     ],
     screens: [{ id: 's1', block: 'b2', title: 'Sign in' }],
-  } as unknown as ProjectGraph;
+  };
 }
 
 const PROFILE: BuilderProfile = {
