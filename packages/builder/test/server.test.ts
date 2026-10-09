@@ -4,6 +4,7 @@ import { startCanvasServer } from '@blockfw/builder';
 import type { BuilderProject } from '@blockfw/builder';
 import {
   diffProjectOperations,
+  migrateGraph,
   type OperationEntry,
   type ProjectOperation,
 } from '@blockfw/manifest';
@@ -42,6 +43,27 @@ async function api<T>(
 }
 
 describe('canvas server API', () => {
+  it('compiles the canonical target declarations rather than the editor compatibility view', async () => {
+    const original = (await api<BuilderProject>('GET', '/api/project')).json;
+    const originalId = (await api<{ activeId: string }>('GET', '/api/apps')).json.activeId;
+    const graph = migrateGraph(original.graph);
+    graph.app.targets = ['web'];
+    const created = await api<{ activeId: string }>('POST', '/api/apps', {
+      project: { ...original, graph },
+    });
+    expect(created.status).toBe(201);
+    try {
+      expect((await api('POST', '/api/compile?target=web')).status).toBe(200);
+      const native = await api<{ error: string }>('POST', '/api/compile?target=mobile');
+      expect(native.status).not.toBe(200);
+      expect(native.json.error).toContain('Native target is not declared');
+      const exported = await api<{ error: string }>('POST', '/api/export/zip?target=mobile');
+      expect(exported.status).not.toBe(200);
+      expect(exported.json.error).toContain('Native target is not declared');
+    } finally {
+      await api('POST', '/api/apps/' + originalId + '/activate');
+    }
+  });
   it('rejects a partially received operation request when the active app changes while reading its body', async () => {
     const original = (await api<BuilderProject>('GET', '/api/project')).json;
     const originalId = (await api<{ activeId: string }>('GET', '/api/apps')).json.activeId;

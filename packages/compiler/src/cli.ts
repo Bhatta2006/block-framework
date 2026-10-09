@@ -29,7 +29,7 @@ import {
   canonicalJson,
   ProjectOperationLog,
   type GraphDocument,
-  type ProjectGraph,
+  type GraphInput,
   type ProjectOperation,
 } from '@blockfw/manifest';
 import { resolveWiring, type WiringResult } from '@blockfw/wiring';
@@ -38,9 +38,9 @@ import { compileProject } from './compile.js';
 import { compileWebProject } from './compile-web.js';
 import { exportZipFromFile } from './export-zip.js';
 
-function loadGraph(path: string): ProjectGraph {
+function loadGraph(path: string): GraphInput {
   const raw = readFileSync(resolve(path), 'utf8');
-  return legacyGraph(JSON.parse(raw));
+  return migrateGraph(JSON.parse(raw));
 }
 
 function cmdOperations(graphPath: string, operationsPath: string, out: string): void {
@@ -52,7 +52,8 @@ function cmdOperations(graphPath: string, operationsPath: string, out: string): 
   const log = new ProjectOperationLog<GraphDocument>();
   const next = log.apply({ version: 1, profile: null, touched: [], graph }, operations, 'cli');
   const registry = loadDefaultRegistry();
-  compileWebProject(next.graph, registry);
+  if (next.graph.schemaVersion === '0' || next.graph.app.targets.includes('web'))
+    compileWebProject(next.graph, registry);
   if (next.graph.schemaVersion === '1' && next.graph.app.targets.some((target) => target !== 'web'))
     compileProject(next.graph, registry);
   const path = resolve(out);
@@ -97,7 +98,8 @@ function cmdValidate(graphPath: string): void {
     const graph = loadGraph(graphPath);
     const wiring = resolveWiring(graph, loadDefaultRegistry());
     console.log(`OK: ${graph.app.name} (${graph.app.slug})`);
-    console.log(`screens=${graph.screens.length} blocks=${graph.blocks.length}`);
+    const view = legacyGraph(graph);
+    console.log(`screens=${view.screens.length} blocks=${view.blocks.length}`);
     printWiring(wiring);
   } catch (err) {
     fail(err instanceof Error ? err.message : String(err));

@@ -445,8 +445,8 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
       if (path === '/api/compile' && req.method === 'POST') {
         const result =
           url.searchParams.get('target') === 'web'
-            ? compileWebProject(project.graph, registry)
-            : compileProject(project.graph, registry);
+            ? compileWebProject(apps.storedProject.graph, registry)
+            : compileProject(apps.storedProject.graph, registry);
         json(res, 200, {
           ok: true,
           projectHash: result.projectHash,
@@ -460,7 +460,7 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
         const { exportZip } = await import('@blockfw/compiler');
         const tmpZip = join(tmpdir(), `bf-export-${Date.now()}.zip`);
         const result = await exportZip(
-          project.graph,
+          apps.storedProject.graph,
           tmpZip,
           url.searchParams.get('target') === 'web' ? 'web' : 'mobile',
         );
@@ -617,7 +617,7 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
         return;
       }
       if (path === '/api/run' || path === '/api/run.js') {
-        const compiled = compileWebProject(project.graph, registry);
+        const compiled = compileWebProject(apps.storedProject.graph, registry);
         const bundle = await webPreviewBundle(compiled);
         if (path === '/api/run.js') send(res, 200, bundle, 'text/javascript');
         else {

@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { expect, it } from 'vitest';
@@ -31,6 +31,25 @@ it('CLI applies typed operations, writes v1 and its log, and preserves output on
     const log = JSON.parse(readFileSync(out + '.operations.json', 'utf8'));
     expect(log.entries[0].source).toBe('cli');
     expect(log.entries[0].inverse.length).toBeGreaterThan(0);
+    const webOnly = join(dir, 'web-only.json');
+    writeFileSync(webOnly, JSON.stringify({ ...saved, app: { ...saved.app, targets: ['web'] } }));
+    const nativeOut = join(dir, 'native');
+    expect(() =>
+      execFileSync(
+        process.execPath,
+        [
+          resolve('packages/compiler/dist/cli.js'),
+          'compile',
+          webOnly,
+          '--target',
+          'mobile',
+          '--out',
+          nativeOut,
+        ],
+        { stdio: 'pipe' },
+      ),
+    ).toThrow('Native target is not declared');
+    expect(existsSync(nativeOut)).toBe(false);
     const before = readFileSync(out, 'utf8');
     writeFileSync(
       operations,

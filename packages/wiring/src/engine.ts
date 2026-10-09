@@ -30,7 +30,7 @@ export class WiringError extends Error {
   }
 }
 
-interface ResolvedInstance {
+export interface ResolvedInstance {
   id: string;
   manifest: BlockManifest;
   variant: string;
@@ -85,7 +85,10 @@ function checkPayload(emitter: EventPort, consumer: ConsumePort): string | null 
  * Multiple consumers (or multiple explicit targets) for one event is
  * ambiguous and fails loudly. Payload mismatches fail loudly.
  */
-export function resolveWiring(input: GraphInput, registry: BlockRegistry): WiringResult {
+export function resolveGraph(
+  input: GraphInput,
+  registry: BlockRegistry,
+): WiringResult & { instances: ResolvedInstance[] } {
   const graph = legacyGraph(input);
   validateProjectGraph(graph);
 
@@ -491,7 +494,13 @@ export function resolveWiring(input: GraphInput, registry: BlockRegistry): Wirin
   }
 
   const wires: Wire[] = report.resolved;
-  return { wires, report };
+  return { wires, report, instances };
+}
+
+/** Public wiring-only view; compiler front-ends also consume the resolved instances. */
+export function resolveWiring(input: GraphInput, registry: BlockRegistry): WiringResult {
+  const resolved = resolveGraph(input, registry);
+  return { wires: resolved.wires, report: resolved.report };
 }
 
 /** Map each block instance to the screen its primary event navigates to. */
