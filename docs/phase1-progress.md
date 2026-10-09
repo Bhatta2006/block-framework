@@ -34,14 +34,24 @@ Independent SaaS verification passed both app typechecks, five generated DOM tes
 
 Final repository gates for this increment passed: typecheck, lint, 260 unit tests, Studio build and all 68 browser tests. Formatting checks passed for every changed file. Phase 0 hashes and ZIP baselines remain unchanged.
 
-## Ordered remaining increments
+## Source quality and module decomposition
 
 Generated ESLint/Prettier gates now pass on the independent SaaS and Notes workspaces and run in generated CI. Repository verification passed 262 unit tests and 68 browser tests plus typecheck, lint and Studio build. ADR-0011 records source normalization and the deliberate workspace fixture revision. The user chose to extend the existing designer, retaining graph operations and undo/redo, rather than adopt Puck.
 
 The runtime decomposition is complete for the current golden workspace: web runtime, web/native data runtime and web CSS are split into named feature files using ts-morph and PostCSS. The SaaS fixture checks every emitted TS/TSX/CSS file against the 300-line limit. Production CSS matches the previous build; browser acceptance passes in Chromium and Firefox. The new `phase1-saas-modules.json` records this deliberate source-layout revision and retains earlier fixtures.
 
+## Shared-theme checkpoint (2026-10-10)
+
+Multi-target exports now include a consumed `@app/theme` package with portable tokens, light/dark semantic colors, brand-derived palettes, typography, spacing, radius, shadow, motion and elevation. Web CSS and native colors use those shared values. The exported build tool regenerates CSS/native values from `tokens.json` without Studio; Turbo schedules it before both application builds. ADR-0012 records licenses, the compatible color-library pin and limitations. `phase1-saas-theme.json` is the intentional workspace fixture revision; earlier baselines are retained.
+
+This checkpoint stops before adopting the new UI primitives. Existing block styles are partly fixed, and canonical token editing is still deferred. The user requested committing and pushing at a valid checkpoint on October 10; completing this increment does not complete Phase 1.
+
+Final checkpoint verification passed repository typecheck, lint, 264 unit tests, Studio build and all 68 Firefox/Chromium browser tests. Independent SaaS and Notes exports passed all three package typechecks, lint, formatting, respectively five and nine generated DOM tests, web production builds and Android/iOS Hermes bundle builds. SaaS production acceptance passed in both browsers, including shared-theme switching, reduced motion and edit/reload persistence. Both exports reproduced their emitted theme files byte for byte; editing a token updated web/native values, and a broken reference failed without replacing existing outputs. Physical-device behavior and GitHub-hosted CI remain unverified.
+
+## Ordered remaining increments
+
 1. Extend the functional SaaS fixture as the new UI stack lands; measure file size again as capabilities grow.
-2. Shared design tokens and selected web/native primitives, adopting the approved libraries after checking the actual pinned Expo toolchain. Add independent export and accessibility checks with each migration.
+2. Build on shared tokens with selected web/native primitives, adopting the approved libraries after checking the actual pinned Expo toolchain. Add independent export and accessibility checks with each migration.
 3. Nested component trees and slots across schema, operations, compiler and preview. Extend the existing designer as selected by the user, preserving graph identity and shared history.
 4. Studio Flow/Design shell per the UI/UX specification, preserving existing editing, export and undo behavior. Do not expose unimplemented Data/Logic/Agents/Ship capabilities as working controls.
 5. Remaining v2 block migrations and the 80-block catalog, with reuse sources, stories and tests. Validate the golden export with Lighthouse and an independent engineering review.

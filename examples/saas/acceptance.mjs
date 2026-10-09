@@ -10,6 +10,30 @@ for (const engine of [chromium, firefox]) {
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto(url);
     await page.getByRole('heading', { name: 'Make space for your next launch' }).waitFor();
+    const light = await page
+      .locator('.generated-app')
+      .evaluate((app) => globalThis.getComputedStyle(app).backgroundColor);
+    await page.evaluate(() => {
+      globalThis.document.documentElement.dataset.theme = 'dark';
+    });
+    const dark = await page
+      .locator('.generated-app')
+      .evaluate((app) => globalThis.getComputedStyle(app).backgroundColor);
+    assert.notEqual(dark, light, 'the exported application consumes shared theme colors');
+    await page.evaluate(() => {
+      delete globalThis.document.documentElement.dataset.theme;
+    });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    assert.equal(
+      await page.evaluate(() =>
+        globalThis
+          .getComputedStyle(globalThis.document.documentElement)
+          .getPropertyValue('--motion-fast')
+          .trim(),
+      ),
+      '0ms',
+    );
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
     await page.getByRole('button', { name: 'Open workspace' }).click();
     await page.getByRole('heading', { name: 'Your projects', exact: true }).waitFor();
     assert.equal(new URL(page.url()).hash, '#dashboard');
@@ -31,7 +55,8 @@ for (const engine of [chromium, firefox]) {
     );
     assert.deepEqual(errors, []);
     console.log(
-      engine.name() + ': landing, dashboard, edit persistence and phone-width layout passed',
+      engine.name() +
+        ': shared theme, reduced motion, navigation, edit persistence and phone-width layout passed',
     );
   } finally {
     await browser.close();

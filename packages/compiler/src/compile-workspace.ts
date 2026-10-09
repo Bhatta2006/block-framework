@@ -44,6 +44,7 @@ export function compileWorkspace(graph: GraphInput, registry: BlockRegistry): Co
     ];
     const pkgFile = appFiles.find((file) => file.path === 'package.json')!;
     const pkg = JSON.parse(pkgFile.content);
+    pkg.dependencies['@app/theme'] = 'workspace:*';
     pkg.name = `app-${name}`;
     pkg.scripts.typecheck = 'tsc --noEmit';
     if (name === 'web') {
@@ -90,13 +91,17 @@ export function compileWorkspace(graph: GraphInput, registry: BlockRegistry): Co
       },
       devDependencies: { turbo: TURBO, ...QUALITY_DEPS },
     }),
-    { path: 'pnpm-workspace.yaml', content: "packages:\n  - 'apps/*'\n" },
+    { path: 'pnpm-workspace.yaml', content: "packages:\n  - 'apps/*'\n  - 'packages/*'\n" },
     jsonFile('turbo.json', {
       $schema: 'https://turborepo.dev/schema.json',
       tasks: {
         build: { dependsOn: ['^build'], outputs: ['dist/**'] },
         typecheck: { dependsOn: ['^typecheck'], outputs: [] },
         test: { outputs: [] },
+        '@app/theme#build': {
+          inputs: ['tokens.json', 'theme-build.ts', 'build.mjs', 'package.json'],
+          outputs: ['index.ts', 'tokens.css', 'web.css'],
+        },
       },
     }),
     {
@@ -109,16 +114,16 @@ export function compileWorkspace(graph: GraphInput, registry: BlockRegistry): Co
     },
     {
       path: 'docs/SETUP.md',
-      content: `# Setup and verification\n\nInstall Node 24.15+ (24.x) or 26+ and pnpm ${PNPM} (\`npm install --global pnpm@${PNPM}\`), then run the root README commands. Install from the workspace root so both apps share one lockfile. The compiler does not contact package registries; the first install resolves transitive dependencies. Review and commit that lockfile before CI or deployment.\n\n- Web: Vite development server; host apps/web/dist after building.\n- Tests: \`pnpm test\` renders each web page and checks header navigation using Vitest/Testing Library in jsdom. Extend these smoke tests with application-specific interactions. They do not verify visual design, external services or native behavior.\n- CI: .github/workflows/verify.yml runs typecheck, tests and builds on pushes/pull requests. It requires pnpm-lock.yaml; no deployment or credentials are configured. Run \`pnpm lint\` and \`pnpm format:check\` before committing. ESLint/Prettier configuration is editable; JSON graph/report files use canonical serialization.\n- Mobile: Expo development server; compatible native device/emulator needed for runtime verification. Build bundles only the native platforms declared by the graph. Store signing/submission is a separate step.\n- \`pnpm exec turbo run build --dry=json\` inspects the build tasks.\n\nThe current export uses the existing native modules and routes. Native auth/cloud is rejected until supported. Review dependency advisories and native SDK compatibility before publication. Never commit environment secrets. No connection to Studio is required to run this source.\n`,
+      content: `# Setup and verification\n\nInstall Node 24.15+ (24.x) or 26+ and pnpm ${PNPM} (\`npm install --global pnpm@${PNPM}\`), then run the root README commands. Install from the workspace root so both apps share one lockfile. The compiler does not contact package registries; the first install resolves transitive dependencies. Review and commit that lockfile before CI or deployment.\n\n- Web: Vite development server; host apps/web/dist after building.\n- Tests: \`pnpm test\` renders each web page and checks header navigation using Vitest/Testing Library in jsdom. Extend these smoke tests with application-specific interactions. They do not verify visual design, external services or native behavior.\n- CI: .github/workflows/verify.yml runs typecheck, tests and builds on pushes/pull requests. It requires pnpm-lock.yaml; no deployment or credentials are configured. Run \`pnpm lint\` and \`pnpm format:check\` before committing. ESLint/Prettier configuration is editable; JSON graph/report files use canonical serialization.\n- Theme: packages/theme/tokens.json is the portable source. Root pnpm build regenerates CSS/native values before application builds; run pnpm --filter @app/theme build after editing tokens. Native dimensions require px; durations accept ms or s. Light/dark semantic tokens are emitted; existing legacy blocks still contain their original fixed styles.\n- Mobile: Expo development server; compatible native device/emulator needed for runtime verification. Build bundles only the native platforms declared by the graph. Store signing/submission is a separate step.\n- \`pnpm exec turbo run build --dry=json\` inspects the build tasks.\n\nThe current export uses the existing native modules and routes. Native auth/cloud is rejected until supported. Review dependency advisories and native SDK compatibility before publication. Never commit environment secrets. No connection to Studio is required to run this source.\n`,
     },
     {
       path: 'docs/ARCHITECTURE.md',
       content:
-        '# Architecture\n\napps/web contains the React/Vite application; apps/mobile contains the Expo/React Native application. Each has its own entry point, package manifest, block source lock and wiring report. Source/configuration is copied from the existing validated target emitters. pnpm manages dependencies and Turbo schedules the build/typecheck scripts.\n\nWeb and native currently retain their own data runtimes and storage. They do not synchronize data. No backend or unused shared package is generated. Future shared packages must have a real consumer and a supported graph capability.\n\nThe root wiring-report.json hashes every emitted file except itself, including the nested reports. Each nested report separately hashes its application files, excluding that report. blockfw.lock.json inside each app records its block contracts and source digests.\n',
+        '# Architecture\n\napps/web contains the React/Vite application; apps/mobile contains the Expo/React Native application. Each has its own entry point, package manifest, block source lock and wiring report. Source/configuration is copied from the existing validated target emitters. pnpm manages dependencies and Turbo schedules the build/typecheck scripts.\n\nWeb and native currently retain their own data runtimes and storage. They do not synchronize data. packages/theme contains portable tokens.json plus resolved CSS and native TypeScript values. Both applications consume it through @app/theme. Style Dictionary and color generation run in the compiler; they are not runtime dependencies. Theme JSON uses canonical serialization; source styles honor reduced motion. No backend or unused shared package is generated.\n\nThe root wiring-report.json hashes every emitted file except itself, including the nested reports. Each nested report separately hashes its application files, excluding that report. blockfw.lock.json inside each app records its block contracts and source digests.\n',
     },
   );
   files.push(...QUALITY_FILES, ...checks.filter((file) => !file.path.startsWith('apps/')));
-  const formatted = formatWorkspace(files.slice(appFileCount));
+  const formatted = formatWorkspace(files.slice(appFileCount), undefined, ir.theme);
   files.splice(appFileCount, files.length - appFileCount, ...formatted);
   const projectHash = hashFiles(files);
   files.push(

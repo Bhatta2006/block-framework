@@ -26,7 +26,7 @@ describe('workspace export', { timeout: 20_000 }, () => {
     { timeout: 20_000 },
     async () => {
       const baseline = JSON.parse(
-        readFileSync('packages/compiler/test/fixtures/phase1-saas-modules.json', 'utf8'),
+        readFileSync('packages/compiler/test/fixtures/phase1-saas-theme.json', 'utf8'),
       );
       const input = graph('saas');
       const compiled = compileWorkspace(input, registry);
@@ -133,7 +133,12 @@ describe('workspace export', { timeout: 20_000 }, () => {
       hashFiles(compiled.files.filter((file) => file.path !== 'wiring-report.json')),
     );
     expect(JSON.parse(content('wiring-report.json')).projectHash).toBe(compiled.projectHash);
-    expect(compiled.files.some((file) => /^(packages|apps\/api)\//.test(file.path))).toBe(false);
+    expect(compiled.files.some((file) => /^apps\/api\//.test(file.path))).toBe(false);
+    expect(JSON.parse(content('packages/theme/package.json')).name).toBe('@app/theme');
+    expect(web.dependencies['@app/theme']).toBe('workspace:*');
+    expect(mobile.dependencies['@app/theme']).toBe('workspace:*');
+    expect(content('apps/web/src/styles.css')).toContain('@app/theme/web.css');
+    expect(content('apps/mobile/src/theme.ts')).toContain("from '@app/theme'");
     input.app.targets = ['web', 'android'];
     const android = compileWorkspace(input, registry);
     expect(

@@ -121,13 +121,28 @@ export function splitWorkspaceModules(
         .push(node.toString() + (node.type === 'atrule' && !node.nodes ? ';' : ''));
     }
     style.content =
-      [...styles.keys()].map((name) => `@import './styles/${name}.css';`).join('\n') + '\n';
+      "@import '@app/theme/web.css';\n" +
+      [...styles.keys()].map((name) => `@import './styles/${name}.css';`).join('\n') +
+      '\n';
     for (const [name, rules] of styles)
       output.push({ path: `src/styles/${name}.css`, content: rules.join('\n') });
     const runtime = output.find((file) => file.path === 'src/runtime.tsx')!;
     const project = new Project({ useInMemoryFileSystem: true });
     const source = project.createSourceFile('runtime.tsx', runtime.content);
     const application = source.getFunctionOrThrow('ApplicationView');
+    const appStyle = application
+      .getDescendantsOfKind(SyntaxKind.VariableDeclaration)
+      .find((declaration) => declaration.getName() === 'style')!
+      .getFirstDescendantByKindOrThrow(SyntaxKind.ObjectLiteralExpression);
+    for (const [property, token] of Object.entries({
+      '--brand': 'primary',
+      '--page-bg': 'background',
+      '--ink': 'text',
+    }))
+      appStyle
+        .getPropertyOrThrow(`'${property}'`)
+        .asKindOrThrow(SyntaxKind.PropertyAssignment)
+        .setInitializer(JSON.stringify(`var(--color-${token})`));
     const body = application.getBodyOrThrow().asKindOrThrow(SyntaxKind.Block);
     const statements = body.getStatements();
     const start = statements.findIndex(
@@ -190,6 +205,8 @@ export function splitWorkspaceModules(
       DataEditor: ['DataEditor'],
     });
   } else {
+    output.find((file) => file.path === 'src/theme.ts')!.content =
+      "import { light } from '@app/theme';\nexport const theme = { colors: light } as const;\nexport type AppTheme = typeof theme;\n";
     split('src/data-runtime.tsx', {
       provider: ['Context', 'DataProvider', 'useRecords', 'Props', 'status'],
       Button: ['Button'],

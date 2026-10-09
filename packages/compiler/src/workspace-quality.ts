@@ -1,15 +1,21 @@
 import { createSyncFn } from 'synckit';
 import type { CompiledFile } from './files.js';
+import type { BlockTheme } from '@blockfw/blocks';
 
-type Format = (files: CompiledFile[], platform?: 'web' | 'mobile') => CompiledFile[];
+type Format = (
+  files: CompiledFile[],
+  platform?: 'web' | 'mobile',
+  theme?: Required<BlockTheme>,
+) => CompiledFile[];
 let format: Format | undefined;
 const cache = new Map<string, CompiledFile[]>();
 
 export function formatWorkspace(
   files: CompiledFile[],
   platform?: 'web' | 'mobile',
+  theme?: Required<BlockTheme>,
 ): CompiledFile[] {
-  const key = JSON.stringify([platform, files]);
+  const key = JSON.stringify([platform, theme, files]);
   let result = cache.get(key);
   if (!result) {
     format ??= createSyncFn<Format>(
@@ -19,7 +25,7 @@ export function formatWorkspace(
       ),
       { tsRunner: 'node', timeout: 30_000 },
     );
-    result = format(files, platform);
+    result = format(files, platform, theme);
     if (cache.size >= 8) cache.delete(cache.keys().next().value!);
     cache.set(key, result);
   }
@@ -33,7 +39,7 @@ export const QUALITY_DEPS = {
   prettier: '3.9.9',
 };
 const formatPaths =
-  '"apps/**/*.{ts,tsx,js,mjs,css,html}" "*.mjs" pnpm-workspace.yaml ".github/workflows/*.yml" "docs/**/*.md" README.md';
+  '"{apps,packages}/**/*.{ts,tsx,js,mjs,css,html}" "*.mjs" pnpm-workspace.yaml ".github/workflows/*.yml" "docs/**/*.md" README.md';
 export const QUALITY_SCRIPTS = {
   lint: 'eslint . --max-warnings 0',
   'format:check': `prettier --check ${formatPaths}`,
