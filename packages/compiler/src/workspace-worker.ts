@@ -3,7 +3,14 @@ import { format } from 'prettier';
 import { Project, SyntaxKind, ts } from 'ts-morph';
 import type { CompiledFile } from './files.js';
 
-runAsWorker(async (files: CompiledFile[]) => {
+runAsWorker(async (input: CompiledFile[], platform?: 'web' | 'mobile') => {
+  const modules: typeof import('./workspace-modules.js') = await import(
+    new URL(
+      import.meta.url.endsWith('.ts') ? './workspace-modules.ts' : './workspace-modules.js',
+      import.meta.url,
+    ).href
+  );
+  const files = platform ? modules.splitWorkspaceModules(input, platform) : input;
   const project = new Project({
     useInMemoryFileSystem: true,
     compilerOptions: {

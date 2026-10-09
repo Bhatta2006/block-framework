@@ -1,21 +1,25 @@
 import { createSyncFn } from 'synckit';
 import type { CompiledFile } from './files.js';
 
-let format: ((files: CompiledFile[]) => CompiledFile[]) | undefined;
+type Format = (files: CompiledFile[], platform?: 'web' | 'mobile') => CompiledFile[];
+let format: Format | undefined;
 const cache = new Map<string, CompiledFile[]>();
 
-export function formatWorkspace(files: CompiledFile[]): CompiledFile[] {
-  const key = JSON.stringify(files);
+export function formatWorkspace(
+  files: CompiledFile[],
+  platform?: 'web' | 'mobile',
+): CompiledFile[] {
+  const key = JSON.stringify([platform, files]);
   let result = cache.get(key);
   if (!result) {
-    format ??= createSyncFn<(files: CompiledFile[]) => CompiledFile[]>(
+    format ??= createSyncFn<Format>(
       new URL(
         import.meta.url.endsWith('.ts') ? './workspace-worker.ts' : './workspace-worker.js',
         import.meta.url,
       ),
       { tsRunner: 'node', timeout: 30_000 },
     );
-    result = format(files);
+    result = format(files, platform);
     if (cache.size >= 8) cache.delete(cache.keys().next().value!);
     cache.set(key, result);
   }

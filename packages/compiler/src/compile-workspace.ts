@@ -63,7 +63,7 @@ export function compileWorkspace(graph: GraphInput, registry: BlockRegistry): Co
       appFile.content = canonicalJson(app) + '\n';
     }
     pkgFile.content = canonicalJson(pkg) + '\n';
-    appFiles = formatWorkspace(appFiles);
+    appFiles = formatWorkspace(appFiles, name as 'web' | 'mobile');
     const report = appFiles.find((file) => file.path === 'src/wiring-report.json')!;
     report.content =
       canonicalJson({

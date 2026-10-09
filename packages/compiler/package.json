@@ -8,6 +8,7 @@
     "@blockfw/spine": "0.1.0",
     "@blockfw/wiring": "0.1.0",
     "archiver": "8.0.0",
+    "postcss": "8.5.29",
     "prettier": "3.9.9",
     "qrcode": "^1.5.4",
     "synckit": "0.12.1",

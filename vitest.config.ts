@@ -11,6 +11,8 @@ export default defineConfig({
     ),
   },
   test: {
+    // Export tests start formatter/compiler workers; bound contention on development machines.
+    maxWorkers: 4,
     include: ['packages/*/test/**/*.test.{ts,tsx}'],
   },
 });

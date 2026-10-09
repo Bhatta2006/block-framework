@@ -38,9 +38,11 @@ Final repository gates for this increment passed: typecheck, lint, 260 unit test
 
 Generated ESLint/Prettier gates now pass on the independent SaaS and Notes workspaces and run in generated CI. Repository verification passed 262 unit tests and 68 browser tests plus typecheck, lint and Studio build. ADR-0011 records source normalization and the deliberate workspace fixture revision. The user chose to extend the existing designer, retaining graph operations and undo/redo, rather than adopt Puck.
 
-1. Decompose the existing large runtime into readable feature/page files before claiming the plan's file-size target. Extend the functional SaaS fixture as the new UI stack lands.
+The runtime decomposition is complete for the current golden workspace: web runtime, web/native data runtime and web CSS are split into named feature files using ts-morph and PostCSS. The SaaS fixture checks every emitted TS/TSX/CSS file against the 300-line limit. Production CSS matches the previous build; browser acceptance passes in Chromium and Firefox. The new `phase1-saas-modules.json` records this deliberate source-layout revision and retains earlier fixtures.
+
+1. Extend the functional SaaS fixture as the new UI stack lands; measure file size again as capabilities grow.
 2. Shared design tokens and selected web/native primitives, adopting the approved libraries after checking the actual pinned Expo toolchain. Add independent export and accessibility checks with each migration.
-3. Nested component trees and slots across schema, operations, compiler and preview. Evaluate Puck's keyboard behavior, graph identity and shared history before making an editor commitment.
+3. Nested component trees and slots across schema, operations, compiler and preview. Extend the existing designer as selected by the user, preserving graph identity and shared history.
 4. Studio Flow/Design shell per the UI/UX specification, preserving existing editing, export and undo behavior. Do not expose unimplemented Data/Logic/Agents/Ship capabilities as working controls.
 5. Remaining v2 block migrations and the 80-block catalog, with reuse sources, stories and tests. Validate the golden export with Lighthouse and an independent engineering review.
 

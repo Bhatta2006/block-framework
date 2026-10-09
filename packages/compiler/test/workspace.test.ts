@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { loadDefaultRegistry } from '@blockfw/blocks';
 import { migrateGraph } from '@blockfw/manifest';
 import { formatWorkspace } from '../src/workspace-quality.js';
+import postcss from 'postcss';
 import {
   compileWorkspace,
   compileWebProject,
@@ -19,13 +20,13 @@ const graph = (name = 'notes') =>
   migrateGraph(JSON.parse(readFileSync(`examples/${name}/graph.json`, 'utf8')));
 const registry = loadDefaultRegistry();
 
-describe('workspace export', () => {
+describe('workspace export', { timeout: 20_000 }, () => {
   it(
     'preserves the SaaS workspace source and audited ZIP golden fixture',
     { timeout: 20_000 },
     async () => {
       const baseline = JSON.parse(
-        readFileSync('packages/compiler/test/fixtures/phase1-saas-quality.json', 'utf8'),
+        readFileSync('packages/compiler/test/fixtures/phase1-saas-modules.json', 'utf8'),
       );
       const input = graph('saas');
       const compiled = compileWorkspace(input, registry);
@@ -52,6 +53,22 @@ describe('workspace export', () => {
     const root = JSON.parse(content('package.json'));
     const web = JSON.parse(content('apps/web/package.json'));
     expect(root.scripts.test).toBe('turbo run test');
+    for (const file of compiled.files.filter((file) => /\.(ts|tsx|css)$/.test(file.path)))
+      expect(file.content.trimEnd().split('\n').length, file.path).toBeLessThanOrEqual(300);
+    const original = compileWebProject(graph('saas'), registry).files.find(
+      (file) => file.path === 'src/styles.css',
+    )!;
+    const style = content('apps/web/src/styles.css');
+    const modules = [...style.matchAll(/@import ['"]\.\/(.*?)['"]/g)].map((match) =>
+      content('apps/web/src/' + match[1]),
+    );
+    const cssRules = (css: string) =>
+      postcss.parse(css).nodes.map((node) => node.toString().replace(/\s+/g, ''));
+    expect(cssRules(modules.join('\n'))).toEqual(cssRules(formatWorkspace([original])[0]!.content));
+    expect(content('apps/web/src/runtime.tsx').split('\n').length).toBeLessThan(20);
+    expect(content('apps/web/src/runtime/design-preview.tsx')).toContain(
+      'event.origin !== location.origin',
+    );
     expect(root.scripts.lint).toBe('eslint . --max-warnings 0');
     expect(root.scripts['format:check']).toContain('prettier --check');
     expect(root.devDependencies.eslint).toBe('10.12.0');
