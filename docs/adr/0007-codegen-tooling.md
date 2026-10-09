@@ -1,6 +1,14 @@
 # ADR-0007: Vendored TSX with ts-morph composition
 
-Date: 2026-10-09. Status: accepted; spike results pending.
+Date: 2026-10-09. Status: accepted; Phase 0 composition evaluated.
+
+## Phase 0 composition results
+
+The time-boxed composition evaluation produced real typed Hero/Collection sources, retained the existing shared data provider, and migrated the authored auth runtime. ts-morph 28 builds structured imports/interfaces/component dispatch; Prettier 3.9.9 formats it. Standalone Notes and Paper Cloud installs, typechecks and Vite builds passed. Authored render tests preserve Hero events/decorators, Collection selection payloads and auth-provider requirements. Nine supported exports are deterministic and their ZIPs audited; exact changed paths and bundle measurements are in [the rebaseline record](../phase0-export-rebaseline.md).
+
+The synchronous public compiler needs a formatter bridge because Prettier 3 is async. Reuse synckit 0.12.1 (MIT, updated 2026-10-07; TypeScript/Node workers supported), which is also listed by the official Prettier sync wrapper. The official @prettier/sync 0.6.1 and make-synchronized 0.8.0 were evaluated but last released 2025-06-08, outside the plan's six-month health window. A hand-built worker or breaking async compiler conversion adds unnecessary core machinery. Worker calls have a ten-second timeout; the two composition variants are cached. Synckit is build-time only. Sources: [synckit API/license](https://github.com/un-ts/synckit), [Prettier API](https://prettier.io/docs/api), [official sync alternatives](https://github.com/prettier/prettier-synchronized).
+
+There is no root LICENSE; authored source is marked LicenseRef-Project instead of silently granting MIT. Third-party dependencies meet the allowlist. Public registry licensing and Storybook tooling remain explicit later decisions. Preserve current CSS in this phase; adopting Radix/Tailwind or NativeWind would change visuals/dependencies beyond this source-composition proof.
 
 ## Decision
 

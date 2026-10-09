@@ -1,15 +1,17 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { loadDefaultRegistry } from '@blockfw/blocks';
-import { compileProject, compileWebProject } from '@blockfw/compiler';
+import { compileProject, compileWebProject, exportZip } from '@blockfw/compiler';
 import { migrateGraph, type ProjectGraph } from '@blockfw/manifest';
-import original from './fixtures/phase0-original.json' with { type: 'json' };
+import original from './fixtures/phase0-v2.json' with { type: 'json' };
 
-describe('Phase 0 original export baseline', () => {
+describe('Phase 0 vendored export baseline (original fixture retained)', () => {
   const registry = loadDefaultRegistry();
   for (const [key, expected] of Object.entries(original)) {
-    it(key, () => {
+    it(key, async () => {
       const [name, target] = key.split('/');
       const graph = JSON.parse(
         readFileSync(new URL(`../../../examples/${name}/graph.json`, import.meta.url), 'utf8'),
@@ -31,6 +33,17 @@ describe('Phase 0 original export baseline', () => {
           ]),
         ),
       ).toEqual(expected.files);
+      const directory = mkdtempSync(join(tmpdir(), 'blockfw-golden-'));
+      try {
+        const path = join(directory, 'app.zip');
+        const exported = await exportZip(graph, path, target as 'web' | 'mobile');
+        expect(exported.audit).toEqual({ ok: true, violations: [] });
+        expect(createHash('sha256').update(readFileSync(path)).digest('hex')).toBe(
+          expected.zipHash,
+        );
+      } finally {
+        rmSync(directory, { recursive: true, force: true });
+      }
     });
   }
 });

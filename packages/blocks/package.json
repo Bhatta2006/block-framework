@@ -1,7 +1,9 @@
 {
   "dependencies": {
-    "@blockfw/manifest": "0.1.0"
+    "@blockfw/manifest": "0.1.0",
+    "qrcode": "1.5.4"
   },
+  "peerDependencies": { "react": "^19.2.3" },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

@@ -1,0 +1,72 @@
+{
+  "id": "auth.account",
+  "version": "1.0.0",
+  "category": "auth",
+  "variants": ["default"],
+  "defaultVariant": "default",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "title": {
+        "type": "string",
+        "minLength": 1
+      },
+      "subtitle": {
+        "type": "string"
+      }
+    }
+  },
+  "defaultConfig": {
+    "title": "Welcome to Paper",
+    "subtitle": "Your thoughts, saved securely to your account."
+  },
+  "ports": {
+    "emits": ["auth.completed"],
+    "consumes": ["app.launched"],
+    "provides": []
+  },
+  "editSurface": ["config.title", "config.subtitle"],
+  "locked": ["ports", "variants"],
+  "formatVersion": 2,
+  "targets": ["web"],
+  "license": "LicenseRef-Project",
+  "stability": "stable",
+  "requires": {
+    "services": ["supabase"],
+    "entities": {},
+    "blocks": [],
+    "env": []
+  },
+  "provides": {
+    "entities": [],
+    "routes": [],
+    "flowSteps": [],
+    "events": ["auth.completed"],
+    "slots": []
+  },
+  "slots": {},
+  "bindings": [],
+  "designTokens": ["color.primary", "color.background", "color.text"],
+  "permissions": {
+    "reads": ["session", "profile"],
+    "writes": ["session"]
+  },
+  "dependencies": {
+    "react": "19.2.3",
+    "qrcode": "1.5.4"
+  },
+  "implementations": {
+    "web": {
+      "entry": "web/CloudRuntime.tsx",
+      "export": "CloudAuth"
+    }
+  },
+  "files": [
+    {
+      "path": "web/CloudRuntime.tsx",
+      "target": "src/cloud-runtime.tsx",
+      "platforms": ["web"]
+    }
+  ]
+}

@@ -17,3 +17,7 @@ packages/builder/e2e/screenshots/
 .env.development
 .env.test
 .provider-secrets/
+spikes/*/dist/
+spikes/*/.generated/
+spikes/*/.expo/
+spikes/*/.state/

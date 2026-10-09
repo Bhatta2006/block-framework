@@ -4,6 +4,8 @@
 // equivalent at runtime (verified) and typechecks correctly.
 import { Ajv, type ValidateFunction } from 'ajv';
 import blockManifestSchema from './schema/block-manifest-v0.json' with { type: 'json' };
+import blockPackageSchema from './schema/block-package-v2.json' with { type: 'json' };
+import type { BlockPackage } from './block-package.js';
 import projectGraphSchema from './schema/project-graph-v0.json' with { type: 'json' };
 import appGraphSchema from './schema/project-graph-v1.json' with { type: 'json' };
 import type { AppGraphV1 } from './graph-v1.js';
@@ -32,6 +34,42 @@ export class SchemaError extends Error {
 const ajv = new Ajv({ allErrors: true, strict: true });
 
 const validateManifestFn = ajv.compile<BlockManifest>(blockManifestSchema);
+const validatePackageFn = ajv.compile<BlockPackage>(blockPackageSchema);
+
+export function validateBlockPackage(value: unknown): asserts value is BlockPackage {
+  if (!validatePackageFn(value)) throw new SchemaError('Block package v2', validatePackageFn);
+  const safePath = (path: string) =>
+    /^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/.test(path) &&
+    !path.split('/').some((part) => part === '.' || part === '..');
+  const destinations = new Set<string>();
+  const paths = new Set<string>();
+  for (const file of value.files) {
+    if (!safePath(file.path) || !safePath(file.target) || !file.target.startsWith('src/'))
+      throw new Error(`Unsafe block source path: ${file.path} -> ${file.target}`);
+    if (destinations.has(file.target) || paths.has(file.path))
+      throw new Error('Duplicate block source file');
+    destinations.add(file.target);
+    paths.add(file.path);
+    for (const target of file.platforms)
+      if (!value.targets.includes(target)) throw new Error(`Undeclared file target: ${target}`);
+  }
+  for (const target of value.targets) {
+    const implementation = value.implementations[target];
+    if (!implementation) throw new Error(`Missing implementation: ${target}`);
+    if (
+      'entry' in implementation &&
+      !value.files.some(
+        (file) => file.path === implementation.entry && file.platforms.includes(target),
+      )
+    )
+      throw new Error(`Missing ${target} entry file: ${implementation.entry}`);
+    if ('adapter' in implementation && target !== 'ios' && target !== 'android')
+      throw new Error(`Legacy adapter is native only: ${target}`);
+  }
+  for (const target of Object.keys(value.implementations))
+    if (!value.targets.includes(target as import('./block-package.js').BlockTarget))
+      throw new Error(`Undeclared implementation: ${target}`);
+}
 const validateGraphFn = ajv.compile<ProjectGraph>(projectGraphSchema);
 const validateAppGraphFn = ajv.compile<AppGraphV1>(appGraphSchema);
 

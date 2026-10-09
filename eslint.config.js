@@ -14,6 +14,7 @@ export default tseslint.config(
       '.builder-cache/**',
       '.ci-work/**',
       '.audit-work/**',
+      'spikes/*/.generated/**',
     ],
   },
   {

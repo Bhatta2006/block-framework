@@ -56,7 +56,12 @@ export const TASKS: BenchmarkTask[] = [
       },
     },
     expects: 'success',
-    checks: [{ kind: 'changed-files', only: ['src/blocks/b1.tsx', 'src/wiring-report.json'] }],
+    checks: [
+      {
+        kind: 'changed-files',
+        only: ['blockfw.lock.json', 'src/blocks/b1.tsx', 'src/wiring-report.json'],
+      },
+    ],
   },
   {
     id: 'T02',
@@ -74,7 +79,12 @@ export const TASKS: BenchmarkTask[] = [
       },
     },
     expects: 'success',
-    checks: [{ kind: 'changed-files', only: ['src/blocks/b2.tsx', 'src/wiring-report.json'] }],
+    checks: [
+      {
+        kind: 'changed-files',
+        only: ['blockfw.lock.json', 'src/blocks/b2.tsx', 'src/wiring-report.json'],
+      },
+    ],
   },
   {
     id: 'T03',
@@ -83,7 +93,12 @@ export const TASKS: BenchmarkTask[] = [
     description: 'Change the app primary color; only the theme file (+ report) may change.',
     operation: { kind: 'set-theme', theme: { primaryColor: '#E11D48' } },
     expects: 'success',
-    checks: [{ kind: 'changed-files', only: ['src/theme.ts', 'src/wiring-report.json'] }],
+    checks: [
+      {
+        kind: 'changed-files',
+        only: ['blockfw.lock.json', 'src/theme.ts', 'src/wiring-report.json'],
+      },
+    ],
   },
   {
     id: 'T04',
@@ -100,7 +115,12 @@ export const TASKS: BenchmarkTask[] = [
     description: 'Switch the quiz to the list layout.',
     operation: { kind: 'set-variant', instance: 'b1', variant: 'quiz-list' },
     expects: 'success',
-    checks: [{ kind: 'changed-files', only: ['src/blocks/b1.tsx', 'src/wiring-report.json'] }],
+    checks: [
+      {
+        kind: 'changed-files',
+        only: ['blockfw.lock.json', 'src/blocks/b1.tsx', 'src/wiring-report.json'],
+      },
+    ],
   },
   {
     id: 'T06',
@@ -247,7 +267,12 @@ export const TASKS: BenchmarkTask[] = [
       },
     },
     expects: 'success',
-    checks: [{ kind: 'changed-files', only: ['src/blocks/b3.tsx', 'src/wiring-report.json'] }],
+    checks: [
+      {
+        kind: 'changed-files',
+        only: ['blockfw.lock.json', 'src/blocks/b3.tsx', 'src/wiring-report.json'],
+      },
+    ],
   },
   {
     id: 'T19',
@@ -290,7 +315,12 @@ export const TASKS: BenchmarkTask[] = [
     checks: [
       {
         kind: 'changed-files',
-        only: ['src/blocks/b3.tsx', 'src/screens/s3.tsx', 'src/wiring-report.json'],
+        only: [
+          'blockfw.lock.json',
+          'src/blocks/b3.tsx',
+          'src/screens/s3.tsx',
+          'src/wiring-report.json',
+        ],
       },
     ],
   },
@@ -318,7 +348,12 @@ export const TASKS: BenchmarkTask[] = [
     checks: [
       {
         kind: 'changed-files',
-        only: ['src/blocks/b3.tsx', 'src/screens/s3.tsx', 'src/wiring-report.json'],
+        only: [
+          'blockfw.lock.json',
+          'src/blocks/b3.tsx',
+          'src/screens/s3.tsx',
+          'src/wiring-report.json',
+        ],
       },
     ],
   },
@@ -338,7 +373,12 @@ export const TASKS: BenchmarkTask[] = [
     checks: [
       {
         kind: 'changed-files',
-        only: ['src/blocks/b3.tsx', 'src/screens/s3.tsx', 'src/wiring-report.json'],
+        only: [
+          'blockfw.lock.json',
+          'src/blocks/b3.tsx',
+          'src/screens/s3.tsx',
+          'src/wiring-report.json',
+        ],
       },
     ],
   },
@@ -358,7 +398,12 @@ export const TASKS: BenchmarkTask[] = [
     checks: [
       {
         kind: 'changed-files',
-        only: ['src/blocks/b3.tsx', 'src/screens/s3.tsx', 'src/wiring-report.json'],
+        only: [
+          'blockfw.lock.json',
+          'src/blocks/b3.tsx',
+          'src/screens/s3.tsx',
+          'src/wiring-report.json',
+        ],
       },
     ],
   },
@@ -378,7 +423,12 @@ export const TASKS: BenchmarkTask[] = [
     checks: [
       {
         kind: 'changed-files',
-        only: ['src/blocks/b2.tsx', 'src/services/auth.mock.ts', 'src/wiring-report.json'],
+        only: [
+          'blockfw.lock.json',
+          'src/blocks/b2.tsx',
+          'src/services/auth.mock.ts',
+          'src/wiring-report.json',
+        ],
       },
     ],
   },
@@ -398,7 +448,12 @@ export const TASKS: BenchmarkTask[] = [
     checks: [
       {
         kind: 'changed-files',
-        only: ['src/blocks/b2.tsx', 'src/services/auth.mock.ts', 'src/wiring-report.json'],
+        only: [
+          'blockfw.lock.json',
+          'src/blocks/b2.tsx',
+          'src/services/auth.mock.ts',
+          'src/wiring-report.json',
+        ],
       },
     ],
   },
@@ -424,7 +479,12 @@ export const TASKS: BenchmarkTask[] = [
     checks: [
       {
         kind: 'changed-files',
-        only: ['src/blocks/b3.tsx', 'src/screens/s3.tsx', 'src/wiring-report.json'],
+        only: [
+          'blockfw.lock.json',
+          'src/blocks/b3.tsx',
+          'src/screens/s3.tsx',
+          'src/wiring-report.json',
+        ],
       },
     ],
   },
@@ -450,7 +510,12 @@ export const TASKS: BenchmarkTask[] = [
     checks: [
       {
         kind: 'changed-files',
-        only: ['src/blocks/b3.tsx', 'src/screens/s3.tsx', 'src/wiring-report.json'],
+        only: [
+          'blockfw.lock.json',
+          'src/blocks/b3.tsx',
+          'src/screens/s3.tsx',
+          'src/wiring-report.json',
+        ],
       },
     ],
   },
@@ -489,6 +554,7 @@ export const TASKS: BenchmarkTask[] = [
       {
         kind: 'changed-files',
         only: [
+          'blockfw.lock.json',
           'package.json',
           'src/spine-types.ts',
           'src/supabase.ts',
@@ -558,6 +624,7 @@ export const TASKS: BenchmarkTask[] = [
       {
         kind: 'changed-files',
         only: [
+          'blockfw.lock.json',
           'README.md',
           'app.json',
           'package.json',
@@ -604,7 +671,10 @@ export const TASKS: BenchmarkTask[] = [
     operation: { kind: 'set-lane', screen: 's3', lane: 'tabs' },
     expects: 'success',
     checks: [
-      { kind: 'changed-files', only: ['src/navigation.tsx', 'src/wiring-report.json'] },
+      {
+        kind: 'changed-files',
+        only: ['blockfw.lock.json', 'src/navigation.tsx', 'src/wiring-report.json'],
+      },
       { kind: 'file-contains', path: 'src/wiring-report.json', text: '"tabs"' },
     ],
   },

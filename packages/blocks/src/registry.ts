@@ -1,5 +1,14 @@
 import { validateManifest, type BlockManifest } from '@blockfw/manifest';
 import type { BlockTemplate } from './types.js';
+import type { BlockPackage } from '@blockfw/manifest';
+import { canonicalJson } from './canonical.js';
+import { loadPackageSources, type BlockSource } from './package.js';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const sourceDir = import.meta.dirname ?? dirname(fileURLToPath(import.meta.url));
+import heroPackage from './blocks/content.hero/block.json' with { type: 'json' };
+import collectionPackage from './blocks/data.collection/block.json' with { type: 'json' };
+import accountPackage from './blocks/auth.account/block.json' with { type: 'json' };
 import quizManifestJson from './blocks/onboarding.quiz/manifest.json' with { type: 'json' };
 import { render as renderQuiz } from './blocks/onboarding.quiz/template.js';
 import paywallManifestJson from './blocks/paywall.basic/manifest.json' with { type: 'json' };
@@ -35,19 +44,34 @@ import billingReviewManifest from './blocks/billing.review/manifest.json' with {
 export interface RegisteredBlock {
   manifest: BlockManifest;
   render: BlockTemplate;
+  package?: { contract: BlockPackage; sources: BlockSource[] };
 }
 
 export class BlockRegistry {
   private readonly blocks = new Map<string, RegisteredBlock>();
 
-  register(manifestJson: unknown, render: BlockTemplate): void {
+  register(
+    manifestJson: unknown,
+    render: BlockTemplate,
+    packageJson?: unknown,
+    sourceRoot?: string,
+  ): void {
     validateManifest(manifestJson);
     const manifest = manifestJson as BlockManifest;
     const key = `${manifest.id}@${manifest.version}`;
     if (this.blocks.has(key)) {
       throw new Error(`Duplicate block registration: ${key}`);
     }
-    this.blocks.set(key, { manifest, render });
+    let pack: RegisteredBlock['package'];
+    if (packageJson !== undefined) {
+      if (!sourceRoot) throw new Error('Block package source root is required');
+      pack = loadPackageSources(packageJson, sourceRoot);
+      for (const field of Object.keys(manifest) as (keyof BlockManifest)[]) {
+        if (canonicalJson(pack.contract[field]) !== canonicalJson(manifest[field]))
+          throw new Error(`Block package disagrees with manifest: ${field}`);
+      }
+    }
+    this.blocks.set(key, { manifest, render, ...(pack ? { package: pack } : {}) });
   }
 
   /** Look up a block by `id@semver` type reference. Throws on unknown types. */
@@ -89,13 +113,28 @@ export function loadDefaultRegistry(): BlockRegistry {
   registry.register(authManifestJson, renderAuth);
   registry.register(detailManifestJson, renderDetail);
   registry.register(statsManifestJson, renderStats);
-  registry.register(heroManifest, renderHero);
+  registry.register(
+    heroManifest,
+    renderHero,
+    heroPackage,
+    resolve(sourceDir, '../src/blocks/content.hero'),
+  );
   registry.register(textManifest, renderText);
   registry.register(buttonManifest, renderButton);
-  registry.register(collectionManifest, renderCollection);
+  registry.register(
+    collectionManifest,
+    renderCollection,
+    collectionPackage,
+    resolve(sourceDir, '../src/blocks/data.collection'),
+  );
   registry.register(editorManifest, renderEditor);
   registry.register(summaryManifest, renderSummary);
-  registry.register(accountAuthManifest, renderCloud);
+  registry.register(
+    accountAuthManifest,
+    renderCloud,
+    accountPackage,
+    resolve(sourceDir, '../src/blocks/auth.account'),
+  );
   registry.register(profileOnboardingManifest, renderCloud);
   registry.register(billingPlansManifest, renderCloud);
   registry.register(accountSettingsManifest, renderCloud);

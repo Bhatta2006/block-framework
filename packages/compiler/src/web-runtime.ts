@@ -1,7 +1,8 @@
 /** The same runtime powers exported web apps and the builder's live preview. */
 export function webRuntime(cloud: boolean): string {
   return String.raw`
-import { DataProvider, DataCollection, DataEditor, DataSummary } from './data-runtime';
+import { VendoredBlock } from './blocks/composition';
+import { DataProvider, DataEditor, DataSummary } from './data-runtime';
 import type { DataConfig, Note } from './data-core';
 ${cloud ? "import { CloudProvider, CloudBoundary, CloudAuth, CloudOnboarding, CloudPlans, CloudAccount, CloudOwner } from './cloud-runtime';" : ''}
 import React, { useEffect, useState, useRef } from 'react';
@@ -672,7 +673,7 @@ export function BlockView(props: Props) {
 ${
   cloud
     ? String.raw`    case 'auth.account':
-      return <CloudAuth config={c} emit={props.emit} decorate={tree => applyDesign(tree, props.block.design, runAction)} />;
+      return <VendoredBlock type="auth.account" config={c} emit={props.emit} decorate={tree => applyDesign(tree, props.block.design, runAction)} />;
     case 'onboarding.profile':
       return <CloudOnboarding config={c} emit={props.emit} decorate={tree => applyDesign(tree, props.block.design, runAction)} />;
     case 'billing.plans':
@@ -685,7 +686,8 @@ ${
 }
     case 'data.collection':
       return (
-        <DataCollection
+        <VendoredBlock
+          type="data.collection"
           config={c}
           emit={props.emit}
           decorate={(tree) => applyDesign(tree, props.block.design, runAction)}
@@ -725,27 +727,7 @@ ${
     case 'settings.list':
       return customize(<Settings {...props} />, props.block.design);
     case 'content.hero':
-      return customize(
-        <section
-          className={
-            'block-surface hero ' + (props.block.variant === 'compact' ? 'compact-hero' : '')
-          }
-        >
-          <span className="eyebrow">{c.eyebrow}</span>
-          <h1>{c.title}</h1>
-          <p className="lead">{c.body}</p>
-          <button className="primary" onClick={() => props.emit('action.pressed', {})}>
-            {c.ctaText} <span>→</span>
-          </button>
-          <div className="hero-orbit" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-            <span>✧</span>
-          </div>
-        </section>,
-        props.block.design,
-      );
+      return <VendoredBlock type="content.hero" config={c} variant={props.block.variant} emit={props.emit} decorate={tree => customize(tree, props.block.design)} />;
     case 'content.text':
       return customize(
         <section

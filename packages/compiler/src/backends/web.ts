@@ -5,6 +5,7 @@ import { DATA_CORE } from '../data-core.js';
 import { WEB_DATA_RUNTIME, DATA_STYLES } from '../web-data.js';
 import { webRuntime, WEB_STYLES } from '../web-runtime.js';
 import { CLOUD_RUNTIME, CLOUD_SERVER, CLOUD_SCHEMA, CLOUD_STYLES } from '../cloud-assets.js';
+import { vendoredBlockFiles, blockLockfile } from '../block-files.js';
 
 /** The standalone web export and the editor preview share this exact runtime. */
 export function emitWebIR(ir: CompilerIR, registry: BlockRegistry): CompileResult {
@@ -142,6 +143,12 @@ export function emitWebIR(ir: CompilerIR, registry: BlockRegistry): CompileResul
       graph.app.name +
       '\n\nReal account-based cloud notes application generated from Block Studio. Follow CLOUD-SETUP.md to configure Supabase, Google, email, UPI verification, and hosting. Run npm install, npm run build, and npm start. Secrets stay on the backend; browser code receives no provider credentials.\n';
   }
+  for (const file of vendoredBlockFiles(registry, Boolean(graph.app.cloud))) {
+    const existing = files.findIndex(entry => entry.path === file.path);
+    if (existing >= 0) files[existing] = file;
+    else files.push(file);
+  }
+  files.push(blockLockfile(ir, registry, ['web']));
   const projectHash = hashFiles(files);
   files.push({
     path: 'src/wiring-report.json',

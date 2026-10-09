@@ -1,4 +1,5 @@
 import { DATA_CORE } from '../data-core.js';
+import { blockLockfile } from '../block-files.js';
 import { NATIVE_DATA_RUNTIME } from '../native-data.js';
 import { customizeNative } from '../customization.js';
 import {
@@ -576,6 +577,7 @@ export function emitNativeIR(
 
   // --- wiring report + readme (hash covers everything except the report) -----
   add('README.md', renderReadme(graph));
+  files.push(blockLockfile(ir, registry, ['ios', 'android']));
   const projectHash = hashFiles(files);
   const reportJson = canonicalJson({
     app: graph.app.slug,

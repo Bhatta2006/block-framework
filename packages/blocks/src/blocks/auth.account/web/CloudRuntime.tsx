@@ -408,7 +408,7 @@ export function CloudOnboarding({ config = {}, emit, decorate }: Props) {
               ['personal', 'Personal', 'Ideas, lists, and everyday thoughts'],
               ['work', 'Work', 'Plans, meetings, and decisions'],
               ['study', 'Study', 'Learning, research, and revision'],
-            ].map(([id, title, body]) => (
+            ].map(([id = '', title, body]) => (
               <button key={id} aria-pressed={focus === id} onClick={() => setFocus(id)}>
                 <b>{title}</b>
                 <small>{body}</small>

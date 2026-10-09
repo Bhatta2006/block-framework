@@ -684,12 +684,11 @@ async function webPreviewBundle(compiled: ReturnType<typeof compileWebProject>):
   const { buildSync } = await import('esbuild');
   const cacheDir = resolve(here, '../../../.builder-cache/web');
   mkdirSync(cacheDir, { recursive: true });
-  const runtime = compiled.files.find((f) => f.path === 'src/runtime.tsx')!.content;
-  writeFileSync(join(cacheDir, 'runtime.tsx'), runtime);
-  for (const file of compiled.files.filter(
-    (f) => f.path.startsWith('src/data-') || f.path === 'src/cloud-runtime.tsx',
-  ))
-    writeFileSync(join(cacheDir, file.path.slice(4)), file.content);
+  for (const file of compiled.files.filter((f) => f.path.startsWith('src/'))) {
+    const destination = join(cacheDir, file.path.slice(4));
+    mkdirSync(dirname(destination), { recursive: true });
+    writeFileSync(destination, file.content);
+  }
   const graph = compiled.files.find((f) => f.path === 'src/project.json')!.content;
   const wires = compiled.files.find((f) => f.path === 'src/wires.json')!.content;
   const contents =

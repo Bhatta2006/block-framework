@@ -1,0 +1,85 @@
+{
+  "version": "1.0.0",
+  "category": "utility",
+  "variants": ["default", "compact"],
+  "defaultVariant": "default",
+  "locked": ["ports", "variants"],
+  "id": "content.hero",
+  "config": {
+    "type": "object",
+    "properties": {
+      "eyebrow": {
+        "type": "string"
+      },
+      "title": {
+        "type": "string",
+        "minLength": 1
+      },
+      "body": {
+        "type": "string"
+      },
+      "ctaText": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "additionalProperties": false
+  },
+  "defaultConfig": {
+    "eyebrow": "MAKE ROOM FOR BETTER",
+    "title": "Small steps. Remarkable days.",
+    "body": "A little intention goes a long way. Build a routine that feels like you.",
+    "ctaText": "Start your journey"
+  },
+  "editSurface": ["config.eyebrow", "config.title", "config.body", "config.ctaText"],
+  "ports": {
+    "emits": ["action.pressed"],
+    "consumes": []
+  },
+  "formatVersion": 2,
+  "targets": ["web", "ios", "android"],
+  "license": "LicenseRef-Project",
+  "stability": "stable",
+  "requires": {
+    "services": [],
+    "entities": {},
+    "blocks": [],
+    "env": []
+  },
+  "provides": {
+    "entities": [],
+    "routes": [],
+    "flowSteps": [],
+    "events": ["action.pressed"],
+    "slots": []
+  },
+  "slots": {},
+  "bindings": [],
+  "designTokens": ["color.primary", "color.background", "color.text"],
+  "permissions": {
+    "reads": [],
+    "writes": []
+  },
+  "dependencies": {
+    "react": "19.2.3"
+  },
+  "implementations": {
+    "web": {
+      "entry": "web/Hero.tsx",
+      "export": "Hero"
+    },
+    "ios": {
+      "adapter": "legacy-template"
+    },
+    "android": {
+      "adapter": "legacy-template"
+    }
+  },
+  "files": [
+    {
+      "path": "web/Hero.tsx",
+      "target": "src/blocks/content.hero/Hero.tsx",
+      "platforms": ["web"]
+    }
+  ]
+}
