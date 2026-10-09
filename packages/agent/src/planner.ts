@@ -46,9 +46,7 @@ export function planPrompt(
   const sections: string[] = [];
   const scope: string[] = [];
   for (const b of inScope) {
-    const entry = registry.get(b.type);
-    if (!entry) continue;
-    const manifest = entry.manifest;
+    const manifest = registry.get(b.type).manifest;
     scope.push(b.id);
     const editable = manifest.editSurface.filter((p) => {
       const key = p.replace(/^config\./, '');

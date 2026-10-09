@@ -34,6 +34,26 @@ function composed(): ProjectGraph {
   };
 }
 describe('web and mobile page composition', () => {
+  it('omits cloud services and QR dependencies from local web apps', () => {
+    const result = compileWebProject(composed(), loadDefaultRegistry());
+    const pkg = JSON.parse(result.files.find((f) => f.path === 'package.json')!.content);
+    expect(pkg.dependencies).not.toHaveProperty('qrcode');
+    expect(pkg.devDependencies).not.toHaveProperty('@types/qrcode');
+    expect(result.files.some((f) => f.path === 'src/cloud-runtime.tsx')).toBe(false);
+    expect(result.files.find((f) => f.path === 'src/runtime.tsx')!.content).not.toContain(
+      'CloudProvider',
+    );
+    expect(result.files.find((f) => f.path === 'src/styles.css')!.content).not.toContain(
+      '.cloud-feedback',
+    );
+  });
+
+  it('rejects unwritable ZIP destinations instead of hanging or emitting an unhandled error', async () => {
+    await expect(
+      exportZip(composed(), join(tmpdir(), 'bf-missing-' + crypto.randomUUID(), 'app.zip'), 'web'),
+    ).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
   it('keeps customized element styles in web and native exports without changing event logic', () => {
     const g = composed();
     g.blocks[0]!.design = {

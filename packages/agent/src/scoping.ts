@@ -72,9 +72,8 @@ function checkOp(
   const block = project.graph.blocks.find((b) => b.id === instanceId);
   if (!block) return `rejected ${op.path}: unknown block instance "${instanceId}"`;
 
-  const entry = registry.get(block.type);
-  if (!entry) return `rejected ${op.path}: unknown block type "${block.type}"`;
-  const manifest = entry.manifest;
+  if (!registry.has(block.type)) return `rejected ${op.path}: unknown block type "${block.type}"`;
+  const manifest = registry.get(block.type).manifest;
 
   if (scope.focusInstanceIds && !scope.focusInstanceIds.includes(instanceId))
     return `rejected ${op.path}: outside the selected blocks`;
@@ -102,15 +101,6 @@ function checkOp(
   if (manifest.locked.some((l) => surfaceKey === l || surfaceKey.startsWith(l + '.'))) {
     return `rejected ${op.path}: "${surfaceKey}" is locked and can never be agent-edited`;
   }
-  if (
-    !scope.allowTouched &&
-    project.touched.some(
-      (t) => op.path === t || op.path.startsWith(t + '.') || t.startsWith(op.path + '.'),
-    )
-  ) {
-    return `rejected ${op.path}: hand-edited by the user — the agent must not overwrite it`;
-  }
-
   // Schema validation of the new value against the block's config schema.
   const schema = manifest.config as Record<string, unknown>;
   const props = (schema.properties ?? {}) as Record<string, unknown>;

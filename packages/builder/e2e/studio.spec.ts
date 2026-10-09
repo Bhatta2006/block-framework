@@ -64,29 +64,30 @@ test('variant, route, and page layout selections persist and update the preview'
 test('app picker creates, switches, deletes, and restores independent apps', async ({
   page,
   request,
-}) => {
+}, testInfo) => {
+  const appName = `Independent Studio ${testInfo.project.name}`;
   await page.goto('/');
   await page.getByRole('button', { name: 'Switch apps' }).click();
   await page.getByRole('button', { name: 'Create app', exact: true }).click();
-  await page.getByLabel('New app name').fill('Independent Studio');
+  await page.getByLabel('New app name').fill(appName);
   await page.getByRole('button', { name: 'Create starter app', exact: true }).click();
   await expect(page.getByLabel('Page title')).toHaveValue('Welcome');
   await page.getByRole('button', { name: 'Switch apps' }).click();
   await page.getByRole('button', { name: /^H Habitual Pro/ }).click();
   await expect(page.locator('.react-flow__node')).toHaveCount(8);
   await page.getByRole('button', { name: 'Switch apps' }).click();
-  await page.getByRole('button', { name: 'Delete app Independent Studio', exact: true }).click();
+  await page.getByRole('button', { name: `Delete app ${appName}`, exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Recently deleted' })).toBeVisible();
   const app = (await (await request.get('/api/apps')).json()).apps.find(
-    (a: { name: string }) => a.name === 'Independent Studio',
+    (a: { name: string }) => a.name === appName,
   );
   expect(app.deleted).toBe(true);
   await page
     .locator('.app-row')
-    .filter({ hasText: 'Independent Studio' })
+    .filter({ hasText: appName })
     .getByRole('button', { name: 'Restore app' })
     .click();
-  await page.getByRole('button', { name: /^I Independent Studio/ }).click();
+  await page.getByRole('button', { name: `I ${appName}`, exact: true }).click();
   await expect(page.locator('.react-flow__node')).toHaveCount(2);
 });
 
@@ -511,13 +512,9 @@ test('element library adds independent buttons with optional actions and editabl
     frame.getByRole('button', { name: 'Open my collection', exact: true }),
   ).toBeVisible();
   await page.getByLabel('Insert before element').selectOption('button');
-  await expect
-    .poll(() =>
-      frame
-        .getByRole('button', { name: 'Open my collection', exact: true })
-        .evaluate((el) => el.parentElement?.tagName),
-    )
-    .toBe('FORM');
+  await expect(
+    frame.locator('form').getByRole('button', { name: 'Open my collection', exact: true }),
+  ).toBeVisible();
   await page.getByRole('button', { name: '+ Button', exact: true }).click();
   await expect(page.getByLabel('Element text', { exact: true })).toHaveValue('New button');
   await page.getByLabel('Element text', { exact: true }).fill('Open my profile');

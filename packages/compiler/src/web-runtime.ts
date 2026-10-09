@@ -1,8 +1,9 @@
 /** The same runtime powers exported web apps and the builder's live preview. */
-export const WEB_RUNTIME = String.raw`
+export function webRuntime(cloud: boolean): string {
+  return String.raw`
 import { DataProvider, DataCollection, DataEditor, DataSummary } from './data-runtime';
 import type { DataConfig, Note } from './data-core';
-import { CloudProvider, CloudBoundary, CloudAuth, CloudOnboarding, CloudPlans, CloudAccount, CloudOwner } from './cloud-runtime';
+${cloud ? "import { CloudProvider, CloudBoundary, CloudAuth, CloudOnboarding, CloudPlans, CloudAccount, CloudOwner } from './cloud-runtime';" : ''}
 import React, { useEffect, useState, useRef } from 'react';
 type Item = {
   id: string;
@@ -668,7 +669,9 @@ export function BlockView(props: Props) {
   const runAction = React.useContext(ActionContext);
   const c = props.block.config ?? {};
   switch (props.block.type.split('@')[0]) {
-    case 'auth.account':
+${
+  cloud
+    ? String.raw`    case 'auth.account':
       return <CloudAuth config={c} emit={props.emit} decorate={tree => applyDesign(tree, props.block.design, runAction)} />;
     case 'onboarding.profile':
       return <CloudOnboarding config={c} emit={props.emit} decorate={tree => applyDesign(tree, props.block.design, runAction)} />;
@@ -677,7 +680,9 @@ export function BlockView(props: Props) {
     case 'account.settings':
       return <CloudAccount config={c} emit={props.emit} decorate={tree => applyDesign(tree, props.block.design, runAction)} />;
     case 'billing.review':
-      return <CloudOwner config={c} decorate={tree => applyDesign(tree, props.block.design, runAction)} />;
+      return <CloudOwner config={c} decorate={tree => applyDesign(tree, props.block.design, runAction)} />;`
+    : ''
+}
     case 'data.collection':
       return (
         <DataCollection
@@ -1060,18 +1065,24 @@ function ApplicationView({
   );
 }
 export function Application(props: React.ComponentProps<typeof ApplicationView>) {
-  const gateAction = (_id: string, action: Action) => {
+${
+  cloud
+    ? String.raw`  const gateAction = (_id: string, action: Action) => {
     if (action.type === 'navigate' && props.graph.screens.some(screen => screen.id === action.screen)) location.hash = action.screen!;
     if (action.type === 'back') history.back();
     if (action.type === 'url' && /^https?:\/\//.test(action.url ?? '')) window.open(action.url, '_blank', 'noopener,noreferrer');
     if (action.type === 'message') window.alert(action.message ?? '');
-  };
+  };`
+    : ''
+}
   const seeds: Record<string, Partial<Note>[]> = {};
   for (const block of props.graph.blocks) {
     const c = block.config;
     if (c?.seedRecords?.length) seeds[c.collectionKey ?? 'notes'] = c.seedRecords;
   }
-  if (props.graph.app.cloud) return (
+${
+  cloud
+    ? String.raw`  if (props.graph.app.cloud) return (
     <CloudProvider backendUrl={props.graph.app.cloud.backendUrl} disabled={props.embedded || !!props.previewBlock}>
       <CloudBoundary blocks={props.graph.blocks}
         decorateAuth={tree => applyDesign(tree, props.graph.blocks.find(b => b.type.startsWith('auth.account@'))?.design, gateAction)}
@@ -1081,7 +1092,9 @@ export function Application(props: React.ComponentProps<typeof ApplicationView>)
         </DataProvider>}
       </CloudBoundary>
     </CloudProvider>
-  );
+  );`
+    : ''
+}
   return (
     <DataProvider
       key={props.graph.app.dataId ?? props.graph.app.slug ?? props.graph.app.name}
@@ -1094,6 +1107,10 @@ export function Application(props: React.ComponentProps<typeof ApplicationView>)
   );
 }
 `;
+}
+
+/** Full runtime retained for consumers that render both cloud and local graphs. */
+export const WEB_RUNTIME = webRuntime(true);
 
 export const WEB_STYLES = String.raw`
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap");

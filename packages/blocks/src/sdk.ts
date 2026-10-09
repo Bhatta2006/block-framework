@@ -54,11 +54,7 @@ export function unwrapSampleConfig(sampleConfig: unknown): Record<string, unknow
   return (sampleConfig ?? {}) as Record<string, unknown>;
 }
 
-function baseContext(
-  manifest: BlockManifest,
-  variant: string,
-  config: Record<string, unknown>,
-): RenderContext {
+function baseContext(variant: string, config: Record<string, unknown>): RenderContext {
   return {
     instanceId: 'sdk-check',
     componentName: componentNameFor('sdk-check'),
@@ -104,7 +100,7 @@ export function testBlock(
     const label = `render[${variant}]`;
     let first: string;
     try {
-      first = render(baseContext(manifest, variant, config)).content;
+      first = render(baseContext(variant, config)).content;
     } catch (e) {
       issues.push({ path: label, message: `threw: ${(e as Error).message}` });
       continue;
@@ -113,7 +109,7 @@ export function testBlock(
       issues.push({ path: label, message: 'output has no exported component' });
     }
     try {
-      const second = render(baseContext(manifest, variant, config)).content;
+      const second = render(baseContext(variant, config)).content;
       if (second !== first) {
         issues.push({ path: label, message: 'render is not deterministic' });
       }
@@ -166,7 +162,7 @@ export function validateBlock(
     const outputs = new Map<string, string>();
     for (const variant of manifest.variants) {
       try {
-        const out = render(baseContext(manifest, variant, config)).content;
+        const out = render(baseContext(variant, config)).content;
         for (const [otherVariant, otherOut] of outputs) {
           if (otherOut === out) {
             issues.push({

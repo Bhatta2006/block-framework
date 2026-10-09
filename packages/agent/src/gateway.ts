@@ -32,11 +32,6 @@ export interface GatewayOptions {
   maxTokens?: number;
 }
 
-interface UndoEntry<P> {
-  project: P;
-  label: string;
-}
-
 function getPath(project: AgentProject, path: string): unknown {
   const [reference, ...keys] = path.split('.');
   let value: unknown = project.graph.blocks.find((b) => b.id === reference?.slice(6));
@@ -65,15 +60,11 @@ function diffOf(before: AgentProject, ops: AgentEditOp[]): FieldDiff[] {
   }));
 }
 
-function clone<T>(v: T): T {
-  return JSON.parse(JSON.stringify(v)) as T;
-}
-
 export class AgentGateway<P extends AgentProject = AgentProject> {
   private provider: LlmProvider;
   private maxAttempts: number;
   private maxTokens: number;
-  private undoStack: UndoEntry<P>[] = [];
+  private undoStack: P[] = [];
   readonly usageLog: TokenUsage[] = [];
 
   constructor(provider: LlmProvider, opts: GatewayOptions = {}) {
@@ -169,7 +160,7 @@ export class AgentGateway<P extends AgentProject = AgentProject> {
     if (!check.ok) {
       throw new Error(`refusing to apply: ${check.rejections.join('; ')}`);
     }
-    const next = clone(project);
+    const next = structuredClone(project);
     for (const op of check.accepted) setPath(next, op.path, op.value);
     // Agent edits become touched: the cascade and future agent runs must not
     // silently overwrite what the agent (acting for the user) set.
@@ -177,14 +168,13 @@ export class AgentGateway<P extends AgentProject = AgentProject> {
       if (!next.touched.includes(op.path)) next.touched.push(op.path);
     }
     next.touched.sort();
-    this.undoStack.push({ project: clone(project), label: plan.rationale || 'agent edit' });
+    this.undoStack.push(structuredClone(project));
     return { project: next, applied: check.accepted };
   }
 
   /** Revert the most recent applied edit. Returns null when nothing to undo. */
   undo(): P | null {
-    const entry = this.undoStack.pop();
-    return entry ? entry.project : null;
+    return this.undoStack.pop() ?? null;
   }
 
   get undoDepth(): number {

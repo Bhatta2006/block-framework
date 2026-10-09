@@ -16,7 +16,7 @@ Beginners can add pages and library blocks, edit content through generated forms
 | Package     | Responsibility                                                             | Important entry points                                                             |
 | ----------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `manifest`  | Authoritative JSON schemas, mirrored types, Ajv validation                 | `src/types.ts`, `src/validate.ts`, `src/schema/`                                   |
-| `blocks`    | Registry, fourteen built-in blocks, native source templates, authoring SDK | `src/registry.ts`, `src/types.ts`, `src/sdk.ts`, `src/blocks/`                     |
+| `blocks`    | Registry, nineteen built-in blocks, native source templates, authoring SDK | `src/registry.ts`, `src/types.ts`, `src/sdk.ts`, `src/blocks/`                     |
 | `wiring`    | Config validation, service requirements, event routing, reachability       | `src/engine.ts`, `src/types.ts`                                                    |
 | `compiler`  | Pure compilation to web or Expo source; CLI and audited ZIP export         | `src/compile-web.ts`, `src/web-runtime.ts`, `src/compile.ts`, `src/cli.ts`         |
 | `spine`     | Entity definitions to PostgreSQL DDL and typed database contracts          | `src/index.ts`                                                                     |

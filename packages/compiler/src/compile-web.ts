@@ -4,7 +4,7 @@ import { resolveWiring } from '@blockfw/wiring';
 import { hashFiles, type CompileResult } from './compile.js';
 import { DATA_CORE } from './data-core.js';
 import { WEB_DATA_RUNTIME, DATA_STYLES } from './web-data.js';
-import { WEB_RUNTIME, WEB_STYLES } from './web-runtime.js';
+import { webRuntime, WEB_STYLES } from './web-runtime.js';
 import { CLOUD_RUNTIME, CLOUD_SERVER, CLOUD_SCHEMA, CLOUD_STYLES } from './cloud-assets.js';
 
 /** The standalone web export and the editor preview share this exact runtime. */
@@ -49,13 +49,17 @@ export function compileWebProject(graph: ProjectGraph, registry: BlockRegistry):
               : {}),
           },
           engines: { node: '>=22' },
-          dependencies: { react: '19.2.3', 'react-dom': '19.2.3', qrcode: '1.5.4' },
+          dependencies: {
+            react: '19.2.3',
+            'react-dom': '19.2.3',
+            ...(graph.app.cloud ? { qrcode: '1.5.4' } : {}),
+          },
           devDependencies: {
             vite: '6.4.4',
             typescript: '5.9.3',
             '@types/react': '19.2.3',
             '@types/react-dom': '19.2.3',
-            '@types/qrcode': '1.5.6',
+            ...(graph.app.cloud ? { '@types/qrcode': '1.5.6' } : {}),
           },
         }) + '\n',
     },
@@ -85,11 +89,13 @@ export function compileWebProject(graph: ProjectGraph, registry: BlockRegistry):
           include: ['src'],
         }) + '\n',
     },
-    { path: 'src/runtime.tsx', content: WEB_RUNTIME },
+    { path: 'src/runtime.tsx', content: webRuntime(Boolean(graph.app.cloud)) },
     { path: 'src/data-core.ts', content: DATA_CORE },
     { path: 'src/data-runtime.tsx', content: WEB_DATA_RUNTIME },
-    { path: 'src/cloud-runtime.tsx', content: CLOUD_RUNTIME },
-    { path: 'src/styles.css', content: WEB_STYLES + DATA_STYLES + CLOUD_STYLES },
+    {
+      path: 'src/styles.css',
+      content: WEB_STYLES + DATA_STYLES + (graph.app.cloud ? CLOUD_STYLES : ''),
+    },
     { path: 'src/project.json', content: canonicalJson(hydrated) + '\n' },
     { path: 'src/wires.json', content: canonicalJson(wiring.wires) + '\n' },
     {
@@ -111,6 +117,7 @@ export function compileWebProject(graph: ProjectGraph, registry: BlockRegistry):
   ];
   if (graph.app.cloud) {
     files.push(
+      { path: 'src/cloud-runtime.tsx', content: CLOUD_RUNTIME },
       { path: 'server/index.mjs', content: CLOUD_SERVER },
       { path: 'supabase/migrations/001_paper_cloud.sql', content: CLOUD_SCHEMA },
       {

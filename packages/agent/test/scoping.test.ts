@@ -72,6 +72,17 @@ describe('checkScope', () => {
     expect(r.rejections[0]).toMatch(/unknown block instance/);
   });
 
+  it('rejects unknown block types without throwing', () => {
+    const p = project();
+    p.graph.blocks[0]!.type = 'unknown.block@1.0.0';
+    const result = checkScope(p, {
+      ops: [{ path: `block:${p.graph.blocks[0]!.id}.config.headline`, value: 'Hello' }],
+      rationale: 'test',
+    });
+    expect(result.ok).toBe(false);
+    expect(result.rejections[0]).toMatch(/unknown block type/);
+  });
+
   it('ATTACK: rejects user hand-edited (touched) paths', () => {
     const p = project({ touched: ['block:b1.config.headline'] });
     const r = checkScope(p, {

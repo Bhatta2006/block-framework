@@ -59,6 +59,7 @@ export async function exportZip(
   await new Promise<void>((resolvePromise, reject) => {
     const output = createWriteStream(zipPath);
     const archive = new ZipArchive({ zlib: { level: 9 } });
+    output.on('error', reject);
     output.on('close', () => resolvePromise());
     archive.on('error', (...args: unknown[]) => reject(args[0] as Error));
     archive.pipe(output);
@@ -69,7 +70,7 @@ export async function exportZip(
         mode: 0o644,
       });
     }
-    archive.finalize();
+    void archive.finalize().catch(reject);
   });
 
   return {

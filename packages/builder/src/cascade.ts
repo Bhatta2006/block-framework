@@ -67,7 +67,7 @@ export function emptyProject(graph: ProjectGraph): BuilderProject {
     version: 1,
     profile: null,
     touched: [],
-    graph: JSON.parse(JSON.stringify(graph)) as ProjectGraph,
+    graph: structuredClone(graph),
   };
 }
 

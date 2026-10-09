@@ -447,11 +447,7 @@ export function compileProject(
     for (const b of graph.blocks) {
       const screenId = screenOfBlock.get(b.id);
       if (screenId === undefined) continue;
-      try {
-        manifestByInstance.set(b.id, { manifest: registry.get(b.type).manifest, screenId });
-      } catch {
-        // Unknown types already failed in resolveWiring; unreachable here.
-      }
+      manifestByInstance.set(b.id, { manifest: registry.get(b.type).manifest, screenId });
     }
     for (const w of wiring.wires) {
       if (w.to.instance === undefined || w.to.port === undefined) continue;

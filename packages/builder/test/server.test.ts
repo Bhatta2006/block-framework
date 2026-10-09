@@ -1,16 +1,25 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { startCanvasServer } from '@blockfw/builder';
 import type { BuilderProject } from '@blockfw/builder';
+import { ChatGPTConnection } from '../src/chatgpt.js';
 
 let base = '';
+const connection = new ChatGPTConnection({
+  vault: { read: () => undefined, write: () => undefined, close: () => undefined },
+  fetch: async () => {
+    throw new Error('Server API tests must not call live AI services.');
+  },
+});
 
 beforeAll(async () => {
   // Ephemeral port; no project file (uses the bundled example graph).
-  base = await startCanvasServer({ port: 0, host: '127.0.0.1' });
+  vi.stubEnv('BLOCKFW_LLM_PROVIDER', 'recorded');
+  base = await startCanvasServer({ port: 0, host: '127.0.0.1', chatgpt: connection });
 });
 
 afterAll(() => {
-  // The server keeps the process alive; vitest will tear it down.
+  connection.close();
+  vi.unstubAllEnvs();
 });
 
 async function api<T>(

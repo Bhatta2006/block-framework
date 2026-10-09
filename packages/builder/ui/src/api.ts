@@ -1,26 +1,13 @@
-import type { BlockDesign } from '@blockfw/manifest';
+import type { BlockPorts } from '@blockfw/manifest';
+import type { BuilderProject, BuilderProfile } from '../../src/cascade';
+import type { BlockCard } from '../../src/cards';
+import type { ChatGPTStatus, ChatGPTModel } from '../../src/chatgpt';
+import type { Wire, WiringReport } from '@blockfw/wiring';
+
+export type { BuilderProject, BlockCard, ChatGPTStatus, ChatGPTModel, Wire, WiringReport };
 export interface AppCatalog {
   activeId: string;
   apps: Array<{ id: string; name: string; deleted: boolean }>;
-}
-export interface ChatGPTStatus {
-  activeId?: string;
-  accounts: Array<{
-    id: string;
-    label: string;
-    connected: boolean;
-    planEnabled: boolean;
-    model?: string;
-  }>;
-  pending: boolean;
-  error?: string;
-  notice?: string;
-  welcome: boolean;
-  usageUrl: string;
-}
-export interface ChatGPTModel {
-  slug: string;
-  display_name: string;
 }
 let activeAppId = '';
 export interface BlockSummary {
@@ -30,77 +17,10 @@ export interface BlockSummary {
   defaultVariant: string;
   configSchema: Record<string, unknown>;
   defaultConfig: Record<string, unknown>;
-  ports: { emits: Array<string | { event: string }>; consumes: Array<string | { port: string }> };
+  ports: BlockPorts;
 }
 
-export interface BlockCard {
-  block: string;
-  markdown: string;
-  estimatedTokens: number;
-}
-
-export interface WireTarget {
-  screen: string;
-  instance?: string;
-  port?: string;
-}
-
-export interface Wire {
-  from: { instance: string; event: string };
-  to: WireTarget;
-  origin: 'auto' | 'user' | 'convention';
-}
-
-export interface WiringReport {
-  resolved: Wire[];
-  unmet: Array<{ instance: string; reason: string }>;
-  ambiguous: unknown[];
-  warnings: string[];
-  flow: {
-    entry: string;
-    reachable: string[];
-    unreachable: string[];
-    lanes?: string[];
-  };
-}
-
-export interface BuilderProject {
-  version: 1;
-  profile: Record<string, string> | null;
-  touched: string[];
-  graph: {
-    schemaVersion: string;
-    app: {
-      cloud?: { provider: 'supabase'; backendUrl?: string };
-      dataId?: string;
-      layout?: 'standard' | 'notes';
-      name: string;
-      slug: string;
-      version: string;
-      theme?: { primaryColor?: string; backgroundColor?: string; textColor?: string };
-    };
-    blocks: Array<{
-      design?: BlockDesign;
-      id: string;
-      type: string;
-      variant?: string;
-      config: Record<string, unknown>;
-      position?: { x: number; y: number };
-    }>;
-    screens: Array<{
-      navigation?: boolean;
-      id: string;
-      block: string;
-      blocks?: string[];
-      layout?: 'stack' | 'grid' | 'split';
-      disconnectedLayout?: string[];
-      position?: { x: number; y: number };
-      title: string;
-      lane?: string;
-    }>;
-    wires?: Array<{ from: { instance: string; event: string }; to: WireTarget }>;
-  };
-}
+export type WireTarget = Wire['to'];
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -162,7 +82,7 @@ export const api = {
   getProject: () => req<BuilderProject>('/api/project'),
   saveProject: (project: BuilderProject) =>
     req<{ ok: boolean }>('/api/project', { method: 'PUT', body: JSON.stringify(project) }),
-  setProfile: (profile: Record<string, string>) =>
+  setProfile: (profile: BuilderProfile) =>
     req<{ ok: boolean; errors?: string[] }>('/api/profile', {
       method: 'PUT',
       body: JSON.stringify({ profile }),
@@ -172,11 +92,6 @@ export const api = {
       '/api/cascade',
       { method: 'POST' },
     ),
-  touch: (path: string) =>
-    req<{ ok: boolean; touched: string[] }>('/api/touch', {
-      method: 'POST',
-      body: JSON.stringify({ path }),
-    }),
   compile: (target: 'web' | 'mobile' = 'mobile') =>
     req<{ ok: boolean; projectHash: string; files: string[]; wiring: WiringReport }>(
       `/api/compile?target=${target}`,
@@ -184,8 +99,6 @@ export const api = {
     ),
   getCards: () => req<BlockCard[]>('/api/cards'),
   getBlocks: () => req<BlockSummary[]>('/api/blocks'),
-  previewUrl: (instanceId: string, bust?: string) =>
-    `/api/preview/${instanceId}${bust ? `?t=${bust}` : ''}`,
   agentEdit: (instruction: string, focusInstanceIds?: string[], allowTouched = false) =>
     req<{
       ok: boolean;

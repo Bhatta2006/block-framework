@@ -137,6 +137,12 @@ describe('real cloud app contracts', () => {
     ) as ProjectGraph;
     validateProjectGraph(graph);
     const result = compileWebProject(graph, loadDefaultRegistry());
+    const pkg = JSON.parse(result.files.find((f) => f.path === 'package.json')!.content);
+    expect(pkg.dependencies.qrcode).toBe('1.5.4');
+    expect(pkg.devDependencies['@types/qrcode']).toBe('1.5.6');
+    expect(result.files.find((f) => f.path === 'src/cloud-runtime.tsx')!.content).toContain(
+      'CloudProvider',
+    );
     expect(result.wiring.report.unmet).toEqual([]);
     expect(result.wiring.report.flow?.unreachable).toEqual([]);
     expect(result.files.find((f) => f.path === 'server/index.mjs')?.content).toContain(

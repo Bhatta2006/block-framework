@@ -547,7 +547,9 @@ export function createAppHandler({
               method: 'POST',
               token: session.tokens.access_token,
             });
-          } catch {}
+          } catch {
+            // The application session is already deleted; provider revocation is best effort.
+          }
           send(res, 200, { ok: true });
           return;
         }

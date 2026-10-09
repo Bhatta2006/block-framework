@@ -3,7 +3,7 @@ declare module 'archiver' {
     constructor(options?: { zlib?: { level?: number } });
     pipe(destination: NodeJS.WritableStream): void;
     append(content: string | Buffer, options: { name: string; date?: Date; mode?: number }): void;
-    finalize(): void;
+    finalize(): Promise<void>;
     on(event: 'error' | 'close', listener: (...args: unknown[]) => void): void;
   }
 }

@@ -11,7 +11,6 @@ export default tseslint.config(
       '**/__render_out__/**',
       '**/node_modules/**',
       '**/*.js',
-      '**/*.mjs',
       '.builder-cache/**',
       '.ci-work/**',
       '.audit-work/**',
@@ -24,6 +23,9 @@ export default tseslint.config(
       globals: {
         process: 'readonly',
         console: 'readonly',
+        Buffer: 'readonly',
+        URL: 'readonly',
+        AbortSignal: 'readonly',
       },
     },
   },

@@ -1,32 +1,6 @@
 import { useState } from 'react';
 import { api, type BuilderProject } from './api';
-
-const QUESTIONS: Array<{
-  key: string;
-  label: string;
-  placeholder: string;
-  kind: 'text' | 'color' | 'select';
-  options?: string[];
-}> = [
-  { key: 'appName', label: 'What is your app called?', placeholder: 'HabitFlow', kind: 'text' },
-  { key: 'audience', label: 'Who is it for?', placeholder: 'busy professionals', kind: 'text' },
-  {
-    key: 'tone',
-    label: 'What tone should the copy use?',
-    placeholder: 'playful',
-    kind: 'select',
-    options: ['playful', 'professional', 'minimal'],
-  },
-  { key: 'brandColor', label: 'Pick a brand color', placeholder: '#4F46E5', kind: 'color' },
-  { key: 'price', label: 'Monthly price (numbers only)', placeholder: '4.99', kind: 'text' },
-  {
-    key: 'currency',
-    label: 'Currency',
-    placeholder: 'USD',
-    kind: 'select',
-    options: ['USD', 'EUR', 'GBP', 'INR'],
-  },
-];
+import { PROFILE_QUESTIONS, type BuilderProfile } from '../../src/cascade';
 
 interface Props {
   project: BuilderProject;
@@ -39,7 +13,7 @@ interface Props {
  * without touching anything the user hand-edited.
  */
 export function ProfileWizard({ project, onChanged }: Props) {
-  const [values, setValues] = useState<Record<string, string>>(() => ({
+  const [values, setValues] = useState<BuilderProfile>(() => ({
     appName: project.graph.app.name,
     audience: 'everyone',
     tone: 'minimal',
@@ -88,7 +62,7 @@ export function ProfileWizard({ project, onChanged }: Props) {
         </p>
       )}
       <div className="question-grid">
-        {QUESTIONS.map((q) => (
+        {PROFILE_QUESTIONS.map((q) => (
           <label key={q.key} className="field">
             <span>{q.label}</span>
             {q.kind === 'select' ? (
