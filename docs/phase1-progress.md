@@ -36,7 +36,9 @@ Final repository gates for this increment passed: typecheck, lint, 260 unit test
 
 ## Ordered remaining increments
 
-1. Generated lint/format gates. Decompose the existing large runtime into readable feature/page files before claiming the plan's file-size target. Extend the functional SaaS fixture as the new UI stack lands.
+Generated ESLint/Prettier gates now pass on the independent SaaS and Notes workspaces and run in generated CI. Repository verification passed 262 unit tests and 68 browser tests plus typecheck, lint and Studio build. ADR-0011 records source normalization and the deliberate workspace fixture revision. The user chose to extend the existing designer, retaining graph operations and undo/redo, rather than adopt Puck.
+
+1. Decompose the existing large runtime into readable feature/page files before claiming the plan's file-size target. Extend the functional SaaS fixture as the new UI stack lands.
 2. Shared design tokens and selected web/native primitives, adopting the approved libraries after checking the actual pinned Expo toolchain. Add independent export and accessibility checks with each migration.
 3. Nested component trees and slots across schema, operations, compiler and preview. Evaluate Puck's keyboard behavior, graph identity and shared history before making an editor commitment.
 4. Studio Flow/Design shell per the UI/UX specification, preserving existing editing, export and undo behavior. Do not expose unimplemented Data/Logic/Agents/Ship capabilities as working controls.

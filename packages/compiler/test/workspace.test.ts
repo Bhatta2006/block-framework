@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { describe, expect, it } from 'vitest';
 import { loadDefaultRegistry } from '@blockfw/blocks';
 import { migrateGraph } from '@blockfw/manifest';
+import { formatWorkspace } from '../src/workspace-quality.js';
 import {
   compileWorkspace,
   compileWebProject,
@@ -19,27 +20,31 @@ const graph = (name = 'notes') =>
 const registry = loadDefaultRegistry();
 
 describe('workspace export', () => {
-  it('preserves the SaaS workspace source and audited ZIP golden fixture', async () => {
-    const baseline = JSON.parse(
-      readFileSync('packages/compiler/test/fixtures/phase1-saas.json', 'utf8'),
-    );
-    const input = graph('saas');
-    const compiled = compileWorkspace(input, registry);
-    const sha = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
-    expect(compiled.projectHash).toBe(baseline.projectHash);
-    expect(
-      Object.fromEntries(compiled.files.map((file) => [file.path, sha(file.content)])),
-    ).toEqual(baseline.files);
-    const directory = mkdtempSync(join(tmpdir(), 'blockfw-saas-'));
-    try {
-      const zip = join(directory, 'saas.zip');
-      const result = await exportZip(input, zip, 'workspace');
-      expect(result.audit).toEqual({ ok: true, violations: [] });
-      expect(sha(readFileSync(zip))).toBe(baseline.zipHash);
-    } finally {
-      rmSync(directory, { recursive: true, force: true });
-    }
-  });
+  it(
+    'preserves the SaaS workspace source and audited ZIP golden fixture',
+    { timeout: 20_000 },
+    async () => {
+      const baseline = JSON.parse(
+        readFileSync('packages/compiler/test/fixtures/phase1-saas-quality.json', 'utf8'),
+      );
+      const input = graph('saas');
+      const compiled = compileWorkspace(input, registry);
+      const sha = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
+      expect(compiled.projectHash).toBe(baseline.projectHash);
+      expect(
+        Object.fromEntries(compiled.files.map((file) => [file.path, sha(file.content)])),
+      ).toEqual(baseline.files);
+      const directory = mkdtempSync(join(tmpdir(), 'blockfw-saas-'));
+      try {
+        const zip = join(directory, 'saas.zip');
+        const result = await exportZip(input, zip, 'workspace');
+        expect(result.audit).toEqual({ ok: true, violations: [] });
+        expect(sha(readFileSync(zip))).toBe(baseline.zipHash);
+      } finally {
+        rmSync(directory, { recursive: true, force: true });
+      }
+    },
+  );
 
   it('includes executable web test dependencies and a least-privilege pinned CI workflow', () => {
     const compiled = compileWorkspace(graph('saas'), registry);
@@ -47,6 +52,10 @@ describe('workspace export', () => {
     const root = JSON.parse(content('package.json'));
     const web = JSON.parse(content('apps/web/package.json'));
     expect(root.scripts.test).toBe('turbo run test');
+    expect(root.scripts.lint).toBe('eslint . --max-warnings 0');
+    expect(root.scripts['format:check']).toContain('prettier --check');
+    expect(root.devDependencies.eslint).toBe('10.12.0');
+    expect(content('eslint.config.mjs')).toContain('...tseslint.configs.recommended');
     expect(root.engines.node).toBe('^24.15.0 || >=26.0.0');
     expect(web.scripts.test).toBe('vitest run');
     expect(web.devDependencies).toMatchObject({
@@ -65,6 +74,8 @@ describe('workspace export', () => {
     for (const command of [
       'pnpm install --frozen-lockfile',
       'pnpm typecheck',
+      'pnpm lint',
+      'pnpm format:check',
       'pnpm test',
       'pnpm build',
     ])
@@ -88,7 +99,9 @@ describe('workspace export', () => {
     expect(web.scripts.typecheck).toBe('tsc --noEmit');
     expect(JSON.parse(content('apps/mobile/app.json')).expo.platforms).toEqual(['android', 'ios']);
     expect(content('apps/web/src/main.tsx')).toBe(
-      compileWebProject(input, registry).files.find((f) => f.path === 'src/main.tsx')!.content,
+      formatWorkspace([
+        compileWebProject(input, registry).files.find((f) => f.path === 'src/main.tsx')!,
+      ])[0]!.content,
     );
     for (const name of ['web', 'mobile']) {
       const prefix = `apps/${name}/`;

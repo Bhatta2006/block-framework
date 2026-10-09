@@ -91,6 +91,8 @@ jobs:
       - run: npm install --global pnpm@${pnpm}
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm format:check
       - run: pnpm test
       - run: pnpm build
 `,

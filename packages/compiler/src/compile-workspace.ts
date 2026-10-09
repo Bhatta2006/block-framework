@@ -5,6 +5,12 @@ import { emitWebIR } from './backends/web.js';
 import { emitNativeIR } from './backends/native.js';
 import { hashFiles, type CompileResult, type CompiledFile } from './files.js';
 import { workspaceCheckFiles, WEB_TEST_DEPS } from './workspace-checks.js';
+import {
+  formatWorkspace,
+  QUALITY_DEPS,
+  QUALITY_FILES,
+  QUALITY_SCRIPTS,
+} from './workspace-quality.js';
 
 const PNPM = '12.10.1';
 const TURBO = '2.11.7';
@@ -30,7 +36,7 @@ export function compileWorkspace(graph: GraphInput, registry: BlockRegistry): Co
   const checks = workspaceCheckFiles(PNPM);
   for (const { name, result } of apps) {
     const prefix = `apps/${name}/`;
-    const appFiles = [
+    let appFiles = [
       ...result.files.map((file) => ({ ...file })),
       ...checks
         .filter((file) => file.path.startsWith(prefix))
@@ -57,6 +63,7 @@ export function compileWorkspace(graph: GraphInput, registry: BlockRegistry): Co
       appFile.content = canonicalJson(app) + '\n';
     }
     pkgFile.content = canonicalJson(pkg) + '\n';
+    appFiles = formatWorkspace(appFiles);
     const report = appFiles.find((file) => file.path === 'src/wiring-report.json')!;
     report.content =
       canonicalJson({
@@ -65,6 +72,7 @@ export function compileWorkspace(graph: GraphInput, registry: BlockRegistry): Co
       }) + '\n';
     files.push(...appFiles.map((file) => ({ ...file, path: `apps/${name}/${file.path}` })));
   }
+  const appFileCount = files.length;
   files.push(
     jsonFile('package.json', {
       name: ir.compatibilityGraph.app.slug + '-workspace',
@@ -76,10 +84,11 @@ export function compileWorkspace(graph: GraphInput, registry: BlockRegistry): Co
         build: 'turbo run build',
         typecheck: 'turbo run typecheck',
         test: 'turbo run test',
+        ...QUALITY_SCRIPTS,
         'dev:web': 'pnpm --filter app-web dev',
         'dev:mobile': 'pnpm --filter app-mobile dev',
       },
-      devDependencies: { turbo: TURBO },
+      devDependencies: { turbo: TURBO, ...QUALITY_DEPS },
     }),
     { path: 'pnpm-workspace.yaml', content: "packages:\n  - 'apps/*'\n" },
     jsonFile('turbo.json', {
@@ -100,7 +109,7 @@ export function compileWorkspace(graph: GraphInput, registry: BlockRegistry): Co
     },
     {
       path: 'docs/SETUP.md',
-      content: `# Setup and verification\n\nInstall Node 24.15+ (24.x) or 26+ and pnpm ${PNPM} (\`npm install --global pnpm@${PNPM}\`), then run the root README commands. Install from the workspace root so both apps share one lockfile. The compiler does not contact package registries; the first install resolves transitive dependencies. Review and commit that lockfile before CI or deployment.\n\n- Web: Vite development server; host apps/web/dist after building.\n- Tests: \`pnpm test\` renders each web page and checks header navigation using Vitest/Testing Library in jsdom. Extend these smoke tests with application-specific interactions. They do not verify visual design, external services or native behavior.\n- CI: .github/workflows/verify.yml runs typecheck, tests and builds on pushes/pull requests. It requires pnpm-lock.yaml; no deployment or credentials are configured. Generated lint/format gates remain future work.\n- Mobile: Expo development server; compatible native device/emulator needed for runtime verification. Build bundles only the native platforms declared by the graph. Store signing/submission is a separate step.\n- \`pnpm exec turbo run build --dry=json\` inspects the build tasks.\n\nThe current export uses the existing native modules and routes. Native auth/cloud is rejected until supported. Review dependency advisories and native SDK compatibility before publication. Never commit environment secrets. No connection to Studio is required to run this source.\n`,
+      content: `# Setup and verification\n\nInstall Node 24.15+ (24.x) or 26+ and pnpm ${PNPM} (\`npm install --global pnpm@${PNPM}\`), then run the root README commands. Install from the workspace root so both apps share one lockfile. The compiler does not contact package registries; the first install resolves transitive dependencies. Review and commit that lockfile before CI or deployment.\n\n- Web: Vite development server; host apps/web/dist after building.\n- Tests: \`pnpm test\` renders each web page and checks header navigation using Vitest/Testing Library in jsdom. Extend these smoke tests with application-specific interactions. They do not verify visual design, external services or native behavior.\n- CI: .github/workflows/verify.yml runs typecheck, tests and builds on pushes/pull requests. It requires pnpm-lock.yaml; no deployment or credentials are configured. Run \`pnpm lint\` and \`pnpm format:check\` before committing. ESLint/Prettier configuration is editable; JSON graph/report files use canonical serialization.\n- Mobile: Expo development server; compatible native device/emulator needed for runtime verification. Build bundles only the native platforms declared by the graph. Store signing/submission is a separate step.\n- \`pnpm exec turbo run build --dry=json\` inspects the build tasks.\n\nThe current export uses the existing native modules and routes. Native auth/cloud is rejected until supported. Review dependency advisories and native SDK compatibility before publication. Never commit environment secrets. No connection to Studio is required to run this source.\n`,
     },
     {
       path: 'docs/ARCHITECTURE.md',
@@ -108,7 +117,9 @@ export function compileWorkspace(graph: GraphInput, registry: BlockRegistry): Co
         '# Architecture\n\napps/web contains the React/Vite application; apps/mobile contains the Expo/React Native application. Each has its own entry point, package manifest, block source lock and wiring report. Source/configuration is copied from the existing validated target emitters. pnpm manages dependencies and Turbo schedules the build/typecheck scripts.\n\nWeb and native currently retain their own data runtimes and storage. They do not synchronize data. No backend or unused shared package is generated. Future shared packages must have a real consumer and a supported graph capability.\n\nThe root wiring-report.json hashes every emitted file except itself, including the nested reports. Each nested report separately hashes its application files, excluding that report. blockfw.lock.json inside each app records its block contracts and source digests.\n',
     },
   );
-  files.push(...checks.filter((file) => !file.path.startsWith('apps/')));
+  files.push(...QUALITY_FILES, ...checks.filter((file) => !file.path.startsWith('apps/')));
+  const formatted = formatWorkspace(files.slice(appFileCount));
+  files.splice(appFileCount, files.length - appFileCount, ...formatted);
   const projectHash = hashFiles(files);
   files.push(
     jsonFile('wiring-report.json', { projectHash, target: 'workspace', ...ir.wiring.report }),
