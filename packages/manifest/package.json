@@ -11,6 +11,10 @@
     "require-from-string": "^2.0.2"
   },
   "exports": {
+    "./operations": {
+      "types": "./dist/operations/client.d.ts",
+      "default": "./dist/operations/client.js"
+    },
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"

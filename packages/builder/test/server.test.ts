@@ -1,6 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { request as httpRequest } from 'node:http';
 import { startCanvasServer } from '@blockfw/builder';
 import type { BuilderProject } from '@blockfw/builder';
+import {
+  diffProjectOperations,
+  type OperationEntry,
+  type ProjectOperation,
+} from '@blockfw/manifest';
 import { ChatGPTConnection } from '../src/chatgpt.js';
 
 let base = '';
@@ -36,6 +42,91 @@ async function api<T>(
 }
 
 describe('canvas server API', () => {
+  it('rejects a partially received operation request when the active app changes while reading its body', async () => {
+    const original = (await api<BuilderProject>('GET', '/api/project')).json;
+    const originalId = (await api<{ activeId: string }>('GET', '/api/apps')).json.activeId;
+    const created = (await api<{ activeId: string }>('POST', '/api/apps', { project: original }))
+      .json;
+    await api('POST', '/api/apps/' + originalId + '/activate');
+    const revision = (await api<{ revision: number }>('GET', '/api/operations')).json.revision;
+    const body = JSON.stringify({
+      revision,
+      operations: [{ type: 'setTouched', touched: ['app.name'] }],
+    });
+    let pending!: ReturnType<typeof httpRequest>;
+    const response = new Promise<number>((resolveResponse, reject) => {
+      pending = httpRequest(
+        base + '/api/operations',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+            'X-Block-App-Id': originalId,
+          },
+        },
+        (res) => {
+          res.resume();
+          resolveResponse(res.statusCode!);
+        },
+      );
+      pending.on('error', reject);
+      pending.write(body.slice(0, 1));
+    });
+    try {
+      await api('POST', '/api/apps/' + created.activeId + '/activate');
+      pending.end(body.slice(1));
+      expect(await response).toBe(409);
+      expect((await api<BuilderProject>('GET', '/api/project')).json.touched).toEqual(
+        original.touched,
+      );
+    } finally {
+      pending.destroy();
+      await api('POST', '/api/apps/' + originalId + '/activate');
+    }
+  });
+  it('uses one operation log for accepted writes, rejects stale revisions, and preserves state after failed operations', async () => {
+    type History = {
+      project: BuilderProject;
+      undo: number;
+      redo: number;
+      revision: number;
+      entries: OperationEntry[];
+    };
+    const before = (await api<History>('GET', '/api/operations')).json;
+    const changed = structuredClone(before.project);
+    changed.graph.app.name = 'Operation API';
+    const operations = diffProjectOperations(before.project, changed);
+    expect(
+      (await api('POST', '/api/operations', { revision: before.revision, operations })).status,
+    ).toBe(200);
+    const accepted = (await api<History>('GET', '/api/operations')).json;
+    expect(accepted.project.graph.app.name).toBe('Operation API');
+    expect(accepted.entries.at(-1)?.source).toBe('ui');
+    expect(accepted.undo).toBe(before.undo + 1);
+    expect(
+      (await api('POST', '/api/operations', { revision: before.revision, operations })).status,
+    ).toBe(409);
+    const invalid: ProjectOperation[] = [
+      { type: 'removeComponent', id: changed.graph.screens[0]!.block },
+    ];
+    expect(
+      (await api('POST', '/api/operations', { revision: accepted.revision, operations: invalid }))
+        .status,
+    ).toBe(400);
+    expect((await api<History>('GET', '/api/operations')).json).toEqual(accepted);
+    expect(
+      (await api('POST', '/api/operations/undo', { revision: accepted.revision })).status,
+    ).toBe(200);
+    const undone = (await api<History>('GET', '/api/operations')).json;
+    expect(undone.project).toEqual(before.project);
+    expect((await api('POST', '/api/operations/redo', { revision: undone.revision })).status).toBe(
+      200,
+    );
+    const redone = (await api<History>('GET', '/api/operations')).json;
+    expect(redone.project).toEqual(accepted.project);
+    await api('POST', '/api/operations/undo', { revision: redone.revision });
+  });
   it('keeps the record namespace stable when a project file supplies another app id', async () => {
     const catalog = (await api<{ activeId: string }>('GET', '/api/apps')).json;
     const original = (await api<BuilderProject>('GET', '/api/project')).json;

@@ -69,7 +69,10 @@ export function validateAppGraphV1(graph: unknown): asserts graph is AppGraphV1 
     for (const child of children) visit(child, new Set([...ancestors, id]));
   };
   for (const page of graph.pages) {
-    reference(components, page.primaryComponent, 'primary component');
+    if (!components.has(page.primaryComponent))
+      throw new Error(
+        `Page "${page.id}" references unknown block instance "${page.primaryComponent}".`,
+      );
     if (!page.components.includes(page.primaryComponent))
       throw new Error(`Primary component missing from page: ${page.id}`);
     if (page.parent) reference(pages, page.parent, 'parent page');

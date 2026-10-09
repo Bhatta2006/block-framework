@@ -24,6 +24,7 @@ import type {
 } from './types.js';
 import { planPrompt } from './planner.js';
 import { checkScope, parsePlan, type EditScope } from './scoping.js';
+import { ProjectOperationLog, type ProjectOperation } from '@blockfw/manifest';
 
 export interface GatewayOptions {
   /** Max LLM attempts per edit (1 + retries). Default 3. */
@@ -38,20 +39,6 @@ function getPath(project: AgentProject, path: string): unknown {
   for (const key of keys) value = (value as Record<string, unknown> | undefined)?.[key];
   return value;
 }
-function setPath(project: AgentProject, path: string, value: unknown): void {
-  const [reference, ...keys] = path.split('.');
-  let target = project.graph.blocks.find((b) => b.id === reference?.slice(6)) as unknown as Record<
-    string,
-    unknown
-  >;
-  if (!target) throw new Error('Unknown block.');
-  for (const key of keys.slice(0, -1)) {
-    target[key] ??= {};
-    target = target[key] as Record<string, unknown>;
-  }
-  target[keys.at(-1)!] = value;
-}
-
 function diffOf(before: AgentProject, ops: AgentEditOp[]): FieldDiff[] {
   return ops.map((op) => ({
     path: op.path,
@@ -64,13 +51,18 @@ export class AgentGateway<P extends AgentProject = AgentProject> {
   private provider: LlmProvider;
   private maxAttempts: number;
   private maxTokens: number;
-  private undoStack: P[] = [];
+  private operations: ProjectOperationLog<P>;
   readonly usageLog: TokenUsage[] = [];
 
-  constructor(provider: LlmProvider, opts: GatewayOptions = {}) {
+  constructor(
+    provider: LlmProvider,
+    opts: GatewayOptions = {},
+    operations = new ProjectOperationLog<P>(),
+  ) {
     this.provider = provider;
     this.maxAttempts = opts.maxAttempts ?? 3;
     this.maxTokens = opts.maxTokens ?? 800;
+    this.operations = operations;
   }
 
   /** Change connection without losing reviewed-edit undo history or usage. */
@@ -160,25 +152,26 @@ export class AgentGateway<P extends AgentProject = AgentProject> {
     if (!check.ok) {
       throw new Error(`refusing to apply: ${check.rejections.join('; ')}`);
     }
-    const next = structuredClone(project);
-    for (const op of check.accepted) setPath(next, op.path, op.value);
-    // Agent edits become touched: the cascade and future agent runs must not
-    // silently overwrite what the agent (acting for the user) set.
-    for (const op of check.accepted) {
-      if (!next.touched.includes(op.path)) next.touched.push(op.path);
-    }
-    next.touched.sort();
-    this.undoStack.push(structuredClone(project));
+    const operations: ProjectOperation[] = check.accepted.map((op) => {
+      const [reference, ...path] = op.path.split('.');
+      return { type: 'setBlockField', id: reference!.slice(6), path, value: op.value };
+    });
+    operations.push({
+      type: 'setTouched',
+      touched: [...new Set([...project.touched, ...check.accepted.map((op) => op.path)])].sort(),
+    });
+    const next = this.operations.apply(project, operations, 'agent');
     return { project: next, applied: check.accepted };
   }
 
   /** Revert the most recent applied edit. Returns null when nothing to undo. */
   undo(): P | null {
-    return this.undoStack.pop() ?? null;
+    if (this.operations.lastSource !== 'agent') return null;
+    return this.operations.travel('undo');
   }
 
   get undoDepth(): number {
-    return this.undoStack.length;
+    return this.operations.agentDepth;
   }
 
   /** Total tokens spent through this gateway (for honest cost reporting). */

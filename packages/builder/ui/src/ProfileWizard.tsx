@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api, type BuilderProject } from './api';
-import { PROFILE_QUESTIONS, type BuilderProfile } from '../../src/cascade';
+import { PROFILE_QUESTIONS, type BuilderProfile } from '../../src/profile';
 
 interface Props {
   project: BuilderProject;

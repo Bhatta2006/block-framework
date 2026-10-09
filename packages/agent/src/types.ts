@@ -80,15 +80,5 @@ export interface AgentProject {
   /** Not read by the agent; kept as unknown to avoid coupling. */
   profile: unknown;
   touched: string[];
-  graph: {
-    app: { name: string; theme?: { primaryColor?: string } };
-    blocks: Array<{
-      id: string;
-      type: string;
-      variant?: string;
-      config?: Record<string, unknown>;
-      design?: import('@blockfw/manifest').BlockDesign;
-    }>;
-    screens: Array<{ id: string; block: string; title: string; lane?: string }>;
-  };
+  graph: import('@blockfw/manifest').ProjectGraph;
 }

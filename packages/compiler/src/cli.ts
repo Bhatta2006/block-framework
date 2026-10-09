@@ -11,7 +11,7 @@
  *
  * No step here involves an AI model. That is the point.
  */
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, existsSync, renameSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { pathToFileURL } from 'node:url';
@@ -23,7 +23,15 @@ import {
   writeScaffoldedBlock,
   blockSourceDir,
 } from '@blockfw/blocks';
-import { legacyGraph, type ProjectGraph } from '@blockfw/manifest';
+import {
+  legacyGraph,
+  migrateGraph,
+  canonicalJson,
+  ProjectOperationLog,
+  type GraphDocument,
+  type ProjectGraph,
+  type ProjectOperation,
+} from '@blockfw/manifest';
 import { resolveWiring, type WiringResult } from '@blockfw/wiring';
 import { validateSpine, spineToSql, spineToTypes, type SpineFile } from '@blockfw/spine';
 import { compileProject } from './compile.js';
@@ -33,6 +41,29 @@ import { exportZipFromFile } from './export-zip.js';
 function loadGraph(path: string): ProjectGraph {
   const raw = readFileSync(resolve(path), 'utf8');
   return legacyGraph(JSON.parse(raw));
+}
+
+function cmdOperations(graphPath: string, operationsPath: string, out: string): void {
+  const graph = migrateGraph(JSON.parse(readFileSync(resolve(graphPath), 'utf8')));
+  const operations = JSON.parse(
+    readFileSync(resolve(operationsPath), 'utf8'),
+  ) as ProjectOperation[];
+  if (!Array.isArray(operations)) throw new Error('Operations must be an array');
+  const log = new ProjectOperationLog<GraphDocument>();
+  const next = log.apply({ version: 1, profile: null, touched: [], graph }, operations, 'cli');
+  const registry = loadDefaultRegistry();
+  compileWebProject(next.graph, registry);
+  if (next.graph.schemaVersion === '1' && next.graph.app.targets.some((target) => target !== 'web'))
+    compileProject(next.graph, registry);
+  const path = resolve(out);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path + '.tmp', canonicalJson(next.graph) + '\n');
+  renameSync(path + '.tmp', path);
+  writeFileSync(
+    path + '.operations.json',
+    canonicalJson({ ...log.state, entries: log.entries }) + '\n',
+  );
+  console.log(`applied ${operations.length} operation(s) -> ${path}`);
 }
 
 function printWiring(wiring: WiringResult): void {
@@ -273,7 +304,10 @@ async function main(): Promise<void> {
   if (values.target && !['web', 'mobile'].includes(values.target))
     fail('--target must be web or mobile');
   const target = (values.target ?? 'mobile') as 'web' | 'mobile';
-  if (command === 'validate' && rest[0]) {
+  if (command === 'ops' && rest[0] === 'apply' && rest[1] && rest[2]) {
+    if (!values.out) fail('ops apply requires --out <graph.json>');
+    cmdOperations(rest[1], rest[2], values.out);
+  } else if (command === 'validate' && rest[0]) {
     cmdValidate(rest[0]);
   } else if (command === 'wires' && rest[0]) {
     try {
@@ -297,6 +331,7 @@ async function main(): Promise<void> {
   } else {
     console.error(
       'usage:\n' +
+        '  blockc ops apply <graph.json> <operations.json> --out <graph.json>\n' +
         '  blockc validate <graph.json>\n' +
         '  blockc wires <graph.json>\n' +
         '  blockc compile <graph.json> --out <dir> [--target web|mobile] [--spine <spine.json>]\n' +

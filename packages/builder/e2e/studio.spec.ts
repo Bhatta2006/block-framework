@@ -113,7 +113,7 @@ test('element design supports manual offsets, drag, shared styles, resets, and s
       async () =>
         (await (await request.get('/api/project')).json()).graph.blocks.find(
           (b: { id: string }) => b.id === 'b1',
-        ).design.elements.button.x,
+        )?.design?.elements?.button?.x,
     )
     .toBe(24);
   await expect(frame.locator('[data-element="button"]')).toHaveCSS('width', '200px');
@@ -127,7 +127,7 @@ test('element design supports manual offsets, drag, shared styles, resets, and s
       async () =>
         (await (await request.get('/api/project')).json()).graph.blocks.find(
           (b: { id: string }) => b.id === 'b1',
-        ).design.elements.button.x,
+        )?.design?.elements?.button?.x,
     )
     .toBe(49);
   await page.getByLabel('Apply to matching elements in all blocks').check();
@@ -149,7 +149,7 @@ test('element design supports manual offsets, drag, shared styles, resets, and s
       async () =>
         (await (await request.get('/api/project')).json()).graph.blocks.find(
           (b: { id: string }) => b.id === 'b1',
-        ).design.elements.button,
+        )?.design?.elements?.button,
     )
     .toBeUndefined();
   await page.getByRole('button', { name: 'Ask AI to customize', exact: true }).click();

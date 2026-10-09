@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, type AppCatalog, type BuilderProject } from './api';
+import { diffProjectOperations } from '@blockfw/manifest/operations';
 
 /**
  * Loads the project once and exposes mutation helpers that persist to the
- * server. Writes are serialized and accepted snapshots feed undo/redo.
+ * server. Writes are serialized; the server's typed operation log feeds undo/redo.
  */
 export function useProject() {
   const [project, setProject] = useState<BuilderProject | null>(null);
@@ -12,21 +13,17 @@ export function useProject() {
   const [saving, setSaving] = useState(false);
   const [historyState, setHistoryState] = useState({ undo: 0, redo: 0 });
   const current = useRef<BuilderProject | null>(null);
-  const history = useRef<{ past: BuilderProject[]; future: BuilderProject[] }>({
-    past: [],
-    future: [],
-  });
+  const revision = useRef(0);
   const queue = useRef(Promise.resolve());
 
   const refresh = useCallback(async () => {
     await queue.current;
     try {
       setCatalog(await api.getApps());
-      const loaded = await api.getProject();
-      if (current.current && JSON.stringify(current.current) !== JSON.stringify(loaded)) {
-        history.current = { past: [], future: [] };
-        setHistoryState({ undo: 0, redo: 0 });
-      }
+      const history = await api.getOperations();
+      const loaded = history.project;
+      revision.current = history.revision;
+      setHistoryState({ undo: history.undo, redo: history.redo });
       current.current = loaded;
       setProject(loaded);
       setError(null);
@@ -49,24 +46,26 @@ export function useProject() {
       try {
         fn(next);
         next.graph.app.dataId = before.graph.app.dataId;
-        await api.saveProject(next);
+        const accepted = await api.applyOperations(
+          diffProjectOperations(before, next),
+          revision.current,
+        );
+        const saved = accepted.project;
         setCatalog((prev) =>
           prev
             ? {
                 ...prev,
                 apps: prev.apps.map((a) =>
-                  a.id === prev.activeId ? { ...a, name: next.graph.app.name } : a,
+                  a.id === prev.activeId ? { ...a, name: saved.graph.app.name } : a,
                 ),
               }
             : prev,
         );
-        history.current.past.push(before);
-        if (history.current.past.length > 50) history.current.past.shift();
-        history.current.future = [];
-        current.current = next;
-        setProject(next);
+        current.current = saved;
+        setProject(saved);
+        revision.current = accepted.history.revision;
         setError(null);
-        setHistoryState({ undo: history.current.past.length, redo: 0 });
+        setHistoryState({ undo: accepted.history.undo, redo: accepted.history.redo });
       } catch (e) {
         setProject(structuredClone(before));
         setError(e instanceof Error ? e.message : String(e));
@@ -80,20 +79,15 @@ export function useProject() {
   }, []);
   const travel = useCallback((direction: 'undo' | 'redo') => {
     queue.current = queue.current.then(async () => {
-      const { past, future } = history.current;
-      const from = direction === 'undo' ? past : future;
-      const to = direction === 'undo' ? future : past;
-      const next = from.at(-1);
-      if (!next || !current.current) return;
+      if (!current.current) return;
       setSaving(true);
       try {
-        await api.saveProject(next);
-        from.pop();
-        to.push(current.current);
-        current.current = next;
-        setProject(next);
+        const result = await api.travel(direction, revision.current);
+        current.current = result.project;
+        setProject(result.project);
+        revision.current = result.history.revision;
         setError(null);
-        setHistoryState({ undo: past.length, redo: future.length });
+        setHistoryState({ undo: result.history.undo, redo: result.history.redo });
       } catch (e) {
         setError(String(e));
       } finally {
@@ -116,8 +110,9 @@ export function useProject() {
         current.current = result.project;
         setProject(result.project);
         setCatalog(result);
-        history.current = { past: [], future: [] };
-        setHistoryState({ undo: 0, redo: 0 });
+        const history = await api.getOperations();
+        revision.current = history.revision;
+        setHistoryState({ undo: history.undo, redo: history.redo });
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
         throw e;

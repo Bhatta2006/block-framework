@@ -12,7 +12,14 @@ import {
   unwrapSampleConfig,
   canonicalJson,
 } from '@blockfw/blocks';
-import { validateProjectGraph, legacyGraph, type GraphInput } from '@blockfw/manifest';
+import {
+  validateProjectGraph,
+  legacyGraph,
+  ProjectOperationLog,
+  diffProjectOperations,
+  type ProjectOperation,
+  type GraphInput,
+} from '@blockfw/manifest';
 import {
   applyCascade,
   emptyProject,
@@ -28,6 +35,7 @@ import { AppLibrary, type StoredBuilderProject } from './apps.js';
 import { ChatGPTConnection } from './chatgpt.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
+class ActiveAppChangedError extends Error {}
 
 /** Resolve the built SPA directory (vite outDir) with a dev fallback. */
 function uiDir(): string {
@@ -117,6 +125,39 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
   saveProject();
   const fingerprint = () => createHash('sha256').update(canonicalJson(project)).digest('hex');
   let lastAgentFingerprint: string | null = null;
+  const operationLogs = new Map<string, ProjectOperationLog<BuilderProject>>();
+  const operationLog = () => {
+    let log = operationLogs.get(apps.activeId);
+    if (!log) {
+      log = new ProjectOperationLog<BuilderProject>(
+        (next, graph) => {
+          if (next.graph.app.dataId !== apps.activeId)
+            throw new Error('The app record namespace is immutable');
+          if (next.profile) {
+            const errors = validateProfile(next.profile);
+            if (errors.length) throw new Error(errors.join('; '));
+          }
+          compileWebProject(graph, registry);
+          if (
+            !next.graph.app.cloud &&
+            (graph.schemaVersion === '0' || graph.app.targets.some((target) => target !== 'web'))
+          )
+            compileProject(graph, registry);
+          const before = project;
+          project = next;
+          try {
+            saveProject(graph);
+          } catch (error) {
+            project = before;
+            throw error;
+          }
+        },
+        () => apps.storedProject.graph,
+      );
+      operationLogs.set(apps.activeId, log);
+    }
+    return log;
+  };
 
   // --- Agent Gateway -----------------------------------------------------
   // Provider: recorded demo responses unless a real LLM is configured via
@@ -132,7 +173,7 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
   const environmentProvider = providerFromEnv(process.env, demoRecorded);
   const localHost = ['127.0.0.1', 'localhost', '::1'].includes(opts.host ?? '127.0.0.1');
   let provider = environmentProvider;
-  let gateway = new AgentGateway<BuilderProject>(provider);
+  let gateway = new AgentGateway<BuilderProject>(provider, {}, operationLog());
   let usingLiveModel = provider.name !== 'recorded';
   let connectionRevision = 0;
   // Pending plans awaiting human review: planId -> { plan, projectHash }.
@@ -166,6 +207,13 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
     try {
       const url = new URL(req.url ?? '/', 'http://localhost');
       const path = url.pathname;
+      const requestAppId = apps.activeId;
+      const readActiveBody = async () => {
+        const body = await readBody(req);
+        if (requestAppId !== apps.activeId)
+          throw new ActiveAppChangedError('The active app changed. Reload before saving.');
+        return body;
+      };
 
       if (path.startsWith('/api/agent/chatgpt/') && !localHost) {
         json(res, 403, { error: 'ChatGPT connections are available only from this local Studio.' });
@@ -236,7 +284,7 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
       }
       const activateProject = () => {
         project = structuredClone(apps.project);
-        gateway = new AgentGateway<BuilderProject>(provider);
+        gateway = new AgentGateway<BuilderProject>(provider, {}, operationLog());
         pendingPlans.clear();
         lastAgentFingerprint = null;
         saveProject();
@@ -284,12 +332,51 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
         return;
       }
       // --- API ---------------------------------------------------------------
+      if (path === '/api/operations' && req.method === 'GET') {
+        json(res, 200, { project, ...operationLog().state, entries: operationLog().entries });
+        return;
+      }
+      if (path === '/api/operations' && req.method === 'POST') {
+        const body = JSON.parse(await readActiveBody()) as {
+          revision: number;
+          operations: ProjectOperation[];
+        };
+        if (body.revision !== operationLog().state.revision) {
+          json(res, 409, { error: 'Project changed. Reload before applying operations.' });
+          return;
+        }
+        try {
+          if (!Array.isArray(body.operations)) throw new Error('Operations must be an array');
+          operationLog().apply(project, body.operations, 'ui');
+          json(res, 200, { project, history: operationLog().state });
+        } catch (error) {
+          json(res, 400, { error: error instanceof Error ? error.message : String(error) });
+        }
+        return;
+      }
+      if (
+        (path === '/api/operations/undo' || path === '/api/operations/redo') &&
+        req.method === 'POST'
+      ) {
+        const body = JSON.parse(await readActiveBody()) as { revision: number };
+        if (body.revision !== operationLog().state.revision) {
+          json(res, 409, { error: 'Project changed. Reload before undo or redo.' });
+          return;
+        }
+        const next = operationLog().travel(path.endsWith('/undo') ? 'undo' : 'redo', project);
+        if (!next) {
+          json(res, 400, { error: 'Nothing to undo or redo' });
+          return;
+        }
+        json(res, 200, { project, history: operationLog().state });
+        return;
+      }
       if (path === '/api/project' && req.method === 'GET') {
         json(res, 200, project);
         return;
       }
       if (path === '/api/project' && req.method === 'PUT') {
-        const body = JSON.parse(await readBody(req)) as StoredBuilderProject;
+        const body = JSON.parse(await readActiveBody()) as StoredBuilderProject;
         const inputGraph = structuredClone(body.graph);
         try {
           if (body.version !== 1 || !Array.isArray(body.touched))
@@ -307,42 +394,51 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
           json(res, 400, { ok: false, error: e instanceof Error ? e.message : String(e) });
           return;
         }
-        project = {
+        const next: BuilderProject = {
           version: 1,
           profile: body.profile ?? null,
           touched: [...(body.touched ?? [])].sort(),
-          graph: body.graph,
+          graph: legacyGraph(body.graph),
         };
-        saveProject(inputGraph);
+        next.graph.app.dataId = apps.activeId;
+        const operations =
+          inputGraph.schemaVersion === '1'
+            ? diffProjectOperations(apps.storedProject, {
+                ...next,
+                graph: { ...inputGraph, app: { ...inputGraph.app, dataId: apps.activeId } },
+              })
+            : diffProjectOperations(project, next);
+        operationLog().apply(project, operations, 'import');
         json(res, 200, { ok: true });
         return;
       }
       if (path === '/api/profile' && req.method === 'PUT') {
-        const body = JSON.parse(await readBody(req)) as { profile: BuilderProfile };
+        const body = JSON.parse(await readActiveBody()) as { profile: BuilderProfile };
         const errors = validateProfile(body.profile ?? {});
         if (errors.length > 0) {
           json(res, 400, { ok: false, errors });
           return;
         }
-        project.profile = body.profile;
-        saveProject();
+        operationLog().apply(project, [{ type: 'setProfile', profile: body.profile }], 'profile');
         json(res, 200, { ok: true });
         return;
       }
       if (path === '/api/cascade' && req.method === 'POST') {
-        const result = applyCascade(project);
-        saveProject();
+        const next = structuredClone(project);
+        const result = applyCascade(next);
+        operationLog().apply(project, diffProjectOperations(project, next), 'profile');
         json(res, 200, { ok: true, ...result, project });
         return;
       }
       if (path === '/api/touch' && req.method === 'POST') {
-        const body = JSON.parse(await readBody(req)) as { path: string };
+        const body = JSON.parse(await readActiveBody()) as { path: string };
         if (typeof body.path !== 'string' || !body.path) {
           json(res, 400, { ok: false, error: 'path is required' });
           return;
         }
-        markTouched(project, body.path);
-        saveProject();
+        const next = structuredClone(project);
+        markTouched(next, body.path);
+        operationLog().apply(project, diffProjectOperations(project, next), 'ui');
         json(res, 200, { ok: true, touched: project.touched });
         return;
       }
@@ -466,7 +562,7 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
         return;
       }
       if (path === '/api/agent/apply' && req.method === 'POST') {
-        const body = JSON.parse(await readBody(req)) as { planId?: string };
+        const body = JSON.parse(await readActiveBody()) as { planId?: string };
         const pending = body.planId ? pendingPlans.get(body.planId) : undefined;
         if (!pending) {
           json(res, 400, { ok: false, errors: ['unknown or expired planId'] });
@@ -486,7 +582,6 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
           const { project: next, applied } = gateway.apply(project, pending.plan, pending.scope);
           project = next;
           lastAgentFingerprint = fingerprint();
-          saveProject();
           json(res, 200, { ok: true, applied, usage: gateway.usageLog.slice(-1) });
         } catch (e) {
           json(res, 400, { ok: false, errors: [e instanceof Error ? e.message : String(e)] });
@@ -508,7 +603,6 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
         }
         project = undone as BuilderProject;
         lastAgentFingerprint = fingerprint();
-        saveProject();
         json(res, 200, { ok: true });
         return;
       }
@@ -559,10 +653,14 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
       if (!existsSync(file)) file = join(dir, 'index.html'); // SPA fallback
       send(res, 200, readFileSync(file, 'utf8'), MIME[extname(file)] ?? 'application/octet-stream');
     } catch (err) {
-      json(res, err instanceof SyntaxError ? 400 : 500, {
-        ok: false,
-        error: err instanceof Error ? err.message : String(err),
-      });
+      json(
+        res,
+        err instanceof ActiveAppChangedError ? 409 : err instanceof SyntaxError ? 400 : 500,
+        {
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      );
     }
   });
   server.on('close', () => connection.close());

@@ -1,4 +1,4 @@
-import type { BlockPorts } from '@blockfw/manifest';
+import type { BlockPorts, OperationEntry, ProjectOperation } from '@blockfw/manifest';
 import type { BuilderProject, BuilderProfile } from '../../src/cascade';
 import type { BlockCard } from '../../src/cards';
 import type { ChatGPTStatus, ChatGPTModel } from '../../src/chatgpt';
@@ -21,6 +21,11 @@ export interface BlockSummary {
 }
 
 export type WireTarget = Wire['to'];
+export interface OperationHistory {
+  undo: number;
+  redo: number;
+  revision: number;
+}
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -80,6 +85,20 @@ export const api = {
     return result;
   },
   getProject: () => req<BuilderProject>('/api/project'),
+  getOperations: () =>
+    req<OperationHistory & { project: BuilderProject; entries: OperationEntry[] }>(
+      '/api/operations',
+    ),
+  applyOperations: (operations: ProjectOperation[], revision: number) =>
+    req<{ project: BuilderProject; history: OperationHistory }>('/api/operations', {
+      method: 'POST',
+      body: JSON.stringify({ operations, revision }),
+    }),
+  travel: (direction: 'undo' | 'redo', revision: number) =>
+    req<{ project: BuilderProject; history: OperationHistory }>('/api/operations/' + direction, {
+      method: 'POST',
+      body: JSON.stringify({ revision }),
+    }),
   saveProject: (project: BuilderProject) =>
     req<{ ok: boolean }>('/api/project', { method: 'PUT', body: JSON.stringify(project) }),
   setProfile: (profile: BuilderProfile) =>
