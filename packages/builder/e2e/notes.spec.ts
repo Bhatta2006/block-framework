@@ -21,7 +21,7 @@ test('builds the notes template entirely through Studio and exposes its shared c
   await page.goto('/');
   await page.getByRole('button', { name: 'Switch apps', exact: true }).click();
   await page.getByRole('button', { name: 'Create app', exact: true }).click();
-  await page.getByLabel('App template').selectOption('notes');
+  await page.getByRole('radio', { name: /^Notes/ }).check();
   await page.getByLabel('New app name').fill('Paper');
   await page.getByRole('button', { name: 'Create notes app', exact: true }).click();
   await expect(page.getByLabel('Page title')).toHaveValue('All notes');

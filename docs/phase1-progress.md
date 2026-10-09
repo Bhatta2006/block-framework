@@ -48,6 +48,14 @@ This checkpoint stops before adopting the new UI primitives. Existing block styl
 
 Final checkpoint verification passed repository typecheck, lint, 264 unit tests, Studio build and all 68 Firefox/Chromium browser tests. Independent SaaS and Notes exports passed all three package typechecks, lint, formatting, respectively five and nine generated DOM tests, web production builds and Android/iOS Hermes bundle builds. SaaS production acceptance passed in both browsers, including shared-theme switching, reduced motion and edit/reload persistence. Both exports reproduced their emitted theme files byte for byte; editing a token updated web/native values, and a broken reference failed without replacing existing outputs. Physical-device behavior and GitHub-hosted CI remain unverified.
 
+## Studio shell v2 (2026-10-10)
+
+Remaining increment 4 has started; [studio-shell-v2.md](studio-shell-v2.md) records the market research and decisions. Studio now has a dark-first token system with a full light theme and a System/Dark/Light toggle, self-hosted Inter and JetBrains Mono, a top bar with Flow/Design/Ship modes, a tool rail, a pages-and-layers navigator, a grouped block library with honest Demo/Cloud labels, and a floating canvas bar. It also adds a docked inspector, a floating AI composer that opens the existing scoped agent as a side panel, a ⌘K command palette (`cmdk`, MIT, lazy-loaded), a shortcut sheet, toasts with Undo, and a status bar with a problem count. Data, Logic, and Agents appear only as disabled "Soon" modes. The Ship view replaces the export modal with a readiness checklist derived from the compiler's wiring report, the unchanged export targets, and planned capabilities labelled by phase. Canvas nodes use category tiles and diamond event ports, and fall back to compact cards below 35% zoom. Workspace.tsx went from 1,272 to about 550 lines.
+
+Two browser tests changed with the UX: the rail's **New app** replaces **New starter app**, and template selection uses radio cards instead of a select. A toast's Undo action carries a descriptive accessible name so it never collides with the top-bar Undo.
+
+Verification on this machine: repository typecheck, lint, Studio build, and all 68 Firefox/Chromium browser tests passed. Unit tests passed 262 of 264. The two failures are environmental and reproduce without this change. `paper-cloud/web` baseline hashing fails because `core.autocrlf=true` checks out `packages/compiler/assets/*` with CRLF; with LF content, all 10 baseline tests pass. The operations CLI test exceeds its 5-second limit under full-suite load and passes alone. The initial baseline browser run on this machine had two Firefox timing failures that did not recur. Shell gzip size: main chunk 150 kB, palette 18 kB on demand.
+
 ## Ordered remaining increments
 
 1. Extend the functional SaaS fixture as the new UI stack lands; measure file size again as capabilities grow.

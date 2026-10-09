@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
-import { ArrowDown, ArrowUp, Copy, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Copy, Paintbrush, Sparkles, Trash2, X } from 'lucide-react';
 import type { BuilderProject, BlockSummary, WiringReport } from './api';
-import { blockName, eventNames, pageIds } from './FlowCanvas';
+import { eventNames, pageIds } from './graph';
+import { blockMeta, eventLabel, fieldLabel, instanceName } from './catalog';
 
 interface Props {
   project: BuilderProject;
@@ -65,102 +66,126 @@ export function Inspector({
       .then(() => select(id))
       .catch(() => {});
   };
+  const meta = blockMeta(block.type);
+  const Icon = meta.icon;
+  const properties = (info.configSchema.properties ?? {}) as Record<string, { title?: string }>;
+  const uiSchema = Object.fromEntries(
+    Object.entries(properties)
+      .filter(([, field]) => !field.title)
+      .map(([key]) => [key, { 'ui:title': fieldLabel(key) }]),
+  );
   return (
-    <aside className="inspector">
-      <div className="inspector-head">
-        <SlidersHorizontal size={15} />
-        <strong>Block properties</strong>
+    <aside className="side-panel inspector" aria-label="Block properties">
+      <div className="side-panel-head">
+        <span className={'cat-tile cat-' + meta.category}>
+          <Icon size={14} />
+        </span>
+        <div>
+          <strong>{instanceName(block.type, block.variant)}</strong>
+          <small>
+            {block.id} · v{block.type.split('@')[1] ?? '1'}
+          </small>
+        </div>
         <button className="icon-button" aria-label="Close properties" onClick={close}>
           <X size={16} />
         </button>
       </div>
-      <div className="inspector-body">
-        <span className="eyebrow">{block.id}</span>
-        <h2>
-          {block.type.startsWith('auth.email') && block.variant === 'signup'
-            ? 'Sign up'
-            : blockName(block.type)}
-        </h2>
-        <p className="muted">Changes appear in your app and both export targets.</p>
+      <div className="side-panel-body inspector-body">
+        <div className="inspector-cta">
+          <button className="primary" onClick={customize}>
+            <Paintbrush size={14} /> Customize inside this block
+          </button>
+          <button
+            className="icon-button bordered"
+            aria-label="Ask AI to edit this block"
+            title="Ask AI to edit this block"
+            onClick={askAI}
+          >
+            <Sparkles size={15} />
+          </button>
+        </div>
         {block.type.startsWith('data.') && (
-          <p className="muted">
+          <p className="inspector-note">
             Blocks with the same collectionKey share records within this app. Live previews save on
             this device; canvas thumbnails use temporary records. Connect data.recordSelected to a
             Record editor to open or create notes. Seed records are used only for a new collection.
           </p>
         )}
-        <button className="primary full" onClick={customize}>
-          Customize inside this block
-        </button>
-        <button className="full" onClick={askAI}>
-          Ask AI to edit this block
-        </button>
-        <label className="field">
-          <span>Appearance</span>
-          <select
-            aria-label="Appearance"
-            value={block.variant ?? info.defaultVariant}
-            onChange={(e) => {
-              const value = e.currentTarget.value;
-              void edit((p) => {
-                p.graph.blocks.find((b) => b.id === blockId)!.variant = value;
-                const b = p.graph.blocks.find((b) => b.id === blockId)!;
-                if (b.type.startsWith('auth.email')) {
-                  const defaults =
-                    value === 'signup'
-                      ? {
-                          headline: 'Create your account',
-                          subheadline: 'Start your next chapter.',
-                          ctaText: 'Create account',
-                        }
-                      : {
-                          headline: 'Welcome back',
-                          subheadline: 'Sign in to continue.',
-                          ctaText: 'Sign in',
-                        };
-                  for (const [key, copy] of Object.entries(defaults))
-                    if (!p.touched.includes('block:' + blockId + '.config.' + key)) {
-                      b.config ??= {};
-                      b.config[key] = copy;
-                    }
-                }
-                p.touched = [...new Set([...p.touched, 'block:' + blockId + '.variant'])];
-              }).catch(() => {});
-            }}
-          >
-            {info.variants.map((v) => (
-              <option key={v}>{v}</option>
-            ))}
-          </select>
-        </label>
-        <div className="order-actions">
-          <span>
-            Page order{' '}
-            <b>
-              {index + 1}/{order.length}
-            </b>
-          </span>
-          <button
-            className="icon-button"
-            aria-label="Move block earlier"
-            disabled={index === 0}
-            onClick={() => reorder(-1)}
-          >
-            <ArrowUp size={15} />
-          </button>
-          <button
-            className="icon-button"
-            aria-label="Move block later"
-            disabled={index === order.length - 1}
-            onClick={() => reorder(1)}
-          >
-            <ArrowDown size={15} />
-          </button>
+        {meta.runtime === 'demo' && (
+          <p className="inspector-note warning-note">
+            Demo service. It behaves realistically in previews; connect a real provider in the
+            exported code before launch.
+          </p>
+        )}
+        <div className="inspector-row">
+          <label className="field compact">
+            <span>Appearance</span>
+            <select
+              aria-label="Appearance"
+              value={block.variant ?? info.defaultVariant}
+              onChange={(e) => {
+                const value = e.currentTarget.value;
+                void edit((p) => {
+                  const b = p.graph.blocks.find((b) => b.id === blockId)!;
+                  b.variant = value;
+                  if (b.type.startsWith('auth.email')) {
+                    const defaults =
+                      value === 'signup'
+                        ? {
+                            headline: 'Create your account',
+                            subheadline: 'Start your next chapter.',
+                            ctaText: 'Create account',
+                          }
+                        : {
+                            headline: 'Welcome back',
+                            subheadline: 'Sign in to continue.',
+                            ctaText: 'Sign in',
+                          };
+                    for (const [key, copy] of Object.entries(defaults))
+                      if (!p.touched.includes('block:' + blockId + '.config.' + key)) {
+                        b.config ??= {};
+                        b.config[key] = copy;
+                      }
+                  }
+                  p.touched = [...new Set([...p.touched, 'block:' + blockId + '.variant'])];
+                }).catch(() => {});
+              }}
+            >
+              {info.variants.map((v) => (
+                <option key={v}>{v}</option>
+              ))}
+            </select>
+          </label>
+          <div className="order-actions" role="group" aria-label="Page order">
+            <span>
+              Order{' '}
+              <b>
+                {index + 1}/{order.length}
+              </b>
+            </span>
+            <button
+              className="icon-button"
+              aria-label="Move block earlier"
+              disabled={index === 0}
+              onClick={() => reorder(-1)}
+            >
+              <ArrowUp size={15} />
+            </button>
+            <button
+              className="icon-button"
+              aria-label="Move block later"
+              disabled={index === order.length - 1}
+              onClick={() => reorder(1)}
+            >
+              <ArrowDown size={15} />
+            </button>
+          </div>
         </div>
         <h3>Content</h3>
         <Form
           noHtml5Validate
           schema={info.configSchema as never}
+          uiSchema={uiSchema}
           validator={validator}
           formData={data}
           onChange={(e) => setData(e.formData ?? {})}
@@ -196,8 +221,11 @@ export function Inspector({
         )}
         {eventNames(info).length > 0 && (
           <>
-            <h3>When this block finishes</h3>
-            <p className="muted">Connections are automatic. Choose a page to override a route.</p>
+            <h3>Actions</h3>
+            <p className="inspector-note">
+              Each action goes to a page automatically. Pick a page to make it explicit, or choose
+              No connection.
+            </p>
             {eventNames(info).map((event) => {
               const wire = wiring?.resolved.find(
                 (w) => w.from.instance === blockId && w.from.event === event,
@@ -206,8 +234,10 @@ export function Inspector({
                 (w) => w.from.instance === blockId && w.from.event === event,
               );
               return (
-                <label className="field" key={event}>
-                  <span>{event}</span>
+                <label className="field route-field" key={event}>
+                  <span>
+                    {eventLabel(event)} <code>{event}</code>
+                  </span>
                   <select
                     aria-label={'Route ' + event}
                     value={

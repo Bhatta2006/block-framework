@@ -388,7 +388,7 @@ test('beginners can create a starter app and run its connected pages', async ({
   request,
 }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'New starter app', exact: true }).click();
+  await page.getByRole('button', { name: 'New app', exact: true }).click();
   await page.getByLabel('New app name', { exact: true }).fill('Good days');
   await page.getByRole('button', { name: 'Create starter app', exact: true }).click();
   await expect(page.getByLabel('Page title', { exact: true })).toHaveValue('Welcome');

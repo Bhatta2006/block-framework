@@ -1,62 +1,28 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ReactFlow,
   Background,
+  BackgroundVariant,
   Controls,
   MiniMap,
   Handle,
   Position,
   applyNodeChanges,
   MarkerType,
+  useStore,
   type Node,
   type NodeProps,
   type Connection,
   type ReactFlowInstance,
   type Edge,
 } from '@xyflow/react';
-import { ArrowUpRight, Layers, LayoutTemplate, MousePointer2, Scissors } from 'lucide-react';
+import { ArrowUpRight, Cloud, FlaskConical, LayoutTemplate, Scissors, X } from 'lucide-react';
 import type { BuilderProject, BlockSummary, WiringReport, Wire } from './api';
+import { blockMeta, eventLabel, instanceName, type Category } from './catalog';
+import { consumeNames, eventNames, pageIds } from './graph';
 import '@xyflow/react/dist/style.css';
 
-export const blockNames: Record<string, string> = {
-  'auth.account': 'Cloud account sign-in',
-  'onboarding.profile': 'Cloud onboarding',
-  'billing.plans': 'UPI plans and checkout',
-  'account.settings': 'Cloud account settings',
-  'billing.review': 'Owner payment review',
-  'auth.email': 'Sign in',
-  'onboarding.quiz': 'Onboarding',
-  'paywall.basic': 'Pricing',
-  'home.list': 'Collection',
-  'content.detail': 'Item detail',
-  'stats.overview': 'Analytics',
-  'profile.card': 'Profile',
-  'settings.list': 'Settings',
-  'content.hero': 'Hero section',
-  'content.text': 'Rich content',
-  'action.button': 'Action button',
-  'data.collection': 'Record collection',
-  'data.editor': 'Record editor',
-  'data.summary': 'Collection summary',
-};
-export const blockName = (type: string) => blockNames[type.split('@')[0]!] ?? type.split('@')[0]!;
-export const pageIds = (s: BuilderProject['graph']['screens'][number]) => s.blocks ?? [s.block];
-export const eventNames = (
-  info?: BlockSummary,
-  block?: BuilderProject['graph']['blocks'][number],
-) => [
-  ...(info?.ports.emits.map((p) => (typeof p === 'string' ? p : p.event)) ?? []),
-  ...[
-    ...new Set([
-      ...(block?.design?.content ?? []).filter((e) => e.type === 'button').map((e) => e.id),
-      ...Object.keys(block?.design?.actions ?? {}),
-    ]),
-  ].map((id) => 'element.' + id + '.pressed'),
-];
-const consumeNames = (info?: BlockSummary) =>
-  info?.ports.consumes
-    .map((p) => (typeof p === 'string' ? p : p.port))
-    .filter((p) => !['app.launched', 'paywall.show'].includes(p)) ?? [];
+export { pageIds, eventNames };
 
 type CardData = {
   title: string;
@@ -64,18 +30,36 @@ type CardData = {
   preview: string;
   entry: boolean;
   kind: 'page' | 'block';
-  ports: { id: string; label: string }[];
+  category: Category;
+  icon: typeof LayoutTemplate;
+  runtime?: 'demo' | 'cloud';
+  hidden?: boolean;
+  ports: { id: string; label: string; event: string }[];
   inputs: string[];
   open?: () => void;
-  selected?: boolean;
   phone?: boolean;
 };
 type CardNode = Node<CardData, 'card'>;
 type LayoutLink = { screen: string; target: string };
 type CanvasEdge = Edge<{ wire?: Wire; layout?: LayoutLink }>;
-function CanvasCard({ data, selected }: NodeProps<CardNode>) {
+
+/** Below this zoom, live previews give way to compact cards (semantic zoom). */
+const COMPACT_ZOOM = 0.35;
+
+const CanvasCard = memo(function CanvasCard({ data, selected }: NodeProps<CardNode>) {
+  const compact = useStore((s) => s.transform[2] < COMPACT_ZOOM);
+  const Icon = data.icon;
   return (
-    <div className={'canvas-card ' + (selected ? 'chosen' : '')}>
+    <div
+      className={
+        'canvas-card kind-' +
+        data.kind +
+        ' cat-' +
+        data.category +
+        (selected ? ' chosen' : '') +
+        (compact ? ' compact' : '')
+      }
+    >
       {data.kind === 'page' && (
         <Handle type="target" position={Position.Left} id="page" className="page-inlet" />
       )}
@@ -91,59 +75,66 @@ function CanvasCard({ data, selected }: NodeProps<CardNode>) {
         </>
       )}
       <div className="node-head">
-        <span className="node-icon">
-          {data.kind === 'page' ? <LayoutTemplate size={15} /> : <Layers size={15} />}
+        <span className={'cat-tile cat-' + data.category}>
+          <Icon size={14} />
         </span>
-        <div>
+        <div className="node-titles">
           <strong>{data.title}</strong>
           <small>{data.subtitle}</small>
         </div>
-        {data.entry && <span className="entry-chip">Start</span>}
+        {data.entry && <span className="node-chip accent">Start</span>}
+        {data.hidden && <span className="node-chip">Hidden</span>}
+        {data.runtime === 'demo' && (
+          <span className="node-chip warning" title="Demo service">
+            <FlaskConical size={10} /> Demo
+          </span>
+        )}
+        {data.runtime === 'cloud' && (
+          <span className="node-chip info" title="Needs a cloud backend">
+            <Cloud size={10} /> Cloud
+          </span>
+        )}
         {data.open && (
           <button
-            className="icon-button nodrag"
+            className="icon-button node-open nodrag"
             aria-label={'Open ' + data.title + ' canvas'}
             onClick={data.open}
           >
-            <ArrowUpRight size={16} />
+            <ArrowUpRight size={15} />
           </button>
         )}
       </div>
-      <div className={'node-preview ' + (data.phone ? 'phone-preview' : '')}>
-        <iframe
-          title={data.title + ' block preview'}
-          src={data.preview}
-          tabIndex={-1}
-          loading="lazy"
-        />
-      </div>
+      {compact ? (
+        <div className="node-compact">{data.title}</div>
+      ) : (
+        <div className={'node-preview ' + (data.phone ? 'phone-preview' : '')}>
+          <iframe
+            title={data.title + ' block preview'}
+            src={data.preview}
+            tabIndex={-1}
+            loading="lazy"
+          />
+        </div>
+      )}
       {(data.inputs.length > 0 || data.ports.length > 0) && (
         <div className="node-ports">
           {data.inputs.map((port) => (
-            <div className="port-row input-row" key={port}>
+            <div className="port-row input-row" key={port} title={port}>
               <Handle type="target" position={Position.Left} id={port} />
-              <span>{port}</span>
-              <span className="port-dot">IN</span>
+              <span>{eventLabel(port)}</span>
             </div>
           ))}
           {data.ports.map((port) => (
-            <div className="port-row" key={port.id}>
-              <span className="port-dot">OUT</span>
+            <div className="port-row output-row" key={port.id} title={port.event}>
               <span>{port.label}</span>
               <Handle type="source" position={Position.Right} id={port.id} />
             </div>
           ))}
         </div>
       )}
-      {data.ports.length === 0 && (
-        <div className="node-caption">
-          {data.kind === 'page' ? 'Display page' : 'Content block'}
-          <span>●</span>
-        </div>
-      )}
     </div>
   );
-}
+});
 const nodeTypes = { card: CanvasCard };
 
 interface Props {
@@ -151,10 +142,13 @@ interface Props {
   library: BlockSummary[];
   wiring: WiringReport | null;
   pageId: string | null;
+  selectedBlock: string | null;
   onOpen: (id: string) => void;
   onSelectBlock: (id: string | null) => void;
   edit: (fn: (p: BuilderProject) => void) => Promise<void>;
   platform: 'web' | 'mobile';
+  theme: 'dark' | 'light';
+  fitSignal: number;
   onAddBlock: (info: BlockSummary, position?: { x: number; y: number }) => void;
 }
 export function FlowCanvas({
@@ -162,10 +156,13 @@ export function FlowCanvas({
   library,
   wiring,
   pageId,
+  selectedBlock,
   onOpen,
   onSelectBlock,
   edit,
   platform,
+  theme,
+  fitSignal,
   onAddBlock,
 }: Props) {
   const [selectedLayout, setSelectedLayout] = useState<LayoutLink | null>(null);
@@ -207,6 +204,9 @@ export function FlowCanvas({
       .catch(() => {});
   };
   const flow = useRef<ReactFlowInstance<CardNode, CanvasEdge> | null>(null);
+  useEffect(() => {
+    if (fitSignal) void flow.current?.fitView({ padding: 0.18, maxZoom: 1, duration: 300 });
+  }, [fitSignal]);
   const page = project.graph.screens.find((s) => s.id === pageId);
   const bust = useMemo(() => JSON.stringify(project.graph), [project.graph]);
   const version = useMemo(() => {
@@ -216,60 +216,73 @@ export function FlowCanvas({
   }, [bust]);
   const initial = useMemo<CardNode[]>(() => {
     if (!page)
-      return project.graph.screens.map((s, i) => ({
-        id: s.id,
-        type: 'card',
-        deletable: false,
-        position: s.position ?? { x: (i % 4) * 365, y: Math.floor(i / 4) * 370 },
-        data: {
-          title: s.title,
-          phone: platform === 'mobile',
-          subtitle:
-            pageIds(s).length +
-            ' block' +
-            (pageIds(s).length === 1 ? '' : 's') +
-            ' · ' +
-            (s.lane === 'tabs' ? 'Navigation' : 'Flow'),
-          entry: i === 0,
-          kind: 'page',
-          preview: '/api/run?page=' + encodeURIComponent(s.id) + '&embedded=1&v=' + version,
-          ports: pageIds(s).flatMap((id) => {
-            const b = project.graph.blocks.find((b) => b.id === id);
-            return eventNames(
-              library.find((l) => l.id === b?.type),
-              b,
-            ).map((event) => ({
-              id: id + ':' + event,
-              label: event,
-            }));
-          }),
-          inputs: [],
-          open: () => onOpen(s.id),
-        },
-      }));
+      return project.graph.screens.map((s, i) => {
+        const count = pageIds(s).length;
+        return {
+          id: s.id,
+          type: 'card',
+          deletable: false,
+          position: s.position ?? { x: (i % 4) * 365, y: Math.floor(i / 4) * 370 },
+          data: {
+            title: s.title,
+            phone: platform === 'mobile',
+            subtitle:
+              count +
+              ' block' +
+              (count === 1 ? '' : 's') +
+              ' · ' +
+              (s.lane === 'tabs' ? 'Tab' : 'Flow'),
+            entry: i === 0,
+            hidden: s.navigation === false,
+            kind: 'page',
+            category: 'ui',
+            icon: LayoutTemplate,
+            preview: '/api/run?page=' + encodeURIComponent(s.id) + '&embedded=1&v=' + version,
+            ports: pageIds(s).flatMap((id) => {
+              const b = project.graph.blocks.find((b) => b.id === id);
+              return eventNames(
+                library.find((l) => l.id === b?.type),
+                b,
+              ).map((event) => ({
+                id: id + ':' + event,
+                event,
+                label: eventLabel(event),
+              }));
+            }),
+            inputs: [],
+            open: () => onOpen(s.id),
+          },
+        };
+      });
     return pageIds(page).map((id, i) => {
       const block = project.graph.blocks.find((b) => b.id === id)!;
       const info = library.find((l) => l.id === block.type);
+      const meta = blockMeta(block.type);
       return {
         id,
         type: 'card',
         position: block.position ?? { x: (i % 3) * 365, y: Math.floor(i / 3) * 360 },
+        selected: id === selectedBlock,
         data: {
-          title:
-            block.type.startsWith('auth.email') && block.variant === 'signup'
-              ? 'Sign up'
-              : blockName(block.type),
+          title: instanceName(block.type, block.variant),
           phone: platform === 'mobile',
           subtitle: id + ' · ' + (block.variant ?? info?.defaultVariant ?? 'default'),
           kind: 'block',
+          category: meta.category,
+          icon: meta.icon,
+          runtime: meta.runtime === 'local' ? undefined : meta.runtime,
           entry: false,
           preview: '/api/run?block=' + encodeURIComponent(id) + '&embedded=1&v=' + version,
-          ports: eventNames(info, block).map((event) => ({ id: id + ':' + event, label: event })),
+          ports: eventNames(info, block).map((event) => ({
+            id: id + ':' + event,
+            event,
+            label: eventLabel(event),
+          })),
           inputs: consumeNames(info),
         },
       };
     });
-  }, [project, page, library, version, onOpen, platform]);
+  }, [project, page, library, version, onOpen, platform, selectedBlock]);
   const [nodes, setNodes] = useState<CardNode[]>(initial);
   useEffect(() => {
     setNodes(initial);
@@ -281,6 +294,7 @@ export function FlowCanvas({
         if (!sourcePage) return [];
         if (page && (sourcePage.id !== page.id || w.to.screen !== page.id || !w.to.instance))
           return [];
+        const user = w.origin === 'user';
         return [
           {
             id: 'wire-' + i,
@@ -288,17 +302,15 @@ export function FlowCanvas({
             target: page ? w.to.instance! : w.to.screen,
             sourceHandle: w.from.instance + ':' + w.from.event,
             targetHandle: page ? (w.to.port ?? w.from.event) : 'page',
-            type: 'smoothstep',
-            label: page ? undefined : w.from.event.split('.').at(-1),
-            animated: false,
-            markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
-            style: {
-              stroke: w.origin === 'user' ? '#305c4b' : '#97afa3',
-              strokeWidth: w.origin === 'user' ? 2 : 1.5,
-              strokeDasharray: w.origin === 'auto' ? '5 4' : undefined,
+            type: 'default',
+            label: page ? undefined : eventLabel(w.from.event.split('.').at(-1) ?? w.from.event),
+            className: user ? 'edge-user' : 'edge-auto',
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              width: 14,
+              height: 14,
+              color: user ? 'var(--edge-user)' : 'var(--edge-auto)',
             },
-            labelStyle: { fill: '#637368', fontSize: 10 },
-            labelBgStyle: { fill: '#fafbf8' },
             data: { wire: w },
             deletable: true,
             selected:
@@ -365,15 +377,27 @@ export function FlowCanvas({
           targetHandle: 'layout-in',
           type: 'smoothstep',
           label: 'render order',
-          style: { stroke: '#c3d0ba', strokeWidth: 1 },
-          labelStyle: { fill: '#8d9d7e', fontSize: 9 },
-          labelBgStyle: { fill: '#f8faf4' },
+          className: 'edge-layout',
           deletable: true,
           data: { layout: { screen: page.id, target: id } },
           selected: selectedLayout?.screen === page.id && selectedLayout?.target === id,
         }))
         .filter((edge) => !page.disconnectedLayout?.includes(edge.target))
     : [];
+  const wireLabel = selectedWire
+    ? (() => {
+        const from = project.graph.blocks.find((b) => b.id === selectedWire.from.instance);
+        const to = project.graph.screens.find((s) => s.id === selectedWire.to.screen);
+        return (
+          (from ? instanceName(from.type, from.variant) : selectedWire.from.instance) +
+          ' · ' +
+          eventLabel(selectedWire.from.event) +
+          ' → ' +
+          (to?.title ?? selectedWire.to.screen) +
+          (selectedWire.origin === 'auto' ? ' (automatic)' : '')
+        );
+      })()
+    : 'Render order · cutting keeps the block on the page';
   return (
     <div
       className="flow-canvas"
@@ -397,6 +421,7 @@ export function FlowCanvas({
         nodes={nodes}
         edges={[...edges, ...compositionEdges]}
         nodeTypes={nodeTypes}
+        colorMode={theme}
         onNodesChange={(changes) => setNodes((prev) => applyNodeChanges(changes, prev))}
         onNodeDragStop={(_, node) =>
           void edit((p) => {
@@ -453,20 +478,32 @@ export function FlowCanvas({
         }}
         fitView
         fitViewOptions={{ padding: 0.18, maxZoom: 1 }}
-        minZoom={0.2}
-        maxZoom={1.5}
+        minZoom={0.1}
+        maxZoom={2}
         deleteKeyCode={['Backspace', 'Delete']}
         proOptions={{ hideAttribution: true }}
       >
-        <Background color="#d9dfd5" gap={24} size={1} />
-        <Controls showInteractive={false} />
-        <MiniMap pannable zoomable nodeColor="#d4e2d8" maskColor="rgba(245,247,242,.75)" />
+        <Background
+          variant={BackgroundVariant.Dots}
+          color="var(--canvas-dot)"
+          gap={22}
+          size={1.4}
+        />
+        <Controls showInteractive={false} position="bottom-right" />
+        {(page ? pageIds(page).length : project.graph.screens.length) > 3 && (
+          <MiniMap
+            pannable
+            zoomable
+            position="bottom-left"
+            nodeColor="var(--surface-3)"
+            nodeStrokeColor="var(--border-strong)"
+            maskColor="color-mix(in srgb, var(--canvas-bg) 70%, transparent)"
+          />
+        )}
       </ReactFlow>
       {(selectedWire || selectedLayout) && (
-        <div className="wire-toolbar">
-          <span>
-            {selectedWire ? selectedWire.from.event : 'Layout guide · blocks remain on the page'}
-          </span>
+        <div className="wire-toolbar" role="toolbar" aria-label="Connection">
+          <span>{wireLabel}</span>
           <button
             className="danger"
             onClick={() =>
@@ -476,27 +513,25 @@ export function FlowCanvas({
             <Scissors size={14} /> Cut connection
           </button>
           <button
+            className="icon-button"
             aria-label="Dismiss wire controls"
             onClick={() => {
               setSelectedWire(null);
               setSelectedLayout(null);
             }}
           >
-            ×
+            <X size={14} />
           </button>
         </div>
       )}
-      <div className="canvas-guide">
-        <MousePointer2 size={13} />
-        <span>
-          {page
-            ? 'Select a block to edit · drag a port to connect'
-            : 'Double-click a page to open · drag a port to connect pages · select a wire to cut'}
-        </span>
-      </div>
-      <div className="edge-legend">
-        <span className="dash-line" /> Auto connected <span className="solid-line" /> Your
-        connections
+      <div className="edge-legend" aria-hidden="true">
+        <span className="legend-line user" /> Your connections
+        <span className="legend-line auto" /> Automatic
+        {page && (
+          <>
+            <span className="legend-line layout" /> Render order
+          </>
+        )}
       </div>
     </div>
   );

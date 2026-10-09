@@ -6,6 +6,8 @@ interface Props {
   onChanged: () => void;
   project: BuilderProject;
   blockId: string | null;
+  /** Prefilled request, e.g. from the command palette. */
+  initialInstruction?: string;
 }
 
 interface PendingPlan {
@@ -25,11 +27,11 @@ interface PendingPlan {
  * A "recorded" badge marks deterministic demo responses; a "live" badge
  * marks real model output.
  */
-export function AgentView({ onChanged, project, blockId }: Props) {
+export function AgentView({ onChanged, project, blockId, initialInstruction = '' }: Props) {
   const [focus, setFocus] = useState(blockId ?? 'all');
   const [allowTouched, setAllowTouched] = useState(false);
   const [live, setLive] = useState(false);
-  const [instruction, setInstruction] = useState('');
+  const [instruction, setInstruction] = useState(initialInstruction);
   const [pending, setPending] = useState<PendingPlan | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -130,24 +132,8 @@ export function AgentView({ onChanged, project, blockId }: Props) {
 
   return (
     <div className="agent-view">
-      <h2>AI edit</h2>
-      <p className="hint">
-        Edit content, variants, or element styles in one block or across your app. Review the
-        proposed changes before applying.
-      </p>
-      <ChatGPTSettings
-        onChanged={connectionChanged}
-        disabled={busy}
-        refreshKey={connectionVersion}
-      />
-      {!live && (
-        <p className="dialog-feedback">
-          Recorded demo mode. Free-form AI customization requires a configured live model. Manual
-          design controls work without a model.
-        </p>
-      )}
       <label className="field">
-        <span>Edit scope</span>
+        <span>Acts on</span>
         <select
           aria-label="AI edit scope"
           value={focus}
@@ -164,6 +150,42 @@ export function AgentView({ onChanged, project, blockId }: Props) {
           ))}
         </select>
       </label>
+      <div className="agent-form">
+        <textarea
+          aria-label="AI instruction"
+          rows={3}
+          placeholder='Describe a change, e.g. "make the welcome copy warmer"'
+          value={instruction}
+          onChange={(e) => setInstruction(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey && instruction.trim()) {
+              e.preventDefault();
+              void plan();
+            }
+          }}
+          disabled={busy}
+        />
+        <div className="agent-form-actions">
+          <button
+            onClick={() => void undo()}
+            disabled={busy || undoDepth === 0}
+            title="Undo last agent edit"
+          >
+            Undo{undoDepth > 0 ? ` (${undoDepth})` : ''}
+          </button>
+          <button
+            className="primary"
+            onClick={() => void plan()}
+            disabled={busy || !instruction.trim()}
+          >
+            {busy ? 'Planning…' : 'Plan edit'}
+          </button>
+        </div>
+      </div>
+      <p className="agent-cost">
+        Nothing changes until you review and apply the plan. Customized fields stay protected unless
+        you allow them below.
+      </p>
       <label className="design-check">
         <input
           type="checkbox"
@@ -175,34 +197,12 @@ export function AgentView({ onChanged, project, blockId }: Props) {
         />{' '}
         Allow this request to update my previously customized fields
       </label>
-
-      <div className="agent-form">
-        <input
-          type="text"
-          placeholder='e.g. "make it playful"'
-          value={instruction}
-          onChange={(e) => setInstruction(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') void plan();
-          }}
-          disabled={busy}
-        />
-        <button
-          className="primary"
-          onClick={() => void plan()}
-          disabled={busy || !instruction.trim()}
-        >
-          {busy ? 'Planning…' : 'Plan edit'}
-        </button>
-        <button
-          onClick={() => void undo()}
-          disabled={busy || undoDepth === 0}
-          title="Undo last agent edit"
-        >
-          Undo{undoDepth > 0 ? ` (${undoDepth})` : ''}
-        </button>
-      </div>
-
+      {!live && (
+        <p className="dialog-feedback">
+          Recorded demo mode. Free-form AI customization requires a configured live model. Manual
+          design controls work without a model.
+        </p>
+      )}
       {errors.length > 0 && (
         <div className="warnings">
           {errors.map((e, i) => (
@@ -248,26 +248,20 @@ export function AgentView({ onChanged, project, blockId }: Props) {
           {pending.diff.length === 0 ? (
             <p className="hint">No editable fields match this instruction — nothing to change.</p>
           ) : (
-            <table className="wires">
-              <thead>
-                <tr>
-                  <th>Field</th>
-                  <th>Before</th>
-                  <th>After</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pending.diff.map((d, i) => (
-                  <tr key={i}>
-                    <td>
-                      <code>{d.path}</code>
-                    </td>
-                    <td className="diff-before">{JSON.stringify(d.before)}</td>
-                    <td className="diff-after">{JSON.stringify(d.after)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <ul className="diff-list">
+              {pending.diff.map((d, i) => (
+                <li key={i}>
+                  <code>{d.path}</code>
+                  <div className="diff-values">
+                    <span className="diff-before">{JSON.stringify(d.before)}</span>
+                    <span className="diff-arrow" aria-hidden="true">
+                      →
+                    </span>
+                    <span className="diff-after">{JSON.stringify(d.after)}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
           <div className="agent-actions">
             <button
@@ -284,6 +278,11 @@ export function AgentView({ onChanged, project, blockId }: Props) {
         </div>
       )}
 
+      <ChatGPTSettings
+        onChanged={connectionChanged}
+        disabled={busy}
+        refreshKey={connectionVersion}
+      />
       <p className="hint token-total">
         Total this session: {totalUsage.calls} model call{totalUsage.calls === 1 ? '' : 's'} ·{' '}
         {totalUsage.inputTokens + totalUsage.outputTokens} tokens

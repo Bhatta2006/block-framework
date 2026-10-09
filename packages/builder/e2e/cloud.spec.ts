@@ -20,7 +20,7 @@ test('creates a reusable cloud template with all service blocks and guards nativ
   await page.goto('/');
   await page.getByRole('button', { name: 'Switch apps', exact: true }).click();
   await page.getByRole('button', { name: 'Create app', exact: true }).click();
-  await page.getByLabel('App template').selectOption('cloud-notes');
+  await page.getByRole('radio', { name: /^Cloud notes/ }).check();
   await page.getByLabel('New app name').fill('Cloud contract test');
   await page.getByRole('button', { name: 'Create cloud notes app', exact: true }).click();
   await expect(page.getByLabel('Page title')).toHaveValue('All notes');
