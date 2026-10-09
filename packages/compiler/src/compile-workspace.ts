@@ -4,6 +4,7 @@ import { prepareProject } from './frontend.js';
 import { emitWebIR } from './backends/web.js';
 import { emitNativeIR } from './backends/native.js';
 import { hashFiles, type CompileResult, type CompiledFile } from './files.js';
+import { workspaceCheckFiles, WEB_TEST_DEPS } from './workspace-checks.js';
 
 const PNPM = '12.10.1';
 const TURBO = '2.11.7';
@@ -26,12 +27,27 @@ export function compileWorkspace(graph: GraphInput, registry: BlockRegistry): Co
     { name: 'mobile', result: emitNativeIR(ir, registry) },
   ];
   const files: CompiledFile[] = [];
+  const checks = workspaceCheckFiles(PNPM);
   for (const { name, result } of apps) {
-    const appFiles = result.files.map((file) => ({ ...file }));
+    const prefix = `apps/${name}/`;
+    const appFiles = [
+      ...result.files.map((file) => ({ ...file })),
+      ...checks
+        .filter((file) => file.path.startsWith(prefix))
+        .map((file) => ({ ...file, path: file.path.slice(prefix.length) })),
+    ];
     const pkgFile = appFiles.find((file) => file.path === 'package.json')!;
     const pkg = JSON.parse(pkgFile.content);
     pkg.name = `app-${name}`;
     pkg.scripts.typecheck = 'tsc --noEmit';
+    if (name === 'web') {
+      pkg.scripts.test = 'vitest run';
+      Object.assign(pkg.devDependencies, WEB_TEST_DEPS);
+      const tsFile = appFiles.find((file) => file.path === 'tsconfig.json')!;
+      const tsconfig = JSON.parse(tsFile.content);
+      tsconfig.include.push('tests', 'vitest.config.ts');
+      tsFile.content = canonicalJson(tsconfig) + '\n';
+    }
     if (name === 'mobile') {
       pkg.scripts.dev = 'expo start';
       pkg.scripts.build = 'expo export --platform all --max-workers 2';
@@ -55,10 +71,11 @@ export function compileWorkspace(graph: GraphInput, registry: BlockRegistry): Co
       version: ir.compatibilityGraph.app.version,
       private: true,
       packageManager: `pnpm@${PNPM}`,
-      engines: { node: '>=24' },
+      engines: { node: '^24.15.0 || >=26.0.0' },
       scripts: {
         build: 'turbo run build',
         typecheck: 'turbo run typecheck',
+        test: 'turbo run test',
         'dev:web': 'pnpm --filter app-web dev',
         'dev:mobile': 'pnpm --filter app-mobile dev',
       },
@@ -70,6 +87,7 @@ export function compileWorkspace(graph: GraphInput, registry: BlockRegistry): Co
       tasks: {
         build: { dependsOn: ['^build'], outputs: ['dist/**'] },
         typecheck: { dependsOn: ['^typecheck'], outputs: [] },
+        test: { outputs: [] },
       },
     }),
     {
@@ -78,11 +96,11 @@ export function compileWorkspace(graph: GraphInput, registry: BlockRegistry): Co
     },
     {
       path: 'README.md',
-      content: `# ${ir.compatibilityGraph.app.name}\n\nWeb and native source compiled from one Block Studio graph.\n\nUse Node 24+ and pnpm ${PNPM}. Run \`pnpm install\`, then \`pnpm typecheck\` and \`pnpm build\`. Start web with \`pnpm dev:web\` or Expo with \`pnpm dev:mobile\`. Commit the generated pnpm-lock.yaml after the first install and use \`pnpm install --frozen-lockfile\` thereafter.\n\nSee [setup](docs/SETUP.md) and [architecture](docs/ARCHITECTURE.md). Native builds emit JavaScript bundles, not signed store binaries. Existing demo auth/billing remain demonstrations.\n`,
+      content: `# ${ir.compatibilityGraph.app.name}\n\nWeb and native source compiled from one Block Studio graph.\n\nUse Node 24.15+ (24.x) or 26+ and pnpm ${PNPM}. Run \`pnpm install\`, then \`pnpm typecheck\`, \`pnpm test\` and \`pnpm build\`. Start web with \`pnpm dev:web\` or Expo with \`pnpm dev:mobile\`. Commit the generated pnpm-lock.yaml after the first install and use \`pnpm install --frozen-lockfile\` thereafter.\n\nSee [setup](docs/SETUP.md) and [architecture](docs/ARCHITECTURE.md). Native builds emit JavaScript/Hermes bundles, not signed store binaries. Existing demo auth/billing remain demonstrations.\n`,
     },
     {
       path: 'docs/SETUP.md',
-      content: `# Setup and verification\n\nInstall Node 24+ and pnpm ${PNPM} (\`npm install --global pnpm@${PNPM}\`), then run the root README commands. Install from the workspace root so both apps share one lockfile. The compiler does not contact package registries; the first install resolves transitive dependencies. Review and commit that lockfile before CI or deployment.\n\n- Web: Vite development server; host apps/web/dist after building.\n- Mobile: Expo development server; compatible native device/emulator needed for runtime verification. Build bundles only the native platforms declared by the graph. Store signing/submission is a separate step.\n- \`pnpm exec turbo run build --dry=json\` inspects the build tasks.\n\nThe current export uses the existing native modules and routes. Native auth/cloud is rejected until supported. Review dependency advisories and native SDK compatibility before publication. Never commit environment secrets. No connection to Studio is required to run this source.\n`,
+      content: `# Setup and verification\n\nInstall Node 24.15+ (24.x) or 26+ and pnpm ${PNPM} (\`npm install --global pnpm@${PNPM}\`), then run the root README commands. Install from the workspace root so both apps share one lockfile. The compiler does not contact package registries; the first install resolves transitive dependencies. Review and commit that lockfile before CI or deployment.\n\n- Web: Vite development server; host apps/web/dist after building.\n- Tests: \`pnpm test\` renders each web page and checks header navigation using Vitest/Testing Library in jsdom. Extend these smoke tests with application-specific interactions. They do not verify visual design, external services or native behavior.\n- CI: .github/workflows/verify.yml runs typecheck, tests and builds on pushes/pull requests. It requires pnpm-lock.yaml; no deployment or credentials are configured. Generated lint/format gates remain future work.\n- Mobile: Expo development server; compatible native device/emulator needed for runtime verification. Build bundles only the native platforms declared by the graph. Store signing/submission is a separate step.\n- \`pnpm exec turbo run build --dry=json\` inspects the build tasks.\n\nThe current export uses the existing native modules and routes. Native auth/cloud is rejected until supported. Review dependency advisories and native SDK compatibility before publication. Never commit environment secrets. No connection to Studio is required to run this source.\n`,
     },
     {
       path: 'docs/ARCHITECTURE.md',
@@ -90,6 +108,7 @@ export function compileWorkspace(graph: GraphInput, registry: BlockRegistry): Co
         '# Architecture\n\napps/web contains the React/Vite application; apps/mobile contains the Expo/React Native application. Each has its own entry point, package manifest, block source lock and wiring report. Source/configuration is copied from the existing validated target emitters. pnpm manages dependencies and Turbo schedules the build/typecheck scripts.\n\nWeb and native currently retain their own data runtimes and storage. They do not synchronize data. No backend or unused shared package is generated. Future shared packages must have a real consumer and a supported graph capability.\n\nThe root wiring-report.json hashes every emitted file except itself, including the nested reports. Each nested report separately hashes its application files, excluding that report. blockfw.lock.json inside each app records its block contracts and source digests.\n',
     },
   );
+  files.push(...checks.filter((file) => !file.path.startsWith('apps/')));
   const projectHash = hashFiles(files);
   files.push(
     jsonFile('wiring-report.json', { projectHash, target: 'workspace', ...ir.wiring.report }),

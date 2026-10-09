@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -18,6 +19,60 @@ const graph = (name = 'notes') =>
 const registry = loadDefaultRegistry();
 
 describe('workspace export', () => {
+  it('preserves the SaaS workspace source and audited ZIP golden fixture', async () => {
+    const baseline = JSON.parse(
+      readFileSync('packages/compiler/test/fixtures/phase1-saas.json', 'utf8'),
+    );
+    const input = graph('saas');
+    const compiled = compileWorkspace(input, registry);
+    const sha = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
+    expect(compiled.projectHash).toBe(baseline.projectHash);
+    expect(
+      Object.fromEntries(compiled.files.map((file) => [file.path, sha(file.content)])),
+    ).toEqual(baseline.files);
+    const directory = mkdtempSync(join(tmpdir(), 'blockfw-saas-'));
+    try {
+      const zip = join(directory, 'saas.zip');
+      const result = await exportZip(input, zip, 'workspace');
+      expect(result.audit).toEqual({ ok: true, violations: [] });
+      expect(sha(readFileSync(zip))).toBe(baseline.zipHash);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('includes executable web test dependencies and a least-privilege pinned CI workflow', () => {
+    const compiled = compileWorkspace(graph('saas'), registry);
+    const content = (path: string) => compiled.files.find((file) => file.path === path)!.content;
+    const root = JSON.parse(content('package.json'));
+    const web = JSON.parse(content('apps/web/package.json'));
+    expect(root.scripts.test).toBe('turbo run test');
+    expect(root.engines.node).toBe('^24.15.0 || >=26.0.0');
+    expect(web.scripts.test).toBe('vitest run');
+    expect(web.devDependencies).toMatchObject({
+      vitest: '5.0.3',
+      jsdom: '30.1.2',
+      '@testing-library/react': '16.3.3',
+      '@testing-library/dom': '10.4.2',
+    });
+    expect(JSON.parse(content('apps/web/tsconfig.json')).include).toContain('tests');
+    expect(JSON.parse(content('turbo.json')).tasks.test).toEqual({ outputs: [] });
+    expect(content('apps/web/tests/pages.test.tsx')).toContain('for (const page of graph.screens)');
+    const workflow = content('.github/workflows/verify.yml');
+    expect(workflow).toContain('contents: read');
+    expect(workflow).toContain('persist-credentials: false');
+    expect(workflow.match(/uses: [\w/-]+@[a-f0-9]{40}/g)).toHaveLength(2);
+    for (const command of [
+      'pnpm install --frozen-lockfile',
+      'pnpm typecheck',
+      'pnpm test',
+      'pnpm build',
+    ])
+      expect(workflow).toContain(command);
+    expect(workflow).not.toMatch(/pull_request_target|secrets\.|contents: write/);
+    expect(content('README.md')).toContain('pnpm test');
+    expect(JSON.parse(content('apps/mobile/package.json')).scripts.test).toBeUndefined();
+  });
   it('packages both runtimes with honest build commands, stable files and valid nested hashes', () => {
     const input = graph();
     const compiled = compileWorkspace(input, registry);

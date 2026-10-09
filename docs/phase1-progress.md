@@ -24,9 +24,19 @@ Final repository gates passed: typecheck, lint, 258 unit tests, Studio build and
 
 When using the ignored output directory in the example above, run `git init` inside that generated workspace before editing/building. Otherwise Turbo can inherit the parent repository's ignore rules and miss changed inputs. The standalone verification initialized that boundary and forced an uncached build. Restart a running Studio server after upgrading to load the new export API as well as the new UI.
 
+## Second increment: generated tests, CI and SaaS fixture
+
+Multi-target workspaces now include Vitest/Testing Library page and navigation smoke tests, a root `pnpm test` command, and a GitHub Actions workflow with pinned actions, read-only permissions and frozen-lockfile installation. Tests and configuration participate in nested/root hashes and ZIP audits. YAML secret scanning covers the workflow. Single-target output stays unchanged. See [ADR-0010](adr/0010-generated-workspace-tests.md) for licenses and limits.
+
+The [Launchpad example](../examples/saas/README.md) composes six existing blocks into a landing page, project dashboard and editor. Sample metrics are labeled; project briefs persist locally. Its initial golden fixture covers every emitted source file and audited ZIP without replacing any Phase 0 baseline.
+
+Independent SaaS verification passed both app typechecks, five generated DOM tests, Vite production build, and Android/iOS Hermes bundle builds. The browser acceptance script passed against development and production builds in Chromium and Firefox, including edit/reload persistence and phone-width overflow checking. A deliberately broken Hero renderer made the generated tests fail; restoring it returned them to green. The regenerated Notes workspace passed both typechecks and nine generated DOM tests. The GitHub-hosted workflow has not run. Native bundles do not establish device behavior.
+
+Final repository gates for this increment passed: typecheck, lint, 260 unit tests, Studio build and all 68 browser tests. Formatting checks passed for every changed file. Phase 0 hashes and ZIP baselines remain unchanged.
+
 ## Ordered remaining increments
 
-1. Golden SaaS landing/dashboard example; generated page smoke tests, CI and lint/format gates. Decompose the existing large runtime into readable feature/page files before claiming the plan's file-size target.
+1. Generated lint/format gates. Decompose the existing large runtime into readable feature/page files before claiming the plan's file-size target. Extend the functional SaaS fixture as the new UI stack lands.
 2. Shared design tokens and selected web/native primitives, adopting the approved libraries after checking the actual pinned Expo toolchain. Add independent export and accessibility checks with each migration.
 3. Nested component trees and slots across schema, operations, compiler and preview. Evaluate Puck's keyboard behavior, graph identity and shared history before making an editor commitment.
 4. Studio Flow/Design shell per the UI/UX specification, preserving existing editing, export and undo behavior. Do not expose unimplemented Data/Logic/Agents/Ship capabilities as working controls.

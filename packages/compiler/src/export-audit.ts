@@ -31,7 +31,18 @@ export const EXCLUDE_PATTERNS = [
 ];
 
 /** File extensions that are audited for secret-like content. */
-const AUDIT_EXTENSIONS = ['.ts', '.tsx', '.js', '.mjs', '.json', '.md', '.sql', '.example'];
+const AUDIT_EXTENSIONS = [
+  '.ts',
+  '.tsx',
+  '.js',
+  '.mjs',
+  '.json',
+  '.md',
+  '.sql',
+  '.example',
+  '.yml',
+  '.yaml',
+];
 
 /** Patterns that look like leaked secrets. */
 const SECRET_PATTERNS = [

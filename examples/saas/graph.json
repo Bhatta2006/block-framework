@@ -1,0 +1,128 @@
+{
+  "schemaVersion": "1",
+  "app": {
+    "name": "Launchpad",
+    "slug": "launchpad",
+    "version": "1.0.0",
+    "targets": ["web", "ios", "android"]
+  },
+  "theme": {
+    "primary": { "$type": "color", "$value": "#345E4F" },
+    "background": { "$type": "color", "$value": "#F8F9F5" },
+    "text": { "$type": "color", "$value": "#26372F" }
+  },
+  "pages": [
+    {
+      "id": "landing",
+      "title": "Overview",
+      "primaryComponent": "welcome",
+      "components": ["welcome", "benefits"]
+    },
+    {
+      "id": "dashboard",
+      "title": "Dashboard",
+      "primaryComponent": "projects",
+      "components": ["metrics", "summary", "projects"]
+    },
+    {
+      "id": "editor",
+      "title": "Project brief",
+      "navigation": false,
+      "primaryComponent": "editor",
+      "components": ["editor"]
+    }
+  ],
+  "components": [
+    {
+      "kind": "block",
+      "id": "welcome",
+      "type": "content.hero@1.0.0",
+      "config": {
+        "eyebrow": "LAUNCHPAD",
+        "title": "Make space for your next launch",
+        "body": "Keep project briefs and decisions together. Explore the local demo workspace before connecting production services.",
+        "ctaText": "Open workspace"
+      }
+    },
+    {
+      "kind": "block",
+      "id": "benefits",
+      "type": "content.text@1.0.0",
+      "config": {
+        "title": "From first idea to clear next steps",
+        "body": "Capture a brief, find it quickly, and return to it across sessions on this device. This example stores data locally; team accounts and shared cloud storage are not connected."
+      }
+    },
+    {
+      "kind": "block",
+      "id": "metrics",
+      "type": "stats.overview@1.0.0",
+      "config": {
+        "title": "Sample team metrics",
+        "stats": [
+          { "label": "Sample members", "value": "4" },
+          { "label": "Sample weekly reviews", "value": "3" }
+        ]
+      }
+    },
+    {
+      "kind": "block",
+      "id": "summary",
+      "type": "data.summary@1.0.0",
+      "config": {
+        "collectionKey": "briefs",
+        "title": "Project briefs",
+        "subtitle": "Stored on this device"
+      }
+    },
+    {
+      "kind": "block",
+      "id": "projects",
+      "type": "data.collection@1.0.0",
+      "config": {
+        "collectionKey": "briefs",
+        "title": "Your projects",
+        "subtitle": "A focused home for your next launch",
+        "createLabel": "New project brief",
+        "enableFolders": false,
+        "enableBackup": true,
+        "seedRecords": [
+          {
+            "id": "customer-portal",
+            "title": "Customer portal",
+            "body": "# Customer portal\n\n- [ ] Interview three customers\n- [ ] Outline the first release",
+            "tags": ["research"]
+          },
+          {
+            "id": "launch-checklist",
+            "title": "Launch checklist",
+            "body": "# Before launch\n\nReview accessibility, connect real services, and verify deployment.",
+            "tags": ["planning"]
+          }
+        ]
+      }
+    },
+    {
+      "kind": "block",
+      "id": "editor",
+      "type": "data.editor@1.0.0",
+      "config": { "collectionKey": "briefs", "title": "Project brief" }
+    }
+  ],
+  "data": { "entities": [], "relations": [], "policies": [], "seeds": [] },
+  "flows": [],
+  "services": [],
+  "agents": [],
+  "env": [],
+  "wires": [
+    {
+      "from": { "instance": "welcome", "event": "action.pressed" },
+      "to": { "screen": "dashboard" }
+    },
+    {
+      "from": { "instance": "projects", "event": "data.recordSelected" },
+      "to": { "screen": "editor", "instance": "editor", "port": "data.recordSelected" }
+    },
+    { "from": { "instance": "editor", "event": "data.closed" }, "to": { "screen": "dashboard" } }
+  ]
+}

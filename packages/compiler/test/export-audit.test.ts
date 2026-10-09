@@ -66,6 +66,12 @@ describe('export audit', () => {
   it('detects GitHub PATs', () => {
     const v = auditFileContent('src/config.ts', 'token = "github_pat_abc123_xyz789_1234567890"');
     expect(v.length).toBeGreaterThan(0);
+    expect(
+      auditFileContent('.github/workflows/verify.yml', 'TOKEN: ghp_012345678901234567890123'),
+    ).not.toEqual([]);
+    expect(
+      auditFileContent('pnpm-workspace.yaml', 'TOKEN: ghp_012345678901234567890123'),
+    ).not.toEqual([]);
   });
 
   it('detects absolute paths', () => {
