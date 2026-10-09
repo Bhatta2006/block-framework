@@ -31,6 +31,14 @@ Tamagui 2.7.7 (2026-08-15) supports React >=19 but package metadata lacks a lice
 
 Time box: three hours after reference migration. Render Hero, Collection and Account from real implementations with isolated data/cloud previews. Translate edits into graph operations; test ordering, selection, config edits, locked paths and round-trip stability. Puck data is never saved as an independent app graph. Record integration cost, React compatibility, bundle impact and limitations here; no product commitment follows automatically.
 
+### Evaluation findings
+
+Completed in an isolated `spikes/puck-design` harness on 2026-10-09 within the three-hour box. Puck 0.23.0 builds with React 19.2.3 and the three authored reference components. Chromium and Firefox checks render all three, select Hero, edit its config title, and publish exactly one typed setBlockField proposal without page errors. Adapter assertions apply config/order operations, round-trip graph → Puck → operations without extra edits, and reject type/locked-field changes. Neither the Studio dependency graph nor its canonical storage was changed.
+
+The final isolated build has an 846.61 kB editor chunk (252.22 kB gzip), a 293.28 kB application chunk (90.65 kB gzip), and 112.49 kB CSS (18.79 kB gzip), plus smaller lazy chunks. These are whole-harness measurements, not a claimed incremental Studio cost. Lazy loading and scoped styles/iframe composition would be necessary. Puck supplies useful selection, fields, overlays and ordering; connecting its permissions/history/slots to our canonical graph still needs an adapter. Insertion/deletion/duplication are disabled for this three-instance evaluation.
+
+Actual issues: responsive field presentations can produce duplicate input IDs; browser tests target the visible control. Full keyboard drag and accessibility audit, slot routing, arbitrary block addition and persistent Studio history are not proven. Data records are transient and Account deliberately uses its existing disabled Design preview. Recommendation: keep Puck optional for later evaluation; do not replace the current editor until these gaps and graph identity mapping are tested. The existing Studio still passes all 68 browsers after reference migration.
+
 Sources: [shadcn license](https://github.com/shadcn-ui/ui/blob/main/LICENSE.md), [RN Reusables license](https://github.com/founded-labs/react-native-reusables/blob/main/LICENSE), [NativeWind](https://github.com/nativewind/nativewind), [Puck license](https://github.com/puckeditor/puck/blob/main/LICENSE), [Style Dictionary](https://github.com/style-dictionary/style-dictionary).
 
 ## Reuse research

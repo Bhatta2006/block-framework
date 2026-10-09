@@ -2,6 +2,8 @@
 
 Block Framework now includes **Block Studio**, a visual node-based workspace for building responsive web applications and native mobile applications. Connect pages on a flow canvas, compose blocks inside each page, preview the behavior, and export an editable codebase.
 
+See the [Phase 0 implementation and handoff](docs/phase0-summary.md) for graph v1, typed editing operations, compiler architecture, v2 block packages, evaluation results and remaining limits.
+
 ## Start the studio
 
 ```sh

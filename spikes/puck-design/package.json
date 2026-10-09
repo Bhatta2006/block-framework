@@ -1,0 +1,24 @@
+{
+  "name": "blockfw-puck-design-spike",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "node generate.mjs",
+    "dev": "vite --host 127.0.0.1 --port 5201",
+    "prebuild": "node generate.mjs",
+    "build": "tsc --noEmit && vite build",
+    "test": "node --experimental-strip-types test.ts",
+    "browser": "node browser.mjs"
+  },
+  "dependencies": {
+    "@puckeditor/core": "0.23.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "vite": "6.4.4",
+    "typescript": "5.9.3",
+    "@types/react": "19.2.3",
+    "@types/react-dom": "19.2.3"
+  }
+}
