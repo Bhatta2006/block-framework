@@ -135,6 +135,8 @@ The compiler remains deterministic. Optional AI edits use an independent gateway
 
 See [the detailed project map](docs/project-map.md) for architecture, contracts, data flow, HTTP APIs, current limits, and the next product layers.
 
+For the complete implemented capability inventory, all 19 block contracts, application workflows, architecture, service setup, verification, and release boundaries, read [the full project overview](docs/project-overview.md).
+
 ## Verify
 
 ```sh
