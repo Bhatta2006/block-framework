@@ -52,6 +52,8 @@ Open **AI assistant → Build with blocks** and describe the app. The builder ag
 
 Approved builds become recipes, saved beside the app library as `<project>.recipes.json`. Asking for the same app again replays the recipe without model tokens. Without a live model, only the labelled recorded example **A book club app** builds. See [ADR-0013](docs/adr/0013-builder-agent.md).
 
+Measure the builder with `node packages/benchmark/dist/cli.js build --provider recorded|env|chatgpt --out report.json`. Ten app requests are each built and compiled, then checked for the expected blocks, honest missing-capability reports, retries and tokens per page against the plan's budget of under 20k tokens for a 10-page app. A final task replays an approved build and must cost zero tokens. `recorded` replays three fixed blueprints offline; `env` uses `BLOCKFW_LLM_*`; `chatgpt` uses the ChatGPT account connected in Studio.
+
 ## The block library
 
 | Block             | Purpose                                    | Variants              |

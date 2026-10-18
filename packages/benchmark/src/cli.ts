@@ -17,6 +17,9 @@ import { canonicalJson } from '@blockfw/blocks';
 import { runBenchmark, TASKS } from './runner.js';
 import { runAgentBenchmark, runLiveModelCheck } from './agent-tasks.js';
 import { runExportBenchmark } from './export-tasks.js';
+import { recordedBuildProvider, runBuildBenchmark, summarizeBuilds } from './build-tasks.js';
+import { providerFromEnv, type LlmProvider } from '@blockfw/agent';
+import { ChatGPTConnection } from '@blockfw/builder';
 
 function cmdList(): void {
   console.log('id   category      expects       title');
@@ -90,19 +93,71 @@ async function cmdRun(agent: string, out: string | undefined): Promise<void> {
   process.exit(totalFailed > 0 ? 1 : 0);
 }
 
+/** Builder benchmark: recorded (CI), env (BLOCKFW_LLM_*) or chatgpt (Studio's saved ChatGPT login). */
+async function cmdBuild(providerName: string, out: string | undefined): Promise<void> {
+  const recorded = recordedBuildProvider();
+  let provider: LlmProvider = recorded;
+  let connection: ChatGPTConnection | undefined;
+  if (providerName === 'env') {
+    provider = providerFromEnv(process.env, recorded);
+    if (provider.name === 'recorded') {
+      console.error('error: set BLOCKFW_LLM_PROVIDER, _BASE_URL, _API_KEY and _MODEL first.');
+      process.exit(1);
+    }
+  } else if (providerName === 'chatgpt') {
+    connection = new ChatGPTConnection();
+    provider = connection.provider(provider);
+    if (provider.name !== 'chatgpt') {
+      console.error('error: connect ChatGPT and choose a model in Studio → AI assistant first.');
+      process.exit(1);
+    }
+  } else if (providerName !== 'recorded') {
+    console.error(`error: unknown provider "${providerName}" (recorded, env, chatgpt).`);
+    process.exit(2);
+  }
+  console.log(`builder benchmark · ${provider.name} · ${provider.model}`);
+  const reports = await runBuildBenchmark(provider);
+  for (const t of reports) {
+    console.log(
+      `${t.pass ? 'PASS' : 'FAIL'} ${t.id} ${t.title} (${t.wallMs}ms, ${t.tokensIn + t.tokensOut} tokens)`,
+    );
+    for (const n of t.notes) console.log(`       ${n}`);
+  }
+  const summary = summarizeBuilds(reports);
+  console.log(
+    `\n${summary.passed}/${summary.builds} builds passed · ${summary.totalTokens} tokens · ` +
+      `${summary.tokensPerPage} tokens/page (${summary.withinBudget ? 'within' : 'over'} the 20k per 10 pages target) · ` +
+      `mean attempts ${summary.meanAttempts.toFixed(2)} · recipe replay ${summary.recipeReplayFree ? 'free' : 'FAILED'}`,
+  );
+  if (out) {
+    const path = resolve(out);
+    writeFileSync(
+      path,
+      `${canonicalJson({ provider: provider.name, model: provider.model, summary, reports })}\n`,
+    );
+    console.log(`report written to ${path}`);
+  }
+  connection?.close();
+  process.exit(summary.passed === summary.builds && summary.recipeReplayFree ? 0 : 1);
+}
+
 function main(): void {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
     options: {
       agent: { type: 'string', default: 'mock' },
+      provider: { type: 'string', default: 'recorded' },
       out: { type: 'string', short: 'o' },
     },
   });
   const [command] = positionals;
   if (command === 'list') cmdList();
   else if (command === 'run') cmdRun(values.agent ?? 'mock', values.out);
+  else if (command === 'build') void cmdBuild(values.provider ?? 'recorded', values.out);
   else {
-    console.error('usage:\n  bf-bench list\n  bf-bench run --agent mock --out <file>');
+    console.error(
+      'usage:\n  bf-bench list\n  bf-bench run --agent mock --out <file>\n  bf-bench build --provider recorded|env|chatgpt --out <file>',
+    );
     process.exit(2);
   }
 }

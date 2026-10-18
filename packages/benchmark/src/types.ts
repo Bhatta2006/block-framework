@@ -63,7 +63,9 @@ export type TaskCategory =
   | 'determinism'
   | 'invalid'
   | 'agent'
-  | 'export';
+  | 'export'
+  | 'build'
+  | 'recipe';
 
 export interface BenchmarkTask {
   id: string;
