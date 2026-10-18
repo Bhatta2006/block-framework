@@ -1459,6 +1459,39 @@ p {
   color: #a99570;
   margin: 6px 0;
 }
+.warning.missing-block {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.warning.missing-block button {
+  flex-shrink: 0;
+}
+.block-contract th {
+  width: 30%;
+}
+.block-card {
+  white-space: pre-wrap;
+  font-size: 11px;
+  margin: 8px 0 0;
+}
+.block-checks {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+  font-size: 12px;
+}
+.block-checks li {
+  padding: 3px 0;
+  overflow-wrap: anywhere;
+}
+.block-checks .ok {
+  color: #769562;
+}
+.block-checks .failed {
+  color: #b17764;
+}
 .warning.error {
   color: #b17764;
 }

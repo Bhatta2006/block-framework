@@ -6,3 +6,4 @@ export * from './gateway.js';
 export * from './blueprint.js';
 export * from './recipes.js';
 export * from './app-builder.js';
+export * from './block-author.js';

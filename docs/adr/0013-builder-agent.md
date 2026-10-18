@@ -23,7 +23,7 @@ Users approve builds. An approved blueprint is stored in a recipe book keyed by 
 
 ## Coverage and the block-author path
 
-Requested capabilities with no suitable block are reported, not improvised: "Needs a new block: Live discussion chat (proposed chat.thread)". The block-author agent (§16.3: contract review, `sdk scaffold`, sandboxed verification, private registry) consumes this list. It is **not** implemented in this increment.
+Requested capabilities with no suitable block are reported, not improvised: "Needs a new block: Live discussion chat (proposed chat.thread)". The block-author agent (§16.3) consumes this list; its first increment (contract review, `sdk scaffold`, automatic SDK and compile gates, experimental registration) is recorded in ADR-0014.
 
 ## Limits
 

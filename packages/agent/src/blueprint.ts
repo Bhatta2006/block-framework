@@ -87,9 +87,12 @@ function resolveType(registry: BlockRegistry, type: unknown): string | undefined
   return versions.length === 1 ? versions[0] : undefined;
 }
 
-function sampleConfig(blockId: string): Record<string, unknown> {
+function sampleConfig(registry: BlockRegistry, type: string): Record<string, unknown> {
+  const block = registry.get(type);
   try {
-    return structuredClone(unwrapSampleConfig(loadSampleConfig(blockId)));
+    return structuredClone(
+      unwrapSampleConfig(block.experimental?.sampleConfig ?? loadSampleConfig(block.manifest.id)),
+    );
   } catch {
     return {};
   }
@@ -147,7 +150,7 @@ export function assembleBlueprint(
       const manifest = registry.get(type).manifest;
       if (item.variant !== undefined && !manifest.variants.includes(item.variant))
         errors.push(`${at}: unknown variant "${item.variant}" (${manifest.variants.join(', ')})`);
-      const config = sampleConfig(manifest.id);
+      const config = sampleConfig(registry, type);
       const properties = ((manifest.config as { properties?: Record<string, object> }).properties ??
         {}) as Record<string, object>;
       for (const [key, value] of Object.entries(item.config ?? {})) {

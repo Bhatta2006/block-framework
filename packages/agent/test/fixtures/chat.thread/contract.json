@@ -1,0 +1,50 @@
+{
+  "manifest": {
+    "id": "chat.thread",
+    "version": "1.0.0",
+    "category": "social",
+    "variants": ["bubbles", "compact"],
+    "defaultVariant": "bubbles",
+    "config": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "messages": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "properties": {
+              "author": { "type": "string", "minLength": 1 },
+              "text": { "type": "string", "minLength": 1 },
+              "mine": { "type": "boolean" }
+            },
+            "required": ["author", "text"],
+            "additionalProperties": false
+          }
+        },
+        "placeholder": { "type": "string" },
+        "sendLabel": { "type": "string" }
+      },
+      "required": ["messages"],
+      "additionalProperties": false
+    },
+    "defaultConfig": { "title": "", "placeholder": "Write a message", "sendLabel": "Send" },
+    "ports": { "emits": [], "consumes": [] },
+    "editSurface": ["config.title", "config.messages", "config.placeholder", "config.sendLabel"],
+    "locked": ["ports", "variants"]
+  },
+  "sampleConfig": {
+    "variant": "bubbles",
+    "config": {
+      "title": "Sunday discussion",
+      "messages": [
+        { "author": "Asha", "text": "Chapter 3 changed how I see the narrator." },
+        { "author": "You", "text": "Same. The letter scene was the turning point.", "mine": true }
+      ],
+      "placeholder": "Share a thought",
+      "sendLabel": "Send"
+    }
+  },
+  "summary": "Message thread with author bubbles and a local message composer."
+}

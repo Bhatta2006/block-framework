@@ -41,6 +41,43 @@ export interface AgentBuildPlan {
   liveModel: boolean;
 }
 
+/** A capability the builder found no library block for. */
+export type MissingCapability = NonNullable<AgentBuildPlan['missing']>[number];
+
+/** A block contract awaiting review (see packages/agent/src/block-author.ts). */
+export interface AgentBlockDraft {
+  ok: boolean;
+  contractId?: string;
+  contract?: {
+    manifest: {
+      id: string;
+      version: string;
+      category: string;
+      variants: string[];
+      editSurface: string[];
+      ports: BlockPorts;
+    };
+    sampleConfig: { variant?: string; config: Record<string, unknown> };
+    summary: string;
+  };
+  card?: { markdown: string; estimatedTokens: number };
+  errors?: string[];
+  attempts?: number;
+  usage?: Array<{ inputTokens: number; outputTokens: number }>;
+  provider: string;
+  liveModel: boolean;
+}
+
+/** Result of implementing an approved contract. */
+export interface AgentBlockResult {
+  ok: boolean;
+  block?: string;
+  checks?: Array<{ name: string; ok: boolean; issues: string[] }>;
+  errors?: string[];
+  attempts?: number;
+  usage?: Array<{ inputTokens: number; outputTokens: number }>;
+}
+
 export type WireTarget = Wire['to'];
 export interface OperationHistory {
   undo: number;
@@ -172,6 +209,16 @@ export const api = {
     activeAppId = result.activeId;
     return result;
   },
+  agentBlockDraft: (missing: MissingCapability) =>
+    req<AgentBlockDraft>('/api/agent/blocks/draft', {
+      method: 'POST',
+      body: JSON.stringify(missing),
+    }),
+  agentBlockImplement: (contractId: string) =>
+    req<AgentBlockResult>('/api/agent/blocks/implement', {
+      method: 'POST',
+      body: JSON.stringify({ contractId }),
+    }),
   agentUndo: () => req<{ ok: boolean; errors?: string[] }>('/api/agent/undo', { method: 'POST' }),
   agentUsage: () =>
     req<{

@@ -86,9 +86,10 @@ function portLines(manifest: BlockManifest): { emits: string; consumes: string }
   };
 }
 
-export function generateCard(manifest: BlockManifest): BlockCard {
+/** `summary` replaces the curated line, e.g. for experimental blocks. */
+export function generateCard(manifest: BlockManifest, summary?: string): BlockCard {
   const id = `${manifest.id}@${manifest.version}`;
-  const summary = SUMMARIES[manifest.id] ?? `${manifest.category} block.`;
+  summary ??= SUMMARIES[manifest.id] ?? `${manifest.category} block.`;
   const variants = manifest.variants.map((v) =>
     v === manifest.defaultVariant ? `${v} (default)` : v,
   );

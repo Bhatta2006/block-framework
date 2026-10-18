@@ -45,6 +45,16 @@ export interface RegisteredBlock {
   manifest: BlockManifest;
   render: BlockTemplate;
   package?: { contract: BlockPackage; sources: BlockSource[] };
+  /** Set for agent-authored blocks that passed the SDK gates but are not promoted yet. */
+  experimental?: ExperimentalInfo;
+}
+
+/** Metadata for an experimental (agent-authored, not yet promoted) block. */
+export interface ExperimentalInfo {
+  /** One-line purpose shown on the block card. */
+  summary: string;
+  /** Wrapped sample config (`{ variant?, config }`); the library source tree has none. */
+  sampleConfig: unknown;
 }
 
 export class BlockRegistry {
@@ -72,6 +82,20 @@ export class BlockRegistry {
       }
     }
     this.blocks.set(key, { manifest, render, ...(pack ? { package: pack } : {}) });
+  }
+
+  /** Register an agent-authored block that passed the SDK gates (plan §16.3). */
+  registerExperimental(manifestJson: unknown, render: BlockTemplate, info: ExperimentalInfo): void {
+    this.register(manifestJson, render);
+    const manifest = manifestJson as BlockManifest;
+    this.blocks.get(`${manifest.id}@${manifest.version}`)!.experimental = structuredClone(info);
+  }
+
+  /** A copy that can take candidate blocks without changing this registry. */
+  clone(): BlockRegistry {
+    const copy = new BlockRegistry();
+    for (const [key, block] of this.blocks) copy.blocks.set(key, block);
+    return copy;
   }
 
   /** Look up a block by `id@semver` type reference. Throws on unknown types. */

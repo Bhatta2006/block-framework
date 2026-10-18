@@ -16,7 +16,7 @@
  * Capabilities no block covers are reported in `missing` (the coverage
  * report) instead of being improvised; they are the block-author path.
  */
-import { generateAllCards, loadDefaultRegistry, type BlockRegistry } from '@blockfw/blocks';
+import { generateCard, loadDefaultRegistry, type BlockRegistry } from '@blockfw/blocks';
 import {
   diffProjectOperations,
   validateProjectGraph,
@@ -78,10 +78,17 @@ Rules (violations are rejected and you will be retried with the reason):
 - Blocks described as requiring the cloud backend only work in cloud apps; do not use them otherwise.
 - Prefer few pages that each do one job. The first page is the entry point.`;
 
+/** Cards for every registered block, including experimental ones the block author added. */
 function catalog(registry: BlockRegistry): string {
-  const ids = new Set(registry.keys());
-  return generateAllCards()
-    .filter((card) => ids.has(card.block))
+  return registry
+    .entries()
+    .map((entry) =>
+      generateCard(
+        entry.manifest,
+        entry.experimental && `Experimental (agent-authored): ${entry.experimental.summary}`,
+      ),
+    )
+    .sort((a, b) => (a.block < b.block ? -1 : 1))
     .map((card) => card.markdown)
     .join('\n\n');
 }

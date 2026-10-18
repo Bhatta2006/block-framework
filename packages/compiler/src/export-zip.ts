@@ -11,7 +11,7 @@ import { shouldExclude, auditFileContent, type AuditResult } from './export-audi
 import { compileProject } from './compile.js';
 import { compileWebProject } from './compile-web.js';
 import { compileWorkspace } from './compile-workspace.js';
-import { loadDefaultRegistry } from '@blockfw/blocks';
+import { loadDefaultRegistry, type BlockRegistry } from '@blockfw/blocks';
 import { migrateGraph, type GraphInput } from '@blockfw/manifest';
 
 export interface ExportResult {
@@ -31,8 +31,9 @@ export async function exportZip(
   graph: GraphInput,
   zipPath: string,
   target: ExportTarget = 'mobile',
+  /** Defaults to the library; Studio passes its registry so experimental blocks export too. */
+  registry: BlockRegistry = loadDefaultRegistry(),
 ): Promise<ExportResult> {
-  const registry = loadDefaultRegistry();
   const result =
     target === 'workspace'
       ? compileWorkspace(graph, registry)

@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { api, type AgentBuildPlan } from './api';
+import {
+  api,
+  type AgentBlockDraft,
+  type AgentBlockResult,
+  type AgentBuildPlan,
+  type MissingCapability,
+} from './api';
 
 interface Props {
   /** Reload the workspace after an applied build (a new app may now be active). */
@@ -14,6 +20,10 @@ const EXAMPLE = 'A book club app';
  * reviewed pages and coverage report → apply. Only library blocks are used;
  * capabilities without a block are listed as needing new blocks. Approved
  * builds are recorded, so the same request replays without model tokens.
+ *
+ * A missing capability can become a block: the block author drafts a
+ * contract for review, then scaffolds, fills and verifies the block and
+ * registers it as experimental for the next build.
  */
 export function BuildView({ onBuilt, disabled }: Props) {
   const [request, setRequest] = useState('');
@@ -22,6 +32,7 @@ export function BuildView({ onBuilt, disabled }: Props) {
   const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [authoring, setAuthoring] = useState<Authoring | null>(null);
 
   const plan = async () => {
     setBusy(true);
@@ -55,6 +66,43 @@ export function BuildView({ onBuilt, disabled }: Props) {
       onBuilt();
     } catch (e) {
       setErrors([e instanceof Error ? e.message : String(e)]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const draftBlock = async (missing: MissingCapability) => {
+    const capability = missing.capability;
+    setBusy(true);
+    setAuthoring({ capability, errors: [] });
+    try {
+      const draft = await api.agentBlockDraft(missing);
+      setAuthoring(
+        draft.ok && draft.contractId
+          ? { capability, draft, errors: [] }
+          : { capability, errors: draft.errors ?? ['Drafting failed'] },
+      );
+    } catch (e) {
+      setAuthoring({ capability, errors: [e instanceof Error ? e.message : String(e)] });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const approveBlock = async () => {
+    if (!authoring?.draft?.contractId) return;
+    const { capability, draft } = authoring;
+    setBusy(true);
+    try {
+      const result = await api.agentBlockImplement(draft.contractId!);
+      setAuthoring({
+        capability,
+        draft,
+        result,
+        errors: result.ok ? [] : (result.errors ?? ['Block checks failed']),
+      });
+    } catch (e) {
+      setAuthoring({ capability, draft, errors: [e instanceof Error ? e.message : String(e)] });
     } finally {
       setBusy(false);
     }
@@ -171,10 +219,19 @@ export function BuildView({ onBuilt, disabled }: Props) {
           {pending.missing && pending.missing.length > 0 && (
             <div className="warnings">
               {pending.missing.map((m, i) => (
-                <div key={i} className="warning">
-                  Needs a new block: {m.capability}
-                  {m.proposedBlock ? ` (proposed ${m.proposedBlock})` : ''}
-                  {m.reason ? ` — ${m.reason}` : ''}. Not included in this build.
+                <div key={i} className="warning missing-block">
+                  <span>
+                    Needs a new block: {m.capability}
+                    {m.proposedBlock ? ` (proposed ${m.proposedBlock})` : ''}
+                    {m.reason ? ` — ${m.reason}` : ''}. Not included in this build.
+                  </span>
+                  <button
+                    onClick={() => void draftBlock(m)}
+                    disabled={locked}
+                    aria-label={`Create block for ${m.capability}`}
+                  >
+                    Create block
+                  </button>
                 </div>
               ))}
             </div>
@@ -184,6 +241,15 @@ export function BuildView({ onBuilt, disabled }: Props) {
               {w}
             </div>
           ))}
+          {authoring && (
+            <BlockAuthoring
+              authoring={authoring}
+              busy={busy}
+              locked={Boolean(locked)}
+              onApprove={() => void approveBlock()}
+              onClose={() => setAuthoring(null)}
+            />
+          )}
           <div className="agent-actions">
             <button className="primary" onClick={() => void apply()} disabled={locked}>
               {pending.mode === 'new' ? 'Create app' : 'Add to this app'}
@@ -192,6 +258,131 @@ export function BuildView({ onBuilt, disabled }: Props) {
               Discard
             </button>
           </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+interface Authoring {
+  capability: string;
+  draft?: AgentBlockDraft;
+  result?: AgentBlockResult;
+  errors: string[];
+}
+
+const portName = (port: string | { event?: string; port?: string }) =>
+  typeof port === 'string' ? port : (port.event ?? port.port ?? '');
+
+/** Contract review for a missing capability, then the authored block's gate results. */
+function BlockAuthoring({
+  authoring: { capability, draft, result, errors },
+  busy,
+  locked,
+  onApprove,
+  onClose,
+}: {
+  authoring: Authoring;
+  busy: boolean;
+  locked: boolean;
+  onApprove: () => void;
+  onClose: () => void;
+}) {
+  const contract = draft?.contract;
+  const ports = contract?.manifest.ports as
+    | { emits?: Array<string | { event: string }>; consumes?: Array<string | { port: string }> }
+    | undefined;
+  const tokens = [...(draft?.usage ?? []), ...(result?.usage ?? [])].reduce(
+    (a, u) => a + u.inputTokens + u.outputTokens,
+    0,
+  );
+  return (
+    <section className="agent-plan block-contract" aria-label="New block">
+      <div className="agent-plan-head">
+        <span className={`provider-badge ${draft?.liveModel ? 'live' : 'recorded'}`}>
+          {draft?.liveModel ? '● live model' : '◌ recorded demo'}
+        </span>
+        <span className="token-note">{tokens} tokens</span>
+      </div>
+      <h3 className="build-title">
+        New block for {capability}
+        {contract && (
+          <>
+            {' · '}
+            <code>{contract.manifest.id}</code>
+          </>
+        )}
+      </h3>
+      {!draft && busy && <p className="hint">Drafting the block contract…</p>}
+      {contract && !result && (
+        <>
+          <p className="hint">{contract.summary}</p>
+          <table>
+            <tbody>
+              <tr>
+                <th>Variants</th>
+                <td>{contract.manifest.variants.join(', ')}</td>
+              </tr>
+              <tr>
+                <th>Builder can set</th>
+                <td>{contract.manifest.editSurface.join(', ') || 'nothing'}</td>
+              </tr>
+              <tr>
+                <th>Emits</th>
+                <td>{(ports?.emits ?? []).map(portName).join(', ') || 'nothing'}</td>
+              </tr>
+              <tr>
+                <th>Consumes</th>
+                <td>{(ports?.consumes ?? []).map(portName).join(', ') || 'nothing'}</td>
+              </tr>
+            </tbody>
+          </table>
+          {draft?.card && (
+            <details>
+              <summary>Block card the builder will read</summary>
+              <pre className="block-card">{draft.card.markdown}</pre>
+            </details>
+          )}
+          <p className="hint">
+            Approving scaffolds the block, has the model write its template, then runs manifest
+            validation, sdk test, sdk validate and a compile. The block is added as experimental
+            only if every check passes.
+          </p>
+          <div className="agent-actions">
+            <button className="primary" onClick={onApprove} disabled={locked}>
+              {busy ? 'Building block…' : 'Approve contract'}
+            </button>
+            <button onClick={onClose} disabled={locked}>
+              Discard
+            </button>
+          </div>
+        </>
+      )}
+      {result?.checks && (
+        <ul className="block-checks" aria-label="Block checks">
+          {result.checks.map((check) => (
+            <li key={check.name} className={check.ok ? 'ok' : 'failed'}>
+              {check.ok ? '✓' : '✗'} {check.name}
+              {check.issues.length > 0 && `: ${check.issues.join('; ')}`}
+            </li>
+          ))}
+        </ul>
+      )}
+      {result?.ok && (
+        <p className="dialog-feedback">
+          {result.block} is now an experimental library block. Plan the build again to use it.
+        </p>
+      )}
+      {errors.map((e, i) => (
+        <div key={i} className="warning error">
+          {e}
+        </div>
+      ))}
+      {(result || errors.length > 0) && (
+        <div className="agent-actions">
+          <button onClick={onClose} disabled={locked}>
+            Close
+          </button>
         </div>
       )}
     </section>

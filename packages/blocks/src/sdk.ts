@@ -310,9 +310,17 @@ export function loadSampleConfig(blockId: string): unknown {
   return JSON.parse(raw);
 }
 
-/** Write a scaffolded block's three files. Returns the created paths. */
-export function writeScaffoldedBlock(id: string, category: string): string[] {
-  const dir = join(blockSourceDir(), id);
+/**
+ * Write a scaffolded block's three files. Returns the created paths.
+ * `root` defaults to the library source tree; the block-author agent passes
+ * its experimental directory instead.
+ */
+export function writeScaffoldedBlock(
+  id: string,
+  category: string,
+  root: string = blockSourceDir(),
+): string[] {
+  const dir = join(root, id);
   mkdirSync(dir, { recursive: true });
   const files: [string, string][] = [
     ['manifest.json', scaffoldManifest(id, category)],

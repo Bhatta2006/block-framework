@@ -1,5 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { request as httpRequest } from 'node:http';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { startCanvasServer } from '@blockfw/builder';
 import type { BuilderProject } from '@blockfw/builder';
 import {
@@ -11,6 +14,8 @@ import {
 import { ChatGPTConnection } from '../src/chatgpt.js';
 
 let base = '';
+// Workspace block registry shared by the restart check in the block-author test.
+const blocksDir = mkdtempSync(join(tmpdir(), 'blockfw-server-blocks-'));
 const connection = new ChatGPTConnection({
   vault: { read: () => undefined, write: () => undefined, close: () => undefined },
   fetch: async () => {
@@ -21,7 +26,12 @@ const connection = new ChatGPTConnection({
 beforeAll(async () => {
   // Ephemeral port; no project file (uses the bundled example graph).
   vi.stubEnv('BLOCKFW_LLM_PROVIDER', 'recorded');
-  base = await startCanvasServer({ port: 0, host: '127.0.0.1', chatgpt: connection });
+  base = await startCanvasServer({
+    port: 0,
+    host: '127.0.0.1',
+    chatgpt: connection,
+    blocksDir,
+  });
 });
 
 afterAll(() => {
@@ -376,6 +386,108 @@ describe('canvas server API', () => {
       await api('POST', '/api/apps/' + catalog.activeId + '/activate');
       await api('DELETE', '/api/apps/' + applied.json.activeId);
       expect((await api<BuilderProject>('GET', '/api/project')).json).toEqual(original);
+    },
+  );
+
+  it(
+    'authors a missing block after contract review and offers it to the next build',
+    { timeout: 30_000 },
+    async () => {
+      const blockIds = async () =>
+        (await api<Array<{ id: string }>>('GET', '/api/blocks')).json.map((block) => block.id);
+      expect((await api('POST', '/api/agent/blocks/draft', {})).status).toBe(400);
+      type Drafted = {
+        ok: boolean;
+        contractId: string;
+        contract: { manifest: { id: string; editSurface: string[] } };
+        card: { markdown: string };
+      };
+      const drafted = (
+        await api<Drafted>('POST', '/api/agent/blocks/draft', {
+          capability: 'Live discussion chat',
+          proposedBlock: 'chat.thread',
+          reason: 'No chat or realtime block exists in the library yet.',
+        })
+      ).json;
+      expect(drafted.ok).toBe(true);
+      expect(drafted.contract.manifest.id).toBe('chat.thread');
+      expect(drafted.contract.manifest.editSurface).toContain('config.messages');
+      expect(drafted.card.markdown).toContain('# chat.thread@1.0.0');
+      // The contract is only a proposal until it is approved.
+      expect(await blockIds()).not.toContain('chat.thread@1.0.0');
+
+      type Implemented = {
+        ok: boolean;
+        block: string;
+        checks: Array<{ name: string; ok: boolean }>;
+      };
+      const implemented = await api<Implemented>('POST', '/api/agent/blocks/implement', {
+        contractId: drafted.contractId,
+      });
+      expect(implemented.status).toBe(200);
+      expect(implemented.json.ok).toBe(true);
+      expect(implemented.json.block).toBe('chat.thread@1.0.0');
+      expect(implemented.json.checks.map((check) => [check.name, check.ok])).toEqual([
+        ['manifest', true],
+        ['sdk test', true],
+        ['sdk validate', true],
+        ['compile', true],
+      ]);
+      const reused = await api<{ errors: string[] }>('POST', '/api/agent/blocks/implement', {
+        contractId: drafted.contractId,
+      });
+      expect(reused.status).toBe(400);
+
+      const blocks = (
+        await api<Array<{ id: string; experimental?: boolean; defaultConfig: object }>>(
+          'GET',
+          '/api/blocks',
+        )
+      ).json;
+      const thread = blocks.find((block) => block.id === 'chat.thread@1.0.0');
+      expect(thread?.experimental).toBe(true);
+      expect(thread?.defaultConfig).toHaveProperty('messages');
+      const cards = (await api<Array<{ block: string; markdown: string }>>('GET', '/api/cards'))
+        .json;
+      expect(cards.find((card) => card.block === 'chat.thread@1.0.0')?.markdown).toContain(
+        'Message thread',
+      );
+      expect(
+        (await api<{ blocks: Array<{ id: string }> }>('GET', '/api/agent/blocks')).json.blocks,
+      ).toEqual([expect.objectContaining({ id: 'chat.thread' })]);
+
+      // Apps can use the block and Studio exports them with it.
+      const original = (await api<BuilderProject>('GET', '/api/project')).json;
+      const withThread = structuredClone(original);
+      withThread.graph.blocks.push({
+        id: 'talk',
+        type: 'chat.thread@1.0.0',
+        config: { messages: [{ author: 'Asha', text: 'Hello' }] },
+      });
+      withThread.graph.screens.push({
+        id: 'discussion',
+        title: 'Discussion',
+        block: 'talk',
+        position: { x: 0, y: 0 },
+      });
+      expect((await api('PUT', '/api/project', withThread)).status).toBe(200);
+      const zip = await fetch(`${base}/api/export/zip?target=web`, { method: 'POST' });
+      expect(zip.status).toBe(200);
+      expect(zip.headers.get('content-type')).toBe('application/zip');
+      expect((await api('PUT', '/api/project', original)).status).toBe(200);
+
+      // Saved blocks load again the next time Studio starts.
+      const restarted = await startCanvasServer({
+        port: 0,
+        host: '127.0.0.1',
+        chatgpt: connection,
+        blocksDir,
+      });
+      const reloaded = (await (await fetch(`${restarted}/api/blocks`)).json()) as Array<{
+        id: string;
+        experimental?: boolean;
+      }>;
+      expect(reloaded.find((block) => block.id === 'chat.thread@1.0.0')?.experimental).toBe(true);
     },
   );
 });

@@ -1,5 +1,12 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { readFileSync, existsSync, writeFileSync, mkdirSync, unlinkSync } from 'node:fs';
+import {
+  readFileSync,
+  existsSync,
+  writeFileSync,
+  mkdirSync,
+  mkdtempSync,
+  unlinkSync,
+} from 'node:fs';
 import { join, dirname, resolve, extname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
@@ -12,6 +19,7 @@ import {
   type ExportTarget,
 } from '@blockfw/compiler';
 import {
+  generateCard,
   loadDefaultRegistry,
   loadSampleConfig,
   unwrapSampleConfig,
@@ -28,7 +36,6 @@ import {
 import {
   applyCascade,
   emptyProject,
-  generateAllCards,
   markTouched,
   validateProfile,
   type BuilderProfile,
@@ -37,11 +44,13 @@ import {
 import {
   AgentGateway,
   AppBuilder,
+  BlockAuthor,
   RecipeBook,
   RecordedProvider,
   providerFromEnv,
   type AgentPlan,
   type AppBlueprint,
+  type BlockContract,
   type BuildMode,
   type Recipe,
 } from '@blockfw/agent';
@@ -105,6 +114,8 @@ export interface CanvasOptions {
   projectPath?: string;
   host?: string;
   chatgpt?: ChatGPTConnection;
+  /** Workspace block registry for agent-authored blocks. Default: `<project>.blocks`. */
+  blocksDir?: string;
 }
 
 function loadProjectFile(path: string): StoredBuilderProject {
@@ -199,7 +210,7 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
   const environmentProvider = providerFromEnv(process.env, demoRecorded);
   const localHost = ['127.0.0.1', 'localhost', '::1'].includes(opts.host ?? '127.0.0.1');
   let provider = environmentProvider;
-  let gateway = new AgentGateway<BuilderProject>(provider, {}, operationLog());
+  let gateway = new AgentGateway<BuilderProject>(provider, { registry }, operationLog());
   let usingLiveModel = provider.name !== 'recorded';
   let connectionRevision = 0;
   // Pending plans awaiting human review: planId -> { plan, projectHash }.
@@ -242,6 +253,26 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
     }
   >();
 
+  // Block author: turns a "Needs a new block" capability into an experimental
+  // block (contract review → scaffold + template → SDK and compile gates).
+  // Experimental blocks live next to the project file, or in a temp dir.
+  const blocksRoot = opts.blocksDir
+    ? resolve(opts.blocksDir)
+    : opts.projectPath
+      ? resolve(opts.projectPath) + '.blocks'
+      : mkdtempSync(join(tmpdir(), 'blockfw-blocks-'));
+  const blockAuthor = new BlockAuthor(provider, {
+    root: blocksRoot,
+    registry,
+    verify: (graph, candidate) => {
+      compileWebProject(graph, candidate);
+      compileProject(graph, candidate);
+    },
+  });
+  const reloaded = blockAuthor.loadExperimental();
+  for (const error of reloaded.errors) console.warn(`experimental block skipped: ${error}`);
+  const pendingContracts = new Map<string, BlockContract>();
+
   const connection = opts.chatgpt ?? new ChatGPTConnection();
   const syncConnection = () => {
     connectionRevision++;
@@ -253,8 +284,10 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
     usingLiveModel = provider.name !== 'recorded';
     gateway.setProvider(provider);
     appBuilder.setProvider(provider);
+    blockAuthor.setProvider(provider);
     pendingPlans.clear();
     pendingBuilds.clear();
+    pendingContracts.clear();
   };
   connection.setOnChange(syncConnection);
   syncConnection();
@@ -340,7 +373,7 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
       }
       const activateProject = () => {
         project = structuredClone(apps.project);
-        gateway = new AgentGateway<BuilderProject>(provider, {}, operationLog());
+        gateway = new AgentGateway<BuilderProject>(provider, { registry }, operationLog());
         pendingPlans.clear();
         pendingBuilds.clear();
         lastAgentFingerprint = null;
@@ -513,7 +546,12 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
         // M4: One-click ZIP export. Compiles the current project, audits, zips.
         const { exportZip } = await import('@blockfw/compiler');
         const tmpZip = join(tmpdir(), `bf-export-${Date.now()}.zip`);
-        const result = await exportZip(apps.storedProject.graph, tmpZip, exportTarget(url));
+        const result = await exportZip(
+          apps.storedProject.graph,
+          tmpZip,
+          exportTarget(url),
+          registry,
+        );
         if (!result.audit.ok) {
           json(res, 500, { ok: false, violations: result.audit.violations });
           return;
@@ -529,7 +567,14 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
         return;
       }
       if (path === '/api/cards' && req.method === 'GET') {
-        json(res, 200, generateAllCards());
+        json(
+          res,
+          200,
+          registry
+            .entries()
+            .map((e) => generateCard(e.manifest, e.experimental?.summary))
+            .sort((a, b) => (a.block < b.block ? -1 : 1)),
+        );
         return;
       }
       if (path === '/api/blocks' && req.method === 'GET') {
@@ -544,9 +589,12 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
             configSchema: e.manifest.config,
             defaultConfig: {
               ...e.manifest.defaultConfig,
-              ...unwrapSampleConfig(loadSampleConfig(e.manifest.id)),
+              ...unwrapSampleConfig(
+                e.experimental?.sampleConfig ?? loadSampleConfig(e.manifest.id),
+              ),
             },
             ports: e.manifest.ports,
+            ...(e.experimental ? { experimental: true } : {}),
           })),
         );
         return;
@@ -738,6 +786,76 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
         } catch (e) {
           json(res, 400, { ok: false, errors: [e instanceof Error ? e.message : String(e)] });
         }
+        return;
+      }
+      if (path.startsWith('/api/agent/blocks') && !localHost) {
+        // Authoring runs generated template code in this process (no sandbox yet; ADR 0014).
+        json(res, 403, { error: 'Block authoring is available only from this local Studio.' });
+        return;
+      }
+      if (path === '/api/agent/blocks' && req.method === 'GET') {
+        json(res, 200, { blocks: blockAuthor.list() });
+        return;
+      }
+      if (path === '/api/agent/blocks/draft' && req.method === 'POST') {
+        const body = JSON.parse(await readBody(req)) as {
+          capability?: string;
+          proposedBlock?: string;
+          reason?: string;
+        };
+        const capability = (body.capability ?? '').toString().slice(0, 300);
+        if (!capability.trim()) {
+          json(res, 400, { ok: false, errors: ['capability is required'] });
+          return;
+        }
+        const revision = connectionRevision;
+        const activeProvider = provider;
+        const result = await blockAuthor.draftContract({
+          capability,
+          ...(body.proposedBlock ? { proposedBlock: String(body.proposedBlock).slice(0, 80) } : {}),
+          ...(body.reason ? { reason: String(body.reason).slice(0, 500) } : {}),
+        });
+        if (revision !== connectionRevision) {
+          json(res, 409, { error: 'AI connection changed while drafting. Draft again.' });
+          return;
+        }
+        const reply = {
+          ok: result.ok,
+          errors: result.errors,
+          attempts: result.attempts,
+          usage: result.usage,
+          provider: activeProvider.name,
+          liveModel: activeProvider.name !== 'recorded',
+        };
+        if (!result.ok || !result.contract) {
+          json(res, 200, reply);
+          return;
+        }
+        const contractId = `block-${++planSeq}`;
+        pendingContracts.set(contractId, result.contract);
+        json(res, 200, { ...reply, contractId, contract: result.contract, card: result.card });
+        return;
+      }
+      if (path === '/api/agent/blocks/implement' && req.method === 'POST') {
+        const body = JSON.parse(await readBody(req)) as { contractId?: string };
+        const pending = body.contractId ? pendingContracts.get(body.contractId) : undefined;
+        if (!pending) {
+          json(res, 400, { ok: false, errors: ['unknown or expired contractId'] });
+          return;
+        }
+        pendingContracts.delete(body.contractId as string);
+        const activeProvider = provider;
+        const result = await blockAuthor.implement(pending);
+        json(res, 200, {
+          ok: result.ok,
+          block: result.block,
+          checks: result.checks,
+          errors: result.errors,
+          attempts: result.attempts,
+          usage: result.usage,
+          provider: activeProvider.name,
+          liveModel: activeProvider.name !== 'recorded',
+        });
         return;
       }
       if (path === '/api/agent/undo' && req.method === 'POST') {

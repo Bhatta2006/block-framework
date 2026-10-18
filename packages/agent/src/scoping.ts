@@ -15,7 +15,7 @@
  */
 import { Ajv } from 'ajv';
 import { blockDesignSchema, elementDesignSchema } from '@blockfw/manifest';
-import { loadDefaultRegistry } from '@blockfw/blocks';
+import { loadDefaultRegistry, type BlockRegistry } from '@blockfw/blocks';
 import type { AgentEditOp, AgentPlan, AgentProject } from './types.js';
 
 const ajv = new Ajv({ allErrors: true, strict: true });
@@ -39,8 +39,8 @@ export function checkScope(
   project: AgentProject,
   plan: AgentPlan,
   scope: EditScope = {},
+  registry: BlockRegistry = loadDefaultRegistry(),
 ): ScopeCheck {
-  const registry = loadDefaultRegistry();
   const accepted: AgentEditOp[] = [];
   const rejections: string[] = [];
 
@@ -58,7 +58,7 @@ export function checkScope(
 
 function checkOp(
   project: AgentProject,
-  registry: ReturnType<typeof loadDefaultRegistry>,
+  registry: BlockRegistry,
   op: AgentEditOp,
   scope: EditScope,
 ): string | null {

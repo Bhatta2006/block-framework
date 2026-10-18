@@ -25,12 +25,15 @@ import type {
 import { planPrompt } from './planner.js';
 import { checkScope, parsePlan, type EditScope } from './scoping.js';
 import { ProjectOperationLog, type ProjectOperation } from '@blockfw/manifest';
+import { loadDefaultRegistry, type BlockRegistry } from '@blockfw/blocks';
 
 export interface GatewayOptions {
   /** Max LLM attempts per edit (1 + retries). Default 3. */
   maxAttempts?: number;
   /** Max tokens the model may emit per call. Default 800. */
   maxTokens?: number;
+  /** Block contracts to edit against, e.g. Studio's registry with experimental blocks. */
+  registry?: BlockRegistry;
 }
 
 function getPath(project: AgentProject, path: string): unknown {
@@ -52,6 +55,7 @@ export class AgentGateway<P extends AgentProject = AgentProject> {
   private maxAttempts: number;
   private maxTokens: number;
   private operations: ProjectOperationLog<P>;
+  private registry: BlockRegistry;
   readonly usageLog: TokenUsage[] = [];
 
   constructor(
@@ -62,6 +66,7 @@ export class AgentGateway<P extends AgentProject = AgentProject> {
     this.provider = provider;
     this.maxAttempts = opts.maxAttempts ?? 3;
     this.maxTokens = opts.maxTokens ?? 800;
+    this.registry = opts.registry ?? loadDefaultRegistry();
     this.operations = operations;
   }
 
@@ -78,6 +83,7 @@ export class AgentGateway<P extends AgentProject = AgentProject> {
       instruction,
       scope.focusInstanceIds,
       scope.allowTouched,
+      this.registry,
     );
     const usage: TokenUsage[] = [];
     let lastErrors: string[] = [];
@@ -112,7 +118,7 @@ export class AgentGateway<P extends AgentProject = AgentProject> {
         lastErrors = [`unparseable output: ${error}`];
         continue;
       }
-      const check = checkScope(project, plan, scope);
+      const check = checkScope(project, plan, scope, this.registry);
       if (check.accepted.length > 0 || (plan.ops.length === 0 && check.ok)) {
         // Proceed with the valid ops. Rejections are reported but don't
         // block the valid ones (e.g., a touched path is skipped, others apply).
@@ -148,7 +154,7 @@ export class AgentGateway<P extends AgentProject = AgentProject> {
     plan: AgentPlan,
     scope: EditScope = {},
   ): { project: P; applied: AgentEditOp[] } {
-    const check = checkScope(project, plan, scope);
+    const check = checkScope(project, plan, scope, this.registry);
     if (!check.ok) {
       throw new Error(`refusing to apply: ${check.rejections.join('; ')}`);
     }

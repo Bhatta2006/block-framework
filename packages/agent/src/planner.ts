@@ -3,7 +3,7 @@
  * prompt the model sees. Context stays small by design — block cards
  * (≤300 tokens each), not manifests or codebases.
  */
-import { loadDefaultRegistry } from '@blockfw/blocks';
+import { loadDefaultRegistry, type BlockRegistry } from '@blockfw/blocks';
 import type { AgentProject } from './types.js';
 
 export interface PlannedPrompt {
@@ -37,8 +37,8 @@ export function planPrompt(
   instruction: string,
   focusInstanceIds?: string[],
   allowTouched = false,
+  registry: BlockRegistry = loadDefaultRegistry(),
 ): PlannedPrompt {
-  const registry = loadDefaultRegistry();
   const inScope = project.graph.blocks.filter(
     (b) => !focusInstanceIds || focusInstanceIds.includes(b.id),
   );
