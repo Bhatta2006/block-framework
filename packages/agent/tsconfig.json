@@ -2,5 +2,5 @@
   "compilerOptions": { "composite": true, "outDir": "dist", "rootDir": "src", "types": ["node"] },
   "extends": "../../tsconfig.base.json",
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../manifest" }, { "path": "../blocks" }]
+  "references": [{ "path": "../manifest" }, { "path": "../blocks" }, { "path": "../wiring" }]
 }

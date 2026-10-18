@@ -21,6 +21,26 @@ export interface BlockSummary {
   ports: BlockPorts;
 }
 
+/** A builder-agent plan awaiting review (see packages/agent/src/app-builder.ts). */
+export interface AgentBuildPlan {
+  ok: boolean;
+  planId?: string;
+  mode?: 'new' | 'extend';
+  source?: 'recipe' | 'model';
+  appName?: string;
+  pages?: Array<{ id: string; title: string; blocks: string[] }>;
+  operations?: number;
+  coverage?: { blocks: number; pages: number };
+  missing?: Array<{ capability: string; proposedBlock?: string; reason?: string }>;
+  rationale?: string;
+  warnings?: string[];
+  errors?: string[];
+  attempts?: number;
+  usage?: Array<{ inputTokens: number; outputTokens: number }>;
+  provider: string;
+  liveModel: boolean;
+}
+
 export type WireTarget = Wire['to'];
 export interface OperationHistory {
   undo: number;
@@ -140,6 +160,18 @@ export const api = {
       '/api/agent/apply',
       { method: 'POST', body: JSON.stringify({ planId }) },
     ),
+  agentBuild: (request: string, mode: 'new' | 'extend') =>
+    req<AgentBuildPlan>('/api/agent/build', {
+      method: 'POST',
+      body: JSON.stringify({ request, mode }),
+    }),
+  agentBuildApply: async (planId: string) => {
+    const result = await req<
+      AppCatalog & { ok: boolean; mode: 'new' | 'extend'; project: BuilderProject }
+    >('/api/agent/build/apply', { method: 'POST', body: JSON.stringify({ planId }) });
+    activeAppId = result.activeId;
+    return result;
+  },
   agentUndo: () => req<{ ok: boolean; errors?: string[] }>('/api/agent/undo', { method: 'POST' }),
   agentUsage: () =>
     req<{

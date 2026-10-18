@@ -34,7 +34,17 @@ import {
   type BuilderProfile,
   type BuilderProject,
 } from './index.js';
-import { AgentGateway, RecordedProvider, providerFromEnv, type AgentPlan } from '@blockfw/agent';
+import {
+  AgentGateway,
+  AppBuilder,
+  RecipeBook,
+  RecordedProvider,
+  providerFromEnv,
+  type AgentPlan,
+  type AppBlueprint,
+  type BuildMode,
+  type Recipe,
+} from '@blockfw/agent';
 
 import { AppLibrary, type StoredBuilderProject } from './apps.js';
 import { ChatGPTConnection } from './chatgpt.js';
@@ -135,6 +145,15 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
   };
 
   saveProject();
+  /** Dry-run compile every target the graph can export; throws with the compiler's reason. */
+  const verifyGraph = (graph: GraphInput, cloud: boolean) => {
+    compileWebProject(graph, registry);
+    if (
+      !cloud &&
+      (graph.schemaVersion === '0' || graph.app.targets.some((target) => target !== 'web'))
+    )
+      compileProject(graph, registry);
+  };
   const fingerprint = () => createHash('sha256').update(canonicalJson(project)).digest('hex');
   let lastAgentFingerprint: string | null = null;
   const operationLogs = new Map<string, ProjectOperationLog<BuilderProject>>();
@@ -149,12 +168,7 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
             const errors = validateProfile(next.profile);
             if (errors.length) throw new Error(errors.join('; '));
           }
-          compileWebProject(graph, registry);
-          if (
-            !next.graph.app.cloud &&
-            (graph.schemaVersion === '0' || graph.app.targets.some((target) => target !== 'web'))
-          )
-            compileProject(graph, registry);
+          verifyGraph(graph, Boolean(next.graph.app.cloud));
           const before = project;
           project = next;
           try {
@@ -200,6 +214,34 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
   >();
   let planSeq = 0;
 
+  // Builder agent: assembles apps from library blocks. Approved builds are
+  // kept as recipes next to the app library so repeats cost zero tokens.
+  const recipesPath = opts.projectPath ? resolve(opts.projectPath) + '.recipes.json' : undefined;
+  let storedRecipes: Record<string, Recipe> = {};
+  try {
+    if (recipesPath && existsSync(recipesPath))
+      storedRecipes = JSON.parse(readFileSync(recipesPath, 'utf8')) as Record<string, Recipe>;
+  } catch {
+    storedRecipes = {};
+  }
+  const appBuilder = new AppBuilder(provider, new RecipeBook(storedRecipes), {
+    registry,
+    verify: (graph) => verifyGraph(graph, Boolean(graph.app.cloud)),
+  });
+  const pendingBuilds = new Map<
+    string,
+    {
+      request: string;
+      mode: BuildMode;
+      key: string;
+      blueprint: AppBlueprint;
+      graph: BuilderProject['graph'];
+      operations: ProjectOperation[];
+      projectHash: string;
+      appId: string;
+    }
+  >();
+
   const connection = opts.chatgpt ?? new ChatGPTConnection();
   const syncConnection = () => {
     connectionRevision++;
@@ -210,7 +252,9 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
     }
     usingLiveModel = provider.name !== 'recorded';
     gateway.setProvider(provider);
+    appBuilder.setProvider(provider);
     pendingPlans.clear();
+    pendingBuilds.clear();
   };
   connection.setOnChange(syncConnection);
   syncConnection();
@@ -298,6 +342,7 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
         project = structuredClone(apps.project);
         gateway = new AgentGateway<BuilderProject>(provider, {}, operationLog());
         pendingPlans.clear();
+        pendingBuilds.clear();
         lastAgentFingerprint = null;
         saveProject();
       };
@@ -309,13 +354,7 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
           const inputGraph = structuredClone(body.project.graph);
           body.project.graph = legacyGraph(body.project.graph);
           validateProjectGraph(body.project.graph);
-          compileWebProject(inputGraph, registry);
-          if (
-            !body.project.graph.app.cloud &&
-            (inputGraph.schemaVersion === '0' ||
-              inputGraph.app.targets.some((target) => target !== 'web'))
-          )
-            compileProject(inputGraph, registry);
+          verifyGraph(inputGraph, Boolean(body.project.graph.app.cloud));
           apps.create({ ...body.project, graph: inputGraph });
           activateProject();
           json(res, 201, { ...apps.list(), project });
@@ -594,6 +633,108 @@ export async function startCanvasServer(opts: CanvasOptions): Promise<string> {
           project = next;
           lastAgentFingerprint = fingerprint();
           json(res, 200, { ok: true, applied, usage: gateway.usageLog.slice(-1) });
+        } catch (e) {
+          json(res, 400, { ok: false, errors: [e instanceof Error ? e.message : String(e)] });
+        }
+        return;
+      }
+      if (path === '/api/agent/build' && req.method === 'POST') {
+        const body = JSON.parse(await readBody(req)) as { request?: string; mode?: string };
+        const request = (body.request ?? '').toString().slice(0, 2000);
+        const mode: BuildMode = body.mode === 'extend' ? 'extend' : 'new';
+        if (!request.trim()) {
+          json(res, 400, { ok: false, errors: ['request is required'] });
+          return;
+        }
+        const planAppId = apps.activeId;
+        const planHash = fingerprint();
+        const revision = connectionRevision;
+        const activeProvider = provider;
+        const result = await appBuilder.build(structuredClone(project), request, mode);
+        if (
+          apps.activeId !== planAppId ||
+          fingerprint() !== planHash ||
+          revision !== connectionRevision
+        ) {
+          json(res, 409, { error: 'App or AI connection changed while planning. Plan again.' });
+          return;
+        }
+        const reply = {
+          ok: result.ok,
+          source: result.source,
+          errors: result.errors,
+          warnings: result.warnings,
+          missing: result.missing,
+          coverage: result.coverage,
+          rationale: result.blueprint?.rationale,
+          attempts: result.attempts,
+          usage: result.usage,
+          provider: activeProvider.name,
+          liveModel: activeProvider.name !== 'recorded',
+        };
+        const { graph, operations, blueprint } = result;
+        if (!result.ok || !graph || !operations || !blueprint) {
+          json(res, 200, reply);
+          return;
+        }
+        const planId = `build-${++planSeq}`;
+        pendingBuilds.set(planId, {
+          request,
+          mode,
+          key: result.recipeKey!,
+          blueprint,
+          graph,
+          operations,
+          projectHash: planHash,
+          appId: planAppId,
+        });
+        json(res, 200, {
+          ...reply,
+          planId,
+          mode,
+          appName: graph.app.name,
+          pages: graph.screens.map((screen) => ({
+            id: screen.id,
+            title: screen.title,
+            blocks: (screen.blocks ?? [screen.block]).map(
+              (id) => graph.blocks.find((block) => block.id === id)?.type ?? id,
+            ),
+          })),
+          operations: operations.length,
+        });
+        return;
+      }
+      if (path === '/api/agent/build/apply' && req.method === 'POST') {
+        const body = JSON.parse(await readActiveBody()) as { planId?: string };
+        const pending = body.planId ? pendingBuilds.get(body.planId) : undefined;
+        if (!pending) {
+          json(res, 400, { ok: false, errors: ['unknown or expired planId'] });
+          return;
+        }
+        pendingBuilds.delete(body.planId as string);
+        if (fingerprint() !== pending.projectHash || pending.appId !== apps.activeId) {
+          json(res, 409, {
+            ok: false,
+            errors: ['project changed since the build was planned; plan it again'],
+          });
+          return;
+        }
+        try {
+          if (pending.mode === 'extend') {
+            project = gateway.applyOperations(project, pending.operations);
+            lastAgentFingerprint = fingerprint();
+          } else {
+            // A new app goes into the library like "Create app"; the current app is untouched.
+            verifyGraph(pending.graph, false);
+            apps.create(emptyProject(pending.graph));
+            activateProject();
+          }
+          appBuilder.remember(pending.key, pending.request, pending.mode, pending.blueprint);
+          if (recipesPath) {
+            mkdirSync(dirname(recipesPath), { recursive: true });
+            writeFileSync(recipesPath, JSON.stringify(appBuilder.recipes, null, 2) + '\n');
+          }
+          json(res, 200, { ok: true, mode: pending.mode, ...apps.list(), project });
         } catch (e) {
           json(res, 400, { ok: false, errors: [e instanceof Error ? e.message : String(e)] });
         }

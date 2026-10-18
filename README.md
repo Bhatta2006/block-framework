@@ -46,6 +46,12 @@ Styles are saved under `block.design.elements`. The shared web runtime applies s
 
 **Ask AI to edit this block** selects that block in the AI assistant. Choose **All blocks** for app-wide changes. The assistant can edit declared content fields (including quiz questions), variants, and element designs. To revise previously customized fields, explicitly select the overwrite checkbox for that request, then review the diff. In **AI assistant → Continue with ChatGPT**, eligible users can connect their ChatGPT account, authorize plan usage, and choose a model without configuring an API key. Studio remembers the connection using protected local storage. See [ChatGPT connection setup](docs/chatgpt-connection.md). Alternatively, configure `BLOCKFW_LLM_PROVIDER=openai-compatible`, `BLOCKFW_LLM_BASE_URL`, `BLOCKFW_LLM_MODEL`, and `BLOCKFW_LLM_API_KEY` before starting the server. Recorded demo responses do not provide arbitrary AI design generation.
 
+## Build an app from a prompt
+
+Open **AI assistant → Build with blocks** and describe the app. The builder agent assembles it only from library blocks. It writes page content, chooses variants, wires navigation and checks that the result compiles. You review the pages, the blocks on each page, and a coverage report before anything changes. **New app** adds a separate app to your library; **Add pages to this app** extends the current one, and a single Undo reverts the whole build. Features with no matching block appear as "Needs a new block" and are left out rather than improvised.
+
+Approved builds become recipes, saved beside the app library as `<project>.recipes.json`. Asking for the same app again replays the recipe without model tokens. Without a live model, only the labelled recorded example **A book club app** builds. See [ADR-0013](docs/adr/0013-builder-agent.md).
+
 ## The block library
 
 | Block             | Purpose                                    | Variants              |

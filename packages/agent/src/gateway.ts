@@ -164,6 +164,14 @@ export class AgentGateway<P extends AgentProject = AgentProject> {
     return { project: next, applied: check.accepted };
   }
 
+  /**
+   * Apply reviewed builder operations (see AppBuilder) as one agent entry,
+   * so a whole build undoes in a single step like a scoped edit.
+   */
+  applyOperations(project: P, operations: readonly ProjectOperation[]): P {
+    return this.operations.apply(project, operations, 'agent');
+  }
+
   /** Revert the most recent applied edit. Returns null when nothing to undo. */
   undo(): P | null {
     if (this.operations.lastSource !== 'agent') return null;

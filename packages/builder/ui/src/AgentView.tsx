@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, type BuilderProject } from './api';
+import { BuildView } from './BuildView';
 import { ChatGPTSettings } from './ChatGPTSettings';
 
 interface Props {
@@ -130,11 +131,6 @@ export function AgentView({ onChanged, project, blockId }: Props) {
 
   return (
     <div className="agent-view">
-      <h2>AI edit</h2>
-      <p className="hint">
-        Edit content, variants, or element styles in one block or across your app. Review the
-        proposed changes before applying.
-      </p>
       <ChatGPTSettings
         onChanged={connectionChanged}
         disabled={busy}
@@ -142,10 +138,24 @@ export function AgentView({ onChanged, project, blockId }: Props) {
       />
       {!live && (
         <p className="dialog-feedback">
-          Recorded demo mode. Free-form AI customization requires a configured live model. Manual
-          design controls work without a model.
+          Recorded demo mode. Free-form AI building and customization require a configured live
+          model; try the example request to see a recorded build. Manual design controls work
+          without a model.
         </p>
       )}
+      <BuildView
+        disabled={busy}
+        onBuilt={() => {
+          setPending(null);
+          onChanged();
+          void refreshUsage();
+        }}
+      />
+      <h2>AI edit</h2>
+      <p className="hint">
+        Edit content, variants, or element styles in one block or across your app. Review the
+        proposed changes before applying.
+      </p>
       <label className="field">
         <span>Edit scope</span>
         <select

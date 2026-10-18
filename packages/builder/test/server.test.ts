@@ -332,4 +332,50 @@ describe('canvas server API', () => {
     expect((await api('POST', '/api/agent/undo')).status).toBe(409);
     expect((await api<BuilderProject>('GET', '/api/project')).json).toEqual(manual);
   });
+
+  it(
+    'builds a new library app from a prompt and replays the approved build as a recipe',
+    { timeout: 30_000 },
+    async () => {
+      const catalog = (await api<{ activeId: string }>('GET', '/api/apps')).json;
+      const original = (await api<BuilderProject>('GET', '/api/project')).json;
+      type Planned = {
+        ok: boolean;
+        planId: string;
+        source: string;
+        usage: unknown[];
+        pages: Array<{ id: string; blocks: string[] }>;
+        missing: Array<{ capability: string }>;
+      };
+      const planned = (
+        await api<Planned>('POST', '/api/agent/build', { request: 'A book club app' })
+      ).json;
+      expect(planned.ok).toBe(true);
+      expect(planned.source).toBe('model');
+      expect(planned.pages.map((page) => page.id)).toEqual(['welcome', 'books', 'book', 'notes']);
+      expect(planned.missing[0]?.capability).toBe('Live discussion chat');
+      // Planning changes nothing until the build is approved.
+      expect((await api<BuilderProject>('GET', '/api/project')).json).toEqual(original);
+
+      const applied = await api<{ activeId: string; project: BuilderProject }>(
+        'POST',
+        '/api/agent/build/apply',
+        { planId: planned.planId },
+      );
+      expect(applied.status).toBe(200);
+      expect(applied.json.activeId).not.toBe(catalog.activeId);
+      expect(applied.json.project.graph.app.name).toBe('Book Club');
+      expect((await api<{ ok: boolean }>('POST', '/api/compile?target=web')).json.ok).toBe(true);
+
+      const replay = (
+        await api<Planned>('POST', '/api/agent/build', { request: 'a book club app.' })
+      ).json;
+      expect(replay.source).toBe('recipe');
+      expect(replay.usage).toEqual([]);
+
+      await api('POST', '/api/apps/' + catalog.activeId + '/activate');
+      await api('DELETE', '/api/apps/' + applied.json.activeId);
+      expect((await api<BuilderProject>('GET', '/api/project')).json).toEqual(original);
+    },
+  );
 });

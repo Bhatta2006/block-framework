@@ -18,6 +18,12 @@
       "matchUserIncludes": "friendlier cta",
       "outputTokens": 40,
       "response": "{\"ops\":[{\"path\":\"block:b1.config.ctaText\",\"value\":\"Come on in!\"}],\"rationale\":\"Single friendly CTA change.\"}"
+    },
+    {
+      "inputTokens": 3600,
+      "matchUserIncludes": "Request: A book club app",
+      "outputTokens": 520,
+      "response": "{\"app\":{\"name\":\"Book Club\"},\"pages\":[{\"id\":\"welcome\",\"title\":\"Welcome\",\"blocks\":[{\"id\":\"intro\",\"type\":\"content.hero@1.0.0\",\"config\":{\"eyebrow\":\"BOOK CLUB\",\"title\":\"Read more, together\",\"body\":\"Pick this month's book, follow the schedule and keep your reading notes in one place.\",\"ctaText\":\"See the books\"}},{\"id\":\"how\",\"type\":\"content.text@1.0.0\",\"config\":{\"title\":\"How it works\",\"body\":\"One book a month, a weekly reading goal and a short discussion every Sunday.\"}}]},{\"id\":\"books\",\"title\":\"Books\",\"blocks\":[{\"id\":\"shelf\",\"type\":\"home.list@1.0.0\",\"variant\":\"grid\",\"config\":{\"title\":\"On the shelf\",\"subtitle\":\"Tap a book for details\"}}]},{\"id\":\"book\",\"title\":\"Book\",\"navigation\":false,\"blocks\":[{\"id\":\"about\",\"type\":\"content.detail@1.0.0\",\"config\":{\"ctaText\":\"Back to books\"}}]},{\"id\":\"notes\",\"title\":\"Reading notes\",\"blocks\":[{\"id\":\"notelist\",\"type\":\"data.collection@1.0.0\",\"config\":{\"collectionKey\":\"reading-notes\",\"title\":\"Reading notes\",\"subtitle\":\"Saved on this device\",\"createLabel\":\"New note\"}}]}],\"wires\":[{\"from\":{\"block\":\"intro\",\"event\":\"action.pressed\"},\"to\":{\"page\":\"books\"}},{\"from\":{\"block\":\"shelf\",\"event\":\"home.itemSelected\"},\"to\":{\"page\":\"book\",\"block\":\"about\"}},{\"from\":{\"block\":\"about\",\"event\":\"content.action\"},\"to\":{\"page\":\"books\"}}],\"missing\":[{\"capability\":\"Live discussion chat\",\"proposedBlock\":\"chat.thread\",\"reason\":\"No chat or realtime block exists in the library yet.\"}],\"rationale\":\"Recorded demo: landing, book catalog, book detail and persistent reading notes assembled from library blocks.\"}"
     }
   ]
 }
