@@ -53,8 +53,10 @@ M4 extends M3 (Agent Gateway) with:
 
 ## Quick start
 
+**Prerequisites:** Node.js 20 or newer and npm. Install [Expo Go](https://expo.dev/go) on your phone if you want to run the generated app there.
+
 ```bash
-npm install
+npm ci             # install the exact dependency versions in package-lock.json
 npm run build      # tsc -b (project references, topological)
 npm test           # vitest, 84 tests (unit + headless render)
 npm run lint
