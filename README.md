@@ -24,7 +24,7 @@ M4 extends M3 (Agent Gateway) with:
    (9/10 passed).
 4. **Gateway improvement** — partial acceptance: valid ops apply even if some
    are rejected (e.g., touched paths are skipped, not blocking).
-9. **Block Cards** — deterministic ≤300-token summaries of every block.
+5. **Block Cards** — deterministic ≤300-token summaries of every block.
 
 ## Packages
 
