@@ -84,6 +84,20 @@ cd /tmp/bf-app && npm install && npx expo start
 node packages/benchmark/dist/cli.js run --agent mock --out results.json
 ```
 
+### Windows PowerShell
+
+Run these commands from the repository root after completing the quick-start
+install and build:
+
+```powershell
+node packages/compiler/dist/cli.js compile examples/full-app/graph.json --out out\bf-app --spine examples/full-app/spine.json
+Set-Location out\bf-app
+npm install
+npx expo start
+```
+
+Scan the displayed QR code with Expo Go on your phone.
+
 ## Block SDK
 
 ```bash
