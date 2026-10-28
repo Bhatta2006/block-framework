@@ -151,14 +151,17 @@ deep link) and are excluded from reachability warnings:
 { "id": "s6", "block": "b6", "title": "Progress", "lane": "tabs" }
 ```
 
-## What M2 deliberately does not include
+## Backend boundaries
 
-- **No LLM integration.** There is intentionally no model code path; that is
-  the experiment. The Agent Gateway arrives in M3.
-- **No real backend calls.** Supabase is now a real generated client + real
-  migration SQL, but the anon key is yours to provide; auth and billing
-  remain **labeled mocks**, flagged in the wiring report on every build.
-- **No canvas UI, no preview server.** Those are Milestones 2–3.
+- Email authentication and billing in the example blocks are labeled mocks;
+  they do not authenticate users or charge payments.
+- Entity Spine generates a Supabase client, migration, and database types, but
+  does not connect the example blocks to a production database automatically.
+  The generated app needs `EXPO_PUBLIC_SUPABASE_URL` and
+  `EXPO_PUBLIC_SUPABASE_ANON_KEY` configured before it can use Supabase.
+- The Agent Gateway can use a live model when configured. The M4 report records
+  that live-model verification was skipped; its agent results use the recorded
+  provider.
 
 ## Benchmark baseline (for later)
 
