@@ -65,6 +65,9 @@ npm run typecheck  # build + test-file typecheck
 bash scripts/ci.sh # full clean-install CI: build, tests, benchmark, emitted-app typecheck + Metro export
 ```
 
+The npm commands work in PowerShell, Command Prompt, and Unix shells. The full
+CI script requires Bash; on Windows, run it from Git Bash or WSL.
+
 ```bash
 # Validate a graph and print its wiring report
 node packages/compiler/dist/cli.js validate examples/full-app/graph.json
