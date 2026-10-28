@@ -18,10 +18,11 @@ M4 extends M3 (Agent Gateway) with:
 1. **One-click ZIP export** — `blockc export` or the ⬇ Export ZIP button.
    Audited (no secrets, no scratch, no absolute paths). The README works
    from a clean machine.
-2. **Android build guide** — EAS Build vs local Gradle vs Expo Go, compared
-   on reliability, speed, cost, and setup. `expo prebuild` verified.
-3. **Demo package** — runbook, reset script, failure-mode plan, 10x rehearsal
-   (9/10 passed).
+2. **[Android build guide](docs/android-build-guide.md)** — EAS Build vs local
+   Gradle vs Expo Go, compared on reliability, speed, cost, and setup.
+   `expo prebuild` verified.
+3. **[Demo package](docs/demo-runbook.md)** — runbook, reset script, failure-mode
+   plan, 10x rehearsal (9/10 passed).
 4. **Gateway improvement** — partial acceptance: valid ops apply even if some
    are rejected (e.g., touched paths are skipped, not blocking).
 5. **Block Cards** — deterministic ≤300-token summaries of every block.
